@@ -1,6 +1,6 @@
 ---
 enabled: true
-max_runs_per_day: 4
+max_runs_per_day: 8
 runs_today: 0
 runs_today_date: 2026-05-22
 budget_left_usd: 5.0
