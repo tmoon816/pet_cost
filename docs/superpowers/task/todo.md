@@ -53,7 +53,7 @@ approved → (实施) → in_progress → done
 ## Backlog
 
 ## T-006: 客户列表加按手机号实时搜索
-- status: approved
+- status: in_progress
 - category: feature
 - auto_approve: false
 - merge_to_main_after: true
@@ -63,8 +63,8 @@ approved → (实施) → in_progress → done
   - 输入清空时恢复全部
   - npm run build 通过
 - created_at: 2026-05-22
-- last_run: ""
-- attempt: 0
+- last_run: "2026-05-22T03:38:00+08:00"
+- attempt: 1
 
 ## T-007: 客户详情页加聚合卡片（累计消费/上次到店/总订单数）
 - status: approved
