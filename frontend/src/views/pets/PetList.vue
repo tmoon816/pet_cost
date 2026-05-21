@@ -14,38 +14,27 @@ const editId = ref(null)
 
 const fetchList = async () => {
   loading.value = true
-  // 模拟数据
-  setTimeout(() => {
-    list.value = [
-      {
-        id: 1,
-        name: '旺财',
-        avatar: '🐶',
-        species: '狗',
-        breed: '柯基',
-        gender: '公',
-        birthday: '2022-03-15',
-        weight: '12kg',
-        thisMonthCost: 1860.5,
-        healthRecord: '疫苗已接种，每月驱虫',
-        createdAt: '2023-01-10'
-      },
-      {
-        id: 2,
-        name: '年糕',
-        avatar: '🐱',
-        species: '猫',
-        breed: '英短',
-        gender: '母',
-        birthday: '2023-05-20',
-        weight: '4.5kg',
-        thisMonthCost: 1420,
-        healthRecord: '疫苗已接种，无过敏史',
-        createdAt: '2023-06-01'
-      }
-    ]
+  try {
+    const res = await listPets()
+    // 根据物种设置默认头像
+    const avatarMap = {
+      '狗': '🐶',
+      '猫': '🐱',
+      '仓鼠': '🐹',
+      '兔子': '🐰',
+      '鹦鹉': '🦜'
+    }
+    list.value = res.map(item => ({
+      ...item,
+      avatar: avatarMap[item.species] || '🐾',
+      thisMonthCost: Number(item.thisMonthCost || 0)
+    }))
+  } catch (e) {
+    ElMessage.error('获取宠物列表失败')
+    console.error(e)
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
 const handleAdd = () => {

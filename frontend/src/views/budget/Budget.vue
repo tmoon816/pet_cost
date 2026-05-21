@@ -2,6 +2,11 @@
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete } from '@element-plus/icons-vue'
+import { listBudgets, createBudget, updateBudget, deleteBudget } from '@/api/budgets'
+import { useCategoryStore } from '@/stores/categoryStore'
+import { listPets } from '@/api/pets'
+
+const categoryStore = useCategoryStore()
 
 const currentMonth = ref('2024-05')
 const totalBudget = ref(4000)
@@ -36,11 +41,72 @@ const handleMonthChange = (val) => {
   fetchBudgetData()
 }
 
-const fetchBudgetData = () => {
+const pets = ref([])
+
+const fetchBudgetData = async () => {
   loading.value = true
-  setTimeout(() => {
+  try {
+    const [year, month] = currentMonth.value.split('-').map(Number)
+    // 同时加载预算、宠物和分类数据
+    const [budgetsRes, petsRes] = await Promise.all([
+      listBudgets({ year, month }),
+      listPets()
+    ])
+    await categoryStore.fetchCategories()
+    pets.value = petsRes
+    
+    // 处理总预算
+    const globalBudget = budgetsRes.find(b => b.type === 'global')
+    totalBudget.value = globalBudget ? Number(globalBudget.amount) : 0
+    usedAmount.value = globalBudget ? Number(globalBudget.spent) : 0
+    
+    // 处理宠物预算
+    petBudgets.value = budgetsRes.filter(b => b.type === 'pet').map(b => {
+      const used = Number(b.spent || 0)
+      const budget = Number(b.amount || 0)
+      const remain = budget - used
+      const rate = budget > 0 ? (used / budget * 100) : 0
+      let status = 'normal'
+      if (rate >= 100) status = 'danger'
+      else if (rate >= 80) status = 'warning'
+      return {
+        id: b.id,
+        petId: b.targetId,
+        petName: petsRes.find(p => p.id == b.targetId)?.name || `宠物${b.targetId}`,
+        budget,
+        used,
+        remain,
+        rate: rate.toFixed(1),
+        status
+      }
+    })
+    
+    // 处理分类预算
+    categoryBudgets.value = budgetsRes.filter(b => b.type === 'category').map(b => {
+      const used = Number(b.spent || 0)
+      const budget = Number(b.amount || 0)
+      const remain = budget - used
+      const rate = budget > 0 ? (used / budget * 100) : 0
+      let status = 'normal'
+      if (rate >= 100) status = 'danger'
+      else if (rate >= 80) status = 'warning'
+      return {
+        id: b.id,
+        categoryCode: b.targetId,
+        category: categoryStore.categories.find(c => c.code === b.targetId)?.label || b.targetId,
+        budget,
+        used,
+        remain,
+        rate: rate.toFixed(1),
+        status
+      }
+    })
+  } catch (e) {
+    ElMessage.error('获取预算数据失败')
+    console.error(e)
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
 const handleAddBudget = (type) => {

@@ -27,68 +27,87 @@ const loading = ref({
 
 const fetchSummary = async () => {
   loading.value.summary = true
-  // 模拟数据，实际对接API调用
-  setTimeout(() => {
+  try {
+    const res = await getSummary()
     summary.value = {
-      totalExpense: 3280.5,
-      totalIncome: 0,
-      budgetRemain: 719.5,
-      monthChange: -12.3
+      totalExpense: Number(res.currentMonthAmount || 0),
+      totalIncome: 0, // 接口暂时没有收入字段
+      budgetRemain: Number(res.budgetRemain || 0),
+      monthChange: Number(res.monthChange || 0)
     }
+  } catch (e) {
+    console.error('获取统计信息失败', e)
+  } finally {
     loading.value.summary = false
-  }, 500)
+  }
 }
 
 const fetchCategoryStats = async () => {
   loading.value.category = true
-  setTimeout(() => {
-    categoryStats.value = [
-      { type: '食品', value: 1240, count: 12 },
-      { type: '医疗', value: 980, count: 3 },
-      { type: '美容', value: 560, count: 2 },
-      { type: '用品', value: 320, count: 5 },
-      { type: '玩具', value: 180.5, count: 4 }
-    ]
+  try {
+    const res = await getByCategory()
+    categoryStats.value = res.map(item => ({
+      type: categoryStore.categories.find(c => c.code === item.categoryCode)?.label || item.categoryCode,
+      value: Number(item.totalAmount || 0),
+      count: item.count || 0
+    }))
+  } catch (e) {
+    console.error('获取分类统计失败', e)
+  } finally {
     loading.value.category = false
-  }, 600)
+  }
 }
 
 const fetchMonthStats = async () => {
   loading.value.month = true
-  setTimeout(() => {
-    monthStats.value = [
-      { month: '1月', 花费: 2800, 记录数: 23 },
-      { month: '2月', 花费: 3100, 记录数: 25 },
-      { month: '3月', 花费: 2950, 记录数: 22 },
-      { month: '4月', 花费: 3740, 记录数: 28 },
-      { month: '5月', 花费: 3280.5, 记录数: 26 }
-    ]
+  try {
+    const res = await getByMonth()
+    monthStats.value = res.map(item => ({
+      month: `${item.month.toString().padStart(2, '0')}月`,
+      花费: Number(item.totalAmount || 0),
+      记录数: item.count || 0
+    })).sort((a, b) => a.month.localeCompare(b.month))
+  } catch (e) {
+    console.error('获取月度统计失败', e)
+  } finally {
     loading.value.month = false
-  }, 700)
+  }
 }
 
 const fetchPetStats = async () => {
   loading.value.pet = true
-  setTimeout(() => {
-    petStats.value = [
-      { pet: '🐶 旺财', 花费: 1860.5, 记录数: 12 },
-      { pet: '🐱 年糕', 花费: 1420, 记录数: 14 }
-    ]
+  try {
+    const res = await getByPet()
+    petStats.value = res.map(item => ({
+      pet: item.petName || `宠物${item.petId}`,
+      花费: Number(item.totalAmount || 0),
+      记录数: item.count || 0
+    })).sort((a, b) => b.花费 - a.花费)
+  } catch (e) {
+    console.error('获取宠物统计失败', e)
+  } finally {
     loading.value.pet = false
-  }, 500)
+  }
 }
 
 const fetchRecentBills = async () => {
   loading.value.bills = true
-  setTimeout(() => {
-    recentBills.value = [
-      { id: 1, date: '2024-05-20', category: '食品', pet: '旺财', amount: 168, note: '渴望猫粮', payType: '微信支付' },
-      { id: 2, date: '2024-05-18', category: '医疗', pet: '年糕', amount: 320, note: '疫苗接种', payType: '支付宝' },
-      { id: 3, date: '2024-05-15', category: '美容', pet: '旺财', amount: 180, note: '洗澡剪毛', payType: '微信支付' },
-      { id: 4, date: '2024-05-10', category: '用品', pet: '年糕', amount: 89, note: '猫砂', payType: '支付宝' }
-    ]
+  try {
+    const res = await listCosts({ pageSize: 4, page: 1 })
+    recentBills.value = res.items.map(item => ({
+      id: item.id,
+      date: item.occurredOn,
+      category: categoryStore.categories.find(c => c.code === item.categoryCode)?.label || item.categoryCode,
+      pet: item.petName || `宠物${item.petId}`,
+      amount: Number(item.amount || 0),
+      note: item.note || '',
+      payType: item.payType || '其他'
+    }))
+  } catch (e) {
+    console.error('获取最近账单失败', e)
+  } finally {
     loading.value.bills = false
-  }, 500)
+  }
 }
 
 const fetchAllData = () => {

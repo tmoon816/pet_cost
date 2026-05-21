@@ -24,23 +24,17 @@ const categoryIcons = {
 const fetchCategories = async () => {
   loading.value = true
   try {
-    // 模拟数据
-    setTimeout(() => {
-      categories.value = [
-        { code: 'food', label: '食品', icon: '🥫', sortOrder: 1, status: true, totalUsed: 1240 },
-        { code: 'medical', label: '医疗', icon: '🏥', sortOrder: 2, status: true, totalUsed: 980 },
-        { code: 'beauty', label: '美容', icon: '💇', sortOrder: 3, status: true, totalUsed: 560 },
-        { code: 'goods', label: '用品', icon: '🧻', sortOrder: 4, status: true, totalUsed: 320 },
-        { code: 'toy', label: '玩具', icon: '🎾', sortOrder: 5, status: true, totalUsed: 180.5 },
-        { code: 'insurance', label: '保险', icon: '🛡️', sortOrder: 6, status: true, totalUsed: 299 },
-        { code: 'foster', label: '寄养', icon: '🏠', sortOrder: 7, status: false, totalUsed: 0 },
-        { code: 'other', label: '其他', icon: '📦', sortOrder: 99, status: true, totalUsed: 68 }
-      ]
-      loading.value = false
-    }, 500)
+    const res = await listCategories()
+    categories.value = res.map(item => ({
+      ...item,
+      icon: item.icon || categoryIcons[item.label] || '📦',
+      totalUsed: Number(item.totalUsed || 0)
+    })).sort((a, b) => a.sortOrder - b.sortOrder)
   } catch (e) {
-    loading.value = false
     ElMessage.error('获取分类列表失败')
+    console.error(e)
+  } finally {
+    loading.value = false
   }
 }
 

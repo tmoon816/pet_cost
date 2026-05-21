@@ -30,29 +30,30 @@ const fetchList = async () => {
       page: pagination.value.page,
       pageSize: pagination.value.pageSize,
       keyword: filter.value.keyword || undefined,
-      category: filter.value.category || undefined,
-      pet: filter.value.pet || undefined
+      categoryCode: filter.value.category || undefined,
+      petId: filter.value.pet ? Number(filter.value.pet) : undefined
     }
     if (filter.value.dateRange && filter.value.dateRange.length === 2) {
-      params.start = filter.value.dateRange[0]
-      params.end = filter.value.dateRange[1]
+      params.startDate = filter.value.dateRange[0]
+      params.endDate = filter.value.dateRange[1]
     }
-    // 模拟数据
-    setTimeout(() => {
-      list.value = [
-        { id: 1, date: '2024-05-20', category: '食品', pet: '旺财', amount: 168, note: '渴望猫粮', payType: '微信支付', type: '支出' },
-        { id: 2, date: '2024-05-18', category: '医疗', pet: '年糕', amount: 320, note: '疫苗接种', payType: '支付宝', type: '支出' },
-        { id: 3, date: '2024-05-15', category: '美容', pet: '旺财', amount: 180, note: '洗澡剪毛', payType: '微信支付', type: '支出' },
-        { id: 4, date: '2024-05-10', category: '用品', pet: '年糕', amount: 89, note: '猫砂', payType: '支付宝', type: '支出' },
-        { id: 5, date: '2024-05-08', category: '玩具', pet: '旺财', amount: 59.9, note: '飞盘', payType: '微信支付', type: '支出' },
-        { id: 6, date: '2024-05-05', category: '保险', pet: '年糕', amount: 299, note: '宠物医疗险', payType: '支付宝', type: '支出' }
-      ]
-      total.value = 6
-      loading.value = false
-    }, 500)
+    const res = await listCosts(params)
+    list.value = res.items.map(item => ({
+      id: item.id,
+      date: item.occurredOn,
+      category: categoryStore.categories.find(c => c.code === item.categoryCode)?.label || item.categoryCode,
+      pet: item.petName || `宠物${item.petId}`,
+      amount: Number(item.amount || 0),
+      note: item.note || '',
+      payType: item.payType || '其他',
+      type: item.type || '支出'
+    }))
+    total.value = res.total
   } catch (e) {
-    loading.value = false
     ElMessage.error('获取账单列表失败')
+    console.error(e)
+  } finally {
+    loading.value = false
   }
 }
 
