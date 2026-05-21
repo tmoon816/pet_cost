@@ -9,13 +9,26 @@ const routes = [
     path: '/dashboard',
     name: 'dashboard',
     component: () => import('@/views/Dashboard.vue'),
-    meta: { title: '数据大盘' }
+    meta: { title: '营业概览' }
+  },
+  {
+    path: '/customers',
+    name: 'customers',
+    component: () => import('@/views/customers/CustomerList.vue'),
+    meta: { title: '会员/客户档案' }
+  },
+  {
+    path: '/customers/:id',
+    name: 'customer-detail',
+    component: () => import('@/views/customers/CustomerDetail.vue'),
+    props: true,
+    meta: { title: '客户详情' }
   },
   {
     path: '/bills',
     name: 'bills',
     component: () => import('@/views/bills/BillList.vue'),
-    meta: { title: '收支账单' }
+    meta: { title: '服务订单' }
   },
   {
     path: '/pets',
@@ -27,19 +40,20 @@ const routes = [
     path: '/pets/:id',
     name: 'pet-detail',
     component: () => import('@/views/pets/PetDetail.vue'),
+    props: true,
     meta: { title: '宠物详情' }
   },
   {
     path: '/categories',
     name: 'categories',
     component: () => import('@/views/categories/CategoryList.vue'),
-    meta: { title: '消费分类' }
+    meta: { title: '服务项目' }
   },
   {
     path: '/budget',
     name: 'budget',
     component: () => import('@/views/budget/Budget.vue'),
-    meta: { title: '月度预算' }
+    meta: { title: '经营预算' }
   },
   {
     path: '/settings',
@@ -54,10 +68,9 @@ const router = createRouter({
   routes
 })
 
-// 路由守卫修改页面标题
 router.beforeEach((to, from, next) => {
   if (to.meta.title) {
-    document.title = `${to.meta.title} - 宠物花费管理系统`
+    document.title = `${to.meta.title} - 宠物店管理系统`
   }
   next()
 })

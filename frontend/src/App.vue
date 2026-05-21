@@ -8,7 +8,8 @@ import {
   Setting,
   User,
   List,
-  Search
+  Search,
+  UserFilled
 } from '@element-plus/icons-vue'
 import { useCategoryStore } from './stores/categoryStore'
 
@@ -18,36 +19,13 @@ const categoryStore = useCategoryStore()
 const activeMenu = ref('')
 
 const menuItems = [
-  {
-    path: '/dashboard',
-    title: '数据大盘',
-    icon: HomeFilled
-  },
-  {
-    path: '/bills',
-    title: '收支账单',
-    icon: Money
-  },
-  {
-    path: '/pets',
-    title: '宠物档案',
-    icon: User
-  },
-  {
-    path: '/categories',
-    title: '消费分类',
-    icon: List
-  },
-  {
-    path: '/budget',
-    title: '月度预算',
-    icon: TrendCharts
-  },
-  {
-    path: '/settings',
-    title: '系统设置',
-    icon: Setting
-  }
+  { path: '/dashboard',  title: '营业概览',     icon: HomeFilled },
+  { path: '/customers',  title: '会员/客户档案', icon: UserFilled },
+  { path: '/bills',      title: '服务订单',     icon: Money },
+  { path: '/pets',       title: '宠物档案',     icon: User },
+  { path: '/categories', title: '服务项目',     icon: List },
+  { path: '/budget',     title: '经营预算',     icon: TrendCharts },
+  { path: '/settings',   title: '系统设置',     icon: Setting }
 ]
 
 const handleMenuSelect = (path) => {
@@ -57,8 +35,8 @@ const handleMenuSelect = (path) => {
 onMounted(() => {
   // 初始化活跃菜单
   activeMenu.value = route.path
-  // 预加载分类数据
-  categoryStore.fetchCategories()
+  // 预加载分类数据（兼容旧名会在 store 里别名为 fetchCategories）
+  categoryStore.fetch?.(true) ?? categoryStore.fetchCategories?.(true)
 
   // 监听路由变化更新活跃菜单
   router.afterEach((to) => {
@@ -75,7 +53,7 @@ onMounted(() => {
         <div class="sidebar-header">
           <div class="logo">
             <span class="paw-icon">🐾</span>
-            <span class="logo-text">宠物账本</span>
+            <span class="logo-text">宠物店管家</span>
           </div>
         </div>
         <el-menu
@@ -100,7 +78,7 @@ onMounted(() => {
         <!-- 顶部导航栏 -->
         <el-header style="height: 64px; background: var(--card); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between;">
           <div class="header-left">
-            <h1 style="font-size: 18px; font-weight: 600; margin: 0;">{{ menuItems.find(item => item.path === activeMenu)?.title || '宠物花费管理系统' }}</h1>
+            <h1 style="font-size: 18px; font-weight: 600; margin: 0;">{{ menuItems.find(item => item.path === activeMenu)?.title || '宠物店管理系统' }}</h1>
           </div>
           <div class="header-right" style="display: flex; align-items: center; gap: 16px;">
             <el-input
