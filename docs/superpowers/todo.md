@@ -53,10 +53,10 @@ approved → (实施) → in_progress → done
 ## Backlog
 
 ## T-001: Dashboard 主 chunk 体积超 500KB，做路由级 code-split
-- status: backlog
+- status: spec_drafted
 - category: refactor
 - auto_approve: false
-- spec: ""
+- spec: "docs/superpowers/specs/2026-05-22-T001-route-code-split.md"
 - acceptance:
   - 主 bundle gzip 后 < 200KB
   - npm run build 通过
