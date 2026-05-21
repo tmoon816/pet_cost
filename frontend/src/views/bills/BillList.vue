@@ -1,119 +1,148 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit, Delete } from '@element-plus/icons-vue'
+import { Plus } from '@element-plus/icons-vue'
 import { useCategoryStore } from '@/stores/categoryStore'
 import { listCosts, deleteCost } from '@/api/costs'
-import BillForm from '@/components/BillForm.vue'
+import * as customersApi from '@/api/customers'
+import * as petsApi from '@/api/pets'
+import CostFormDialog from '@/views/costs/CostFormDialog.vue'
 
 const categoryStore = useCategoryStore()
-const list = ref([])
+
+const items = ref([])
 const total = ref(0)
-const pagination = ref({
-  page: 1,
-  pageSize: 20
-})
-const filter = ref({
-  keyword: '',
-  category: '',
-  pet: '',
-  dateRange: []
-})
+const page = ref(1)
+const pageSize = ref(20)
 const loading = ref(false)
 const dialogVisible = ref(false)
-const editId = ref(null)
+const editing = ref(null)
 
-const fetchList = async () => {
+// 筛选
+const customerOptions = ref([])
+const petOptions = ref([])
+const customerLoading = ref(false)
+const filterCustomer = ref(null)
+const filterPet = ref(null)
+const filterCategory = ref(null)
+const dateRange = ref(null)
+
+const pageTotalAmount = computed(() =>
+  items.value.reduce((s, item) => s + Number(item.amount || 0), 0).toFixed(2)
+)
+
+const categoryLabel = (code) =>
+  categoryStore.list?.find?.((c) => c.code === code)?.label || code || '-'
+
+async function loadCustomers(query) {
+  customerLoading.value = true
+  try {
+    const data = await customersApi.listCustomers({ q: query || undefined, page: 1, page_size: 50 })
+    customerOptions.value = data.items || []
+  } catch (e) {
+    customerOptions.value = []
+  } finally {
+    customerLoading.value = false
+  }
+}
+
+async function loadPets(customerId) {
+  if (!customerId) {
+    petOptions.value = []
+    return
+  }
+  try {
+    const data = await petsApi.listPets({ customer_id: customerId, page: 1, page_size: 100 })
+    petOptions.value = data.items || []
+  } catch (e) {
+    petOptions.value = []
+  }
+}
+
+watch(filterCustomer, async (newId) => {
+  await loadPets(newId)
+  if (!petOptions.value.some((p) => p.id === filterPet.value)) {
+    filterPet.value = null
+  }
+})
+
+async function fetchList() {
   loading.value = true
   try {
-    const params = {
-      page: pagination.value.page,
-      pageSize: pagination.value.pageSize,
-      keyword: filter.value.keyword || undefined,
-      categoryCode: filter.value.category || undefined,
-      petId: filter.value.pet ? Number(filter.value.pet) : undefined
-    }
-    if (filter.value.dateRange && filter.value.dateRange.length === 2) {
-      params.startDate = filter.value.dateRange[0]
-      params.endDate = filter.value.dateRange[1]
+    const params = { page: page.value, page_size: pageSize.value }
+    if (filterCustomer.value) params.customer_id = filterCustomer.value
+    if (filterPet.value) params.pet_id = filterPet.value
+    if (filterCategory.value) params.category = filterCategory.value
+    if (dateRange.value && dateRange.value.length === 2) {
+      params.start = dateRange.value[0]
+      params.end = dateRange.value[1]
     }
     const res = await listCosts(params)
-    list.value = res.items.map(item => ({
-      id: item.id,
-      date: item.occurredOn,
-      category: categoryStore.categories.find(c => c.code === item.categoryCode)?.label || item.categoryCode,
-      pet: item.petName || `宠物${item.petId}`,
-      amount: Number(item.amount || 0),
-      note: item.note || '',
-      payType: item.payType || '其他',
-      type: item.type || '支出'
-    }))
-    total.value = res.total
+    items.value = res.items || []
+    total.value = res.total || 0
   } catch (e) {
-    ElMessage.error('获取账单列表失败')
-    console.error(e)
+    items.value = []
+    total.value = 0
   } finally {
     loading.value = false
   }
 }
 
-const resetFilter = () => {
-  filter.value = {
-    keyword: '',
-    category: '',
-    pet: '',
-    dateRange: []
-  }
-  pagination.value.page = 1
+function applyFilters() {
+  page.value = 1
+  fetchList()
+}
+function resetFilters() {
+  filterCustomer.value = null
+  filterPet.value = null
+  filterCategory.value = null
+  dateRange.value = null
+  page.value = 1
+  fetchList()
+}
+function onPageChange(p) {
+  page.value = p
   fetchList()
 }
 
-const handleAdd = () => {
-  editId.value = null
+function handleAdd() {
+  editing.value = null
   dialogVisible.value = true
 }
-
-const handleEdit = (row) => {
-  editId.value = row.id
+function handleEdit(row) {
+  editing.value = row
   dialogVisible.value = true
 }
-
-const handleDelete = (row) => {
-  ElMessageBox.confirm(
-    `确定要删除该账单吗？删除后无法恢复！`,
-    '提示',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(async () => {
-    try {
-      await deleteCost(row.id)
-      ElMessage.success('删除成功')
-      fetchList()
-    } catch (e) {
-      ElMessage.error('删除失败')
-    }
-  }).catch(() => {})
+async function handleDelete(row) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除该订单吗？删除后无法恢复。`,
+      '确认删除',
+      { type: 'warning', confirmButtonText: '确定', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  try {
+    await deleteCost(row.id)
+    ElMessage.success('已删除')
+    if (items.value.length === 1 && page.value > 1) page.value -= 1
+    await fetchList()
+  } catch (e) {
+    // 拦截器兜底
+  }
 }
-
-const handleFormSuccess = () => {
+function onSaved() {
   dialogVisible.value = false
   fetchList()
 }
 
-const formatAmount = (row) => {
-  return row.type === '收入' ? `+¥${row.amount.toFixed(2)}` : `-¥${row.amount.toFixed(2)}`
-}
-
-const amountClass = (row) => {
-  return row.type === '收入' ? 'text-success' : 'text-danger'
-}
-
-onMounted(() => {
-  categoryStore.fetchCategories()
-  fetchList()
+onMounted(async () => {
+  await Promise.all([
+    categoryStore.fetch?.().catch?.(() => {}) ?? categoryStore.fetchCategories?.().catch?.(() => {}),
+    loadCustomers(''),
+  ])
+  await fetchList()
 })
 </script>
 
@@ -122,81 +151,96 @@ onMounted(() => {
     <el-card shadow="hover" class="filter-card">
       <template #header>
         <div class="card-header">
-          <span>筛选查询</span>
+          <span>筛选 / 查询</span>
           <el-button type="primary" @click="handleAdd">
             <el-icon><Plus /></el-icon>
-            新增账单
+            新增订单
           </el-button>
         </div>
       </template>
       <el-row :gutter="20">
         <el-col :xs="24" :sm="12" :md="6">
-          <el-input
-            v-model="filter.keyword"
-            placeholder="搜索备注/宠物/金额"
-            @keyup.enter="fetchList"
-            @clear="fetchList"
-            clearable
-          />
-        </el-col>
-        <el-col :xs="24" :sm="12" :md="6">
           <el-select
-            v-model="filter.category"
-            placeholder="选择消费分类"
+            v-model="filterCustomer"
+            filterable
+            remote
             clearable
-            @change="fetchList"
+            :remote-method="loadCustomers"
+            :loading="customerLoading"
+            placeholder="按客户筛选"
+            style="width: 100%;"
           >
             <el-option
-              v-for="category in categoryStore.categories"
-              :key="category.code"
-              :label="category.label"
-              :value="category.code"
+              v-for="c in customerOptions"
+              :key="c.id"
+              :label="`${c.name}${c.phone ? ' · ' + c.phone : ''}`"
+              :value="c.id"
             />
           </el-select>
         </el-col>
         <el-col :xs="24" :sm="12" :md="6">
-          <el-input
-            v-model="filter.pet"
-            placeholder="搜索宠物名称"
-            @keyup.enter="fetchList"
-            @clear="fetchList"
+          <el-select
+            v-model="filterPet"
             clearable
-          />
+            placeholder="按宠物筛选"
+            :disabled="!filterCustomer"
+            style="width: 100%;"
+          >
+            <el-option
+              v-for="p in petOptions"
+              :key="p.id"
+              :label="p.name"
+              :value="p.id"
+            />
+          </el-select>
+        </el-col>
+        <el-col :xs="24" :sm="12" :md="6">
+          <el-select
+            v-model="filterCategory"
+            clearable
+            placeholder="按服务项目筛选"
+            style="width: 100%;"
+          >
+            <el-option
+              v-for="c in categoryStore.list || categoryStore.categories || []"
+              :key="c.code"
+              :label="c.label"
+              :value="c.code"
+            />
+          </el-select>
         </el-col>
         <el-col :xs="24" :sm="12" :md="6">
           <el-date-picker
-            v-model="filter.dateRange"
+            v-model="dateRange"
             type="daterange"
-            placeholder="选择日期范围"
             value-format="YYYY-MM-DD"
             start-placeholder="开始日期"
             end-placeholder="结束日期"
             style="width: 100%;"
-            @change="fetchList"
           />
         </el-col>
       </el-row>
       <div style="margin-top: 16px;">
-        <el-button @click="fetchList">查询</el-button>
-        <el-button @click="resetFilter">重置</el-button>
+        <el-button type="primary" @click="applyFilters">查询</el-button>
+        <el-button @click="resetFilters">重置</el-button>
       </div>
     </el-card>
 
     <el-card shadow="hover" class="list-card" style="margin-top: 20px;">
       <template #header>
         <div class="card-header">
-          <span>账单列表</span>
-          <div style="color: var(--text-muted); font-size: 14px; font-weight: normal; display: flex; gap: 20px;">
-            <span>共 {{ total }} 条记录</span>
-            <span>总支出：¥ {{ list.reduce((sum, item) => sum + item.amount, 0).toFixed(2) }}</span>
+          <span>服务订单流水</span>
+          <div style="color: var(--text-muted, #909399); font-size: 14px; font-weight: normal; display: flex; gap: 20px;">
+            <span>共 {{ total }} 条</span>
+            <span>当前页合计：¥ {{ pageTotalAmount }}</span>
           </div>
         </div>
       </template>
 
-      <div v-if="list.length === 0 && !loading" class="empty-state">
-        <div style="font-size: 64px; margin-bottom: 20px;">📝</div>
-        <p class="empty-title">暂无账单记录</p>
-        <p class="empty-desc">点击右上角「新增账单」按钮添加第一条记录吧~</p>
+      <div v-if="items.length === 0 && !loading" class="empty-state">
+        <div style="font-size: 64px; margin-bottom: 20px;">📋</div>
+        <p class="empty-title">暂无服务订单</p>
+        <p class="empty-desc">点击右上角「新增订单」按钮添加第一条记录</p>
         <el-button type="primary" @click="handleAdd" style="margin-top: 20px;">
           <el-icon><Plus /></el-icon>
           立即新增
@@ -205,62 +249,56 @@ onMounted(() => {
 
       <el-table
         v-else
-        :data="list"
+        :data="items"
         border
         stripe
         style="width: 100%;"
         v-loading="loading"
       >
-        <el-table-column prop="date" label="日期" width="120" sortable />
-        <el-table-column prop="type" label="类型" width="80">
-          <template #default="scope">
-            <el-tag :type="scope.row.type === '收入' ? 'success' : 'danger'" size="small">
-              {{ scope.row.type }}
-            </el-tag>
+        <el-table-column prop="occurred_on" label="日期" width="120" sortable />
+        <el-table-column label="服务项目" width="150">
+          <template #default="{ row }">{{ categoryLabel(row.category_code) }}</template>
+        </el-table-column>
+        <el-table-column label="所属宠物" width="140">
+          <template #default="{ row }">
+            {{ row.pet_name || `宠物 #${row.pet_id}` }}
           </template>
         </el-table-column>
-        <el-table-column prop="category" label="分类" width="100" />
-        <el-table-column prop="pet" label="所属宠物" width="100" />
-        <el-table-column label="金额" width="120" align="right">
-          <template #default="scope">
-            <span :class="amountClass(scope.row)" style="font-weight: 600;">
-              {{ formatAmount(scope.row) }}
+        <el-table-column label="金额" width="140" align="right">
+          <template #default="{ row }">
+            <span class="text-danger" style="font-weight: 600;">
+              ¥ {{ Number(row.amount).toFixed(2) }}
             </span>
           </template>
         </el-table-column>
-        <el-table-column prop="payType" label="支付方式" width="120" />
-        <el-table-column prop="note" label="备注" show-overflow-tooltip />
-        <el-table-column label="操作" width="160" fixed="right">
-          <template #default="scope">
-            <el-button size="small" @click="handleEdit(scope.row)">
-              <el-icon><Edit /></el-icon>
-              编辑
-            </el-button>
-            <el-button size="small" type="danger" @click="handleDelete(scope.row)">
-              <el-icon><Delete /></el-icon>
-              删除
-            </el-button>
+        <el-table-column prop="note" label="备注" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.note || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="160" fixed="right" align="center">
+          <template #default="{ row }">
+            <el-button size="small" type="primary" @click="handleEdit(row)">编辑</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
 
       <div class="pagination-wrap" style="margin-top: 20px; text-align: right;" v-if="total > 0">
         <el-pagination
-          v-model:current-page="pagination.page"
-          v-model:page-size="pagination.pageSize"
+          v-model:current-page="page"
+          v-model:page-size="pageSize"
           :page-sizes="[10, 20, 50, 100]"
           :total="total"
           layout="total, sizes, prev, pager, next, jumper"
           @size-change="fetchList"
-          @current-change="fetchList"
+          @current-change="onPageChange"
         />
       </div>
     </el-card>
 
-    <BillForm
+    <CostFormDialog
       v-model="dialogVisible"
-      :edit-id="editId"
-      @success="handleFormSuccess"
+      :editing="editing"
+      @saved="onSaved"
     />
   </div>
 </template>
@@ -276,17 +314,20 @@ onMounted(() => {
 .empty-state {
   text-align: center;
   padding: 80px 20px;
-  color: var(--text-muted);
+  color: var(--text-muted, #909399);
 }
 .empty-title {
   font-size: 18px;
   font-weight: 500;
   margin: 20px 0 10px;
-  color: var(--text-secondary);
+  color: var(--text-secondary, #606266);
 }
 .empty-desc {
   font-size: 14px;
-  color: var(--text-muted);
+  color: var(--text-muted, #909399);
+}
+.text-danger {
+  color: #f56c6c;
 }
 @media (max-width: 768px) {
   .card-header {
