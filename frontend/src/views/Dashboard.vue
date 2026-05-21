@@ -140,6 +140,7 @@ const monthBarConfig = computed(() => ({
   tooltip: {
     formatter: (datum) => {
       return { name: datum.month, value: `¥${datum.花费.toFixed(2)} / ${datum.记录数}条` }
+    }
   },
   xAxis: {
     label: {
@@ -162,7 +163,7 @@ const petBarConfig = computed(() => ({
   xField: '花费',
   yField: 'pet',
   seriesField: 'pet',
-  color: ['#4ade80',
+  color: ['#4ade80'],
   legend: false,
   label: {
     position: 'right',

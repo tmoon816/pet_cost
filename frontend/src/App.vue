@@ -6,7 +6,7 @@ import {
   Money,
   TrendCharts,
   Setting,
-  Pet,
+  User,
   List,
   Search
 } from '@element-plus/icons-vue'
@@ -31,7 +31,7 @@ const menuItems = [
   {
     path: '/pets',
     title: '宠物档案',
-    icon: Pet
+    icon: User
   },
   {
     path: '/categories',
