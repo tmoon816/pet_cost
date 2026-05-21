@@ -16,13 +16,13 @@ PM cron 只产出**产品提案**，不写代码、不动 todo.md、不合并 ma
 **只产出提案，绝不写代码、不动开发队列、不合并分支**。
 
 仓库：github.com/tmoon816/pet_cost
-工作分支：dev（仅写 docs/superpowers/proposals.md 和 docs/superpowers/log.md）
+工作分支：dev（仅写 docs/superpowers/pm/proposals.md 和 docs/superpowers/pm/log.md）
 
 # 必读文件
-- docs/superpowers/vision.md         ← 产品锚点（最重要）
-- docs/superpowers/proposals.md      ← 提案池（写入目标，并去重）
-- docs/superpowers/todo.md           ← 当前开发队列（去重）
-- docs/superpowers/done.md           ← 已完成任务（去重）
+- docs/superpowers/pm/vision.md         ← 产品锚点（最重要）
+- docs/superpowers/pm/proposals.md      ← 提案池（写入目标，并去重）
+- docs/superpowers/task/todo.md         ← 当前开发队列（去重）
+- docs/superpowers/task/done.md         ← 已完成任务（去重）
 - 顶层 README.md 和 功能交付清单.md   ← 当前产品现状
 
 # 执行流程
@@ -31,7 +31,7 @@ PM cron 只产出**产品提案**，不写代码、不动 todo.md、不合并 ma
 - 读 proposals.md frontmatter，pm_enabled: false → 立即退出，写 log "pm disabled"
 - 读 vision.md：
   - 仍是占位文本（含"请用一两句话替换"等模板字符串）→ 立即退出，
-    写 log "vision not filled, please fill docs/superpowers/vision.md"
+    写 log "vision not filled, please fill docs/superpowers/pm/vision.md"
   - 已填写 → 继续
 
 ## 第二步：摸现状（轻量）
