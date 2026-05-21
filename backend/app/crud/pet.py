@@ -3,7 +3,7 @@ from typing import List, Tuple
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from ..models import Customer, Pet
+from ..models import Customer, CostRecord, Pet
 from ..schemas.pet import PetCreate, PetUpdate
 
 
@@ -13,14 +13,42 @@ def get(db: Session, pet_id: int) -> Pet | None:
 
 def list_paginated(
     db: Session, customer_id: int | None, page: int, page_size: int
-) -> Tuple[List[Pet], int]:
-    stmt = select(Pet)
+) -> Tuple[List[dict], int]:
+    """列出宠物，并以 dict 形式返回，额外包含 last_visit_at（MAX(cost_records.occurred_on)）。
+
+    返回 dict 而非 ORM 实例是为了后接 PetListItem 这个非 from_attributes 映射也能顺利序列化。
+    """
+    last_visit_subq = (
+        select(func.max(CostRecord.occurred_on))
+        .where(CostRecord.pet_id == Pet.id)
+        .correlate(Pet)
+        .scalar_subquery()
+    )
+
+    stmt = select(Pet, last_visit_subq.label("last_visit_at"))
     count_stmt = select(func.count(Pet.id))
     if customer_id is not None:
         stmt = stmt.where(Pet.customer_id == customer_id)
         count_stmt = count_stmt.where(Pet.customer_id == customer_id)
     stmt = stmt.order_by(Pet.id.desc()).offset((page - 1) * page_size).limit(page_size)
-    items = list(db.scalars(stmt).all())
+
+    rows = db.execute(stmt).all()
+    items: List[dict] = []
+    for pet, last_visit_at in rows:
+        item = {
+            "id": pet.id,
+            "customer_id": pet.customer_id,
+            "name": pet.name,
+            "species": pet.species,
+            "breed": pet.breed,
+            "gender": pet.gender,
+            "birthday": pet.birthday,
+            "note": pet.note,
+            "created_at": pet.created_at,
+            "updated_at": pet.updated_at,
+            "last_visit_at": last_visit_at,
+        }
+        items.append(item)
     total = int(db.scalar(count_stmt) or 0)
     return items, total
 

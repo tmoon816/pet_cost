@@ -4,6 +4,17 @@
 
 ---
 
+## T-012: 宠物档案显示「最近一次到店 / 距今天数」
+- completed_at: 2026-05-22T07:46:00+08:00
+- commit: (本提交)
+- category: feature
+- auto_approve: false
+- merge_to_main_after: true
+- attempt: 1
+- result: done — 后端新增 PetListItem schema（继承 PetOut + last_visit_at: Optional[date]）；crud.list_paginated 改为一次 SQL 查询带 correlated scalar subquery (MAX(cost_records.occurred_on))，返回 dict 以似适配 Pydantic 序列化；pets API 路由改用 Page[PetListItem]。补 1 个用例验证三条消费取 max 且无消费 = None（pytest 64→65）。前端 PetList.vue 卡片底部新增「最近到店：YYYY-MM-DD（X 天前）」，formatLastVisit 处理：今天/昨天/X天前/—；pet-footer 改 space-between 布局。npm run build 通过。
+
+---
+
 ## T-011: 客户详情页加消费时间线
 - completed_at: 2026-05-22T05:43:00+08:00
 - commit: 244b80f

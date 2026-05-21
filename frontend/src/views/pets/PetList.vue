@@ -44,6 +44,23 @@ const computeAge = (birthday) => {
   return years >= 0 ? `${years} 岁` : '-'
 }
 
+// 最近到店显示：后端返 last_visit_at (YYYY-MM-DD)，未会过消费为 null
+// 返回例："2026-05-10（3 天前）" / "2026-05-13（今天）" / "—"
+const formatLastVisit = (lastVisitAt) => {
+  if (!lastVisitAt) return '—'
+  // 以本地 00:00 算差值，避免时区偏导致“1 天前”跳字
+  const todayMid = new Date()
+  todayMid.setHours(0, 0, 0, 0)
+  const visit = new Date(`${lastVisitAt}T00:00:00`)
+  if (isNaN(visit.getTime())) return lastVisitAt
+  const diffDays = Math.floor((todayMid - visit) / (1000 * 60 * 60 * 24))
+  let label
+  if (diffDays <= 0) label = '今天'
+  else if (diffDays === 1) label = '昨天'
+  else label = `${diffDays} 天前`
+  return `${lastVisitAt}（${label}）`
+}
+
 const fetchList = async () => {
   loading.value = true
   try {
@@ -180,6 +197,10 @@ onMounted(() => fetchList())
           </div>
         </div>
         <div class="pet-footer">
+          <div class="last-visit">
+            <span class="last-visit-label">最近到店：</span>
+            <span class="last-visit-value">{{ formatLastVisit(pet.last_visit_at) }}</span>
+          </div>
           <div class="actions">
             <el-button size="small" @click="handleViewDetail(pet)">查看详情</el-button>
             <el-button size="small" type="primary" @click="handleEdit(pet)">编辑</el-button>
@@ -266,11 +287,26 @@ onMounted(() => fetchList())
 }
 .pet-footer {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
   border-top: 1px solid var(--border, #ebeef5);
   padding-top: 16px;
   gap: 8px;
+  flex-wrap: wrap;
+}
+.last-visit {
+  font-size: 13px;
+  color: var(--text-secondary, #606266);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.last-visit-label {
+  color: var(--text-muted, #909399);
+}
+.last-visit-value {
+  font-weight: 500;
+  color: var(--text-primary, #303133);
 }
 .empty-state {
   grid-column: 1 / -1;
