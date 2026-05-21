@@ -104,7 +104,7 @@ const pieConfig = computed(() => ({
   angleField: 'value',
   colorField: 'type',
   radius: 0.8,
-  color: ['#4ade80', '#fdba74', '#3b82f6', '#a78bfa', '#f472b6'],
+  color: ['#FFA62B', '#82C91E', '#9775FA', '#FF6B6B', '#4DABF7'],
   label: {
     type: 'outer',
     content: '{name}: {percentage:.1%}',
@@ -131,7 +131,7 @@ const monthBarConfig = computed(() => ({
   xField: 'month',
   yField: '花费',
   seriesField: 'month',
-  color: '#4ade80',
+  color: '#FFA62B',
   label: {
     style: {
       fill: 'var(--text-muted)'
@@ -163,7 +163,7 @@ const petBarConfig = computed(() => ({
   xField: '花费',
   yField: 'pet',
   seriesField: 'pet',
-  color: ['#4ade80'],
+  color: ['#82C91E'],
   legend: false,
   label: {
     position: 'right',
