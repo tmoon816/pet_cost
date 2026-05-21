@@ -1,7 +1,7 @@
 ---
 enabled: true
 max_runs_per_day: 8
-runs_today: 0
+runs_today: 1
 runs_today_date: 2026-05-22
 budget_left_usd: 5.0
 ---
@@ -70,7 +70,7 @@ approved → (实施) → in_progress → done
 - attempt: 0
 
 ## T-002: 后端覆盖率巡检并补缺失模块测试
-- status: backlog
+- status: in_progress
 - category: test
 - auto_approve: true
 - spec: ""
@@ -80,8 +80,8 @@ approved → (实施) → in_progress → done
   - 新增的测试用例至少覆盖 1 个 happy path + 1 个 error path
 - blocked_reason: ""
 - created_at: 2026-05-22
-- last_run: ""
-- attempt: 0
+- last_run: "2026-05-22T02:14+08:00"
+- attempt: 1
 
 ## T-003: 清理前端 console.log / 调试输出
 - status: backlog
