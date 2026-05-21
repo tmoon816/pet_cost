@@ -1,40 +1,28 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
-import { ElMessage, ElForm } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { createPet, updatePet, getPet } from '@/api/pets'
 
 const props = defineProps({
-  modelValue: {
-    type: Boolean,
-    default: false
-  },
-  editId: {
-    type: Number,
-    default: null
-  },
-  defaultCustomerId: {
-    type: Number,
-    default: null
-  }
+  modelValue: { type: Boolean, default: false },
+  editId: { type: Number, default: null },
+  defaultCustomerId: { type: Number, default: null }
 })
-
 const emit = defineEmits(['update:modelValue', 'success'])
 
 const formRef = ref()
 const form = ref({
-  customerId: props.defaultCustomerId || '',
+  customer_id: props.defaultCustomerId || null,
   name: '',
   species: '',
   breed: '',
   gender: '',
   birthday: null,
-  weight: '',
-  healthRecord: '',
   note: ''
 })
 
 const rules = {
-  customerId: [
+  customer_id: [
     { required: true, message: '请输入所属客户ID', trigger: 'blur' },
     { type: 'number', min: 1, message: '请输入有效的客户ID', trigger: 'blur' }
   ],
@@ -44,21 +32,22 @@ const rules = {
   ]
 }
 
-const genderOptions = [
-  { label: '公', value: '公' },
-  { label: '母', value: '母' },
-  { label: '未知', value: '未知' }
-]
+// 物种/性别选项：value 用英文 code，与 CustomerDetail/PetDetail 已有约定一致
 const speciesOptions = [
-  { label: '狗', value: '狗' },
-  { label: '猫', value: '猫' },
-  { label: '仓鼠', value: '仓鼠' },
-  { label: '兔子', value: '兔子' },
-  { label: '鹦鹉', value: '鹦鹉' },
-  { label: '其他', value: '其他' }
+  { label: '犬', value: 'dog' },
+  { label: '猫', value: 'cat' },
+  { label: '仓鼠', value: 'hamster' },
+  { label: '兔子', value: 'rabbit' },
+  { label: '鹦鹉', value: 'bird' },
+  { label: '其他', value: 'other' }
 ]
-const loading = ref(false)
+const genderOptions = [
+  { label: '公', value: 'male' },
+  { label: '母', value: 'female' },
+  { label: '未知', value: 'unknown' }
+]
 
+const loading = ref(false)
 const visible = computed({
   get: () => props.modelValue,
   set: (val) => emit('update:modelValue', val)
@@ -66,14 +55,12 @@ const visible = computed({
 
 const resetForm = () => {
   form.value = {
-    customerId: props.defaultCustomerId || '',
+    customer_id: props.defaultCustomerId || null,
     name: '',
     species: '',
     breed: '',
     gender: '',
     birthday: null,
-    weight: '',
-    healthRecord: '',
     note: ''
   }
   formRef.value?.resetFields()
@@ -88,21 +75,19 @@ watch(() => visible.value, (val) => {
 })
 
 watch(() => props.defaultCustomerId, (val) => {
-  form.value.customerId = val
+  if (val) form.value.customer_id = val
 }, { immediate: true })
 
 const fetchPet = async () => {
   try {
     const data = await getPet(props.editId)
     form.value = {
-      customerId: data.customerId,
+      customer_id: data.customer_id,
       name: data.name,
       species: data.species || '',
       breed: data.breed || '',
       gender: data.gender || '',
-      birthday: data.birthday ? new Date(data.birthday) : null,
-      weight: data.weight || '',
-      healthRecord: data.healthRecord || '',
+      birthday: data.birthday || null,
       note: data.note || ''
     }
   } catch (e) {
@@ -114,26 +99,34 @@ const fetchPet = async () => {
 const handleSubmit = async () => {
   if (!formRef.value) return
   await formRef.value.validate(async (valid) => {
-    if (!valid) return
+    if (!valid) {
+      ElMessage.warning('请检查表单必填项')
+      return
+    }
     loading.value = true
     try {
-      const submitData = { ...form.value }
-      // 清理空字段
-      Object.keys(submitData).forEach(key => {
-        if (!submitData[key] && submitData[key] !== 0) delete submitData[key]
-      })
+      // payload 与后端 PetCreate / PetUpdate schema 完全一致（snake_case）
+      const payload = {
+        customer_id: form.value.customer_id,
+        name: form.value.name.trim(),
+        species: form.value.species || null,
+        breed: form.value.breed?.trim() || null,
+        gender: form.value.gender || null,
+        birthday: form.value.birthday || null,
+        note: form.value.note || null
+      }
 
       if (props.editId) {
-        await updatePet(props.editId, submitData)
+        await updatePet(props.editId, payload)
         ElMessage.success('更新成功')
       } else {
-        await createPet(submitData)
+        await createPet(payload)
         ElMessage.success('创建成功')
       }
       emit('success')
       visible.value = false
     } catch (e) {
-      ElMessage.error(e?.response?.data?.detail || '操作失败')
+      // http 拦截器已弹 ElMessage.error，这里不再重复
     } finally {
       loading.value = false
     }
@@ -155,22 +148,22 @@ const handleSubmit = async () => {
       label-width="100px"
       style="padding-right: 24px;"
     >
-      <el-form-item label="所属客户ID" prop="customerId">
+      <el-form-item label="所属客户ID" prop="customer_id">
         <el-input-number
-          v-model.number="form.customerId"
+          v-model.number="form.customer_id"
           placeholder="请输入客户ID"
           :min="1"
           style="width: 100%;"
-          :disabled="defaultCustomerId"
+          :disabled="!!defaultCustomerId"
         />
       </el-form-item>
       <el-form-item label="宠物名称" prop="name">
         <el-input v-model="form.name" placeholder="请输入宠物名称" />
       </el-form-item>
       <el-row :gutter="20">
-        <el-col span="12">
+        <el-col :span="12">
           <el-form-item label="物种">
-            <el-select v-model="form.species" placeholder="请选择物种" style="width: 100%;">
+            <el-select v-model="form.species" placeholder="请选择物种" clearable style="width: 100%;">
               <el-option
                 v-for="item in speciesOptions"
                 :key="item.value"
@@ -180,16 +173,16 @@ const handleSubmit = async () => {
             </el-select>
           </el-form-item>
         </el-col>
-        <el-col span="12">
+        <el-col :span="12">
           <el-form-item label="品种">
             <el-input v-model="form.breed" placeholder="请输入品种" />
           </el-form-item>
         </el-col>
       </el-row>
       <el-row :gutter="20">
-        <el-col span="12">
+        <el-col :span="12">
           <el-form-item label="性别">
-            <el-select v-model="form.gender" placeholder="请选择性别" style="width: 100%;">
+            <el-select v-model="form.gender" placeholder="请选择性别" clearable style="width: 100%;">
               <el-option
                 v-for="item in genderOptions"
                 :key="item.value"
@@ -199,7 +192,7 @@ const handleSubmit = async () => {
             </el-select>
           </el-form-item>
         </el-col>
-        <el-col span="12">
+        <el-col :span="12">
           <el-form-item label="生日">
             <el-date-picker
               v-model="form.birthday"
@@ -211,23 +204,12 @@ const handleSubmit = async () => {
           </el-form-item>
         </el-col>
       </el-row>
-      <el-form-item label="体重">
-        <el-input v-model="form.weight" placeholder="请输入体重，如：12kg" />
-      </el-form-item>
-      <el-form-item label="健康记录">
-        <el-input
-          v-model="form.healthRecord"
-          type="textarea"
-          placeholder="请输入健康记录，如：疫苗已接种，无过敏史等"
-          :rows="2"
-        />
-      </el-form-item>
       <el-form-item label="备注">
         <el-input
           v-model="form.note"
           type="textarea"
           placeholder="请输入备注信息（可选）"
-          :rows="2"
+          :rows="3"
         />
       </el-form-item>
     </el-form>
