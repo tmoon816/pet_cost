@@ -1,9 +1,22 @@
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useCostStore } from '@/stores/costStore'
+import { useRoute, onBeforeRouteUpdate } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const store = useCostStore()
+const route = useRoute()
+
+// 修复路由切换回来分页异常的bug：每次进入首页重置分页到第一页
+onBeforeRouteUpdate((to) => {
+  if (to.name === 'home') {
+    pagination.currentPage = 1
+  }
+})
+
+onMounted(() => {
+  pagination.currentPage = 1
+})
 
 const dialogVisible = ref(false)
 const isEdit = ref(false)
@@ -164,7 +177,7 @@ const formatAmount = (row) => {
       <el-row :gutter="20">
         <el-col :xs="24" :sm="8" :md="6">
           <el-select v-model="filter.pet" placeholder="选择宠物" clearable style="width: 100%">
-            <el-option :label="pet" :value="pet" v-for="pet in store.petList" :key="pet" />
+            <el-option :label="pet.name" :value="pet.id" v-for="pet in store.petList" :key="pet.id" />
           </el-select>
         </el-col>
         <el-col :xs="24" :sm="8" :md="6">
@@ -216,7 +229,7 @@ const formatAmount = (row) => {
       <!-- 表格 -->
       <el-table v-else :data="pageList" border stripe style="width: 100%" class="cost-table">
         <el-table-column prop="date" label="日期" width="120" />
-        <el-table-column prop="pet" label="宠物" width="100" />
+        <el-table-column prop="pet" label="宠物" width="120" :formatter="(row) => store.getPetNameById(row.pet)" />
         <el-table-column prop="type" label="花费类型" width="120" />
         <el-table-column prop="amount" label="金额" width="120" :formatter="formatAmount" />
         <el-table-column prop="remark" label="备注" />
@@ -252,7 +265,7 @@ const formatAmount = (row) => {
         </el-form-item>
         <el-form-item label="宠物" prop="pet">
           <el-select v-model="form.pet" placeholder="请选择宠物" style="width: 100%">
-            <el-option :label="pet" :value="pet" v-for="pet in store.petList" :key="pet" />
+            <el-option :label="pet.name" :value="pet.id" v-for="pet in store.petList" :key="pet.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="类型" prop="type">

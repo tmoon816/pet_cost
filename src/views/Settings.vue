@@ -1,50 +1,85 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 import { useCostStore } from '@/stores/costStore'
 import { ElMessage, ElMessageBox, ElInput } from 'element-plus'
 
 const store = useCostStore()
 
-const newPetName = ref('')
 const newTypeName = ref('')
+const petDialogVisible = ref(false)
+const isPetEdit = ref(false)
+const currentPetId = ref(null)
+const petForm = reactive({
+  name: '',
+  owner: '',
+  remark: ''
+})
 
-// 添加宠物类型
-const handleAddPet = async () => {
-  if (!newPetName.value.trim()) {
+// 打开新增宠物对话框
+const handleAddPet = () => {
+  isPetEdit.value = false
+  currentPetId.value = null
+  petForm.name = ''
+  petForm.owner = ''
+  petForm.remark = ''
+  petDialogVisible.value = true
+}
+
+// 打开编辑宠物对话框
+const handleEditPet = (pet) => {
+  isPetEdit.value = true
+  currentPetId.value = pet.id
+  petForm.name = pet.name
+  petForm.owner = pet.owner
+  petForm.remark = pet.remark
+  petDialogVisible.value = true
+}
+
+// 提交宠物表单
+const handleSubmitPet = () => {
+  if (!petForm.name.trim()) {
     ElMessage.warning('请输入宠物名称')
     return
   }
-  if (store.petList.includes(newPetName.value.trim())) {
-    ElMessage.warning('该宠物类型已经存在')
+  
+  // 检查名字是否重复
+  const exists = store.petList.some(p => 
+    p.name === petForm.name.trim() && p.id !== currentPetId.value
+  )
+  if (exists) {
+    ElMessage.warning('该宠物名称已经存在')
     return
   }
+
+  if (isPetEdit.value) {
+    store.updatePet(currentPetId.value, petForm)
+    ElMessage.success('宠物信息更新成功')
+  } else {
+    store.addPet(petForm)
+    ElMessage.success('宠物添加成功')
+  }
   
-  store.addPet(newPetName.value.trim())
-  ElMessage.success('添加成功')
-  newPetName.value = ''
+  petDialogVisible.value = false
 }
 
-// 删除宠物类型
-const handleDeletePet = (petName) => {
-  // 检查是否有花费记录使用该类型
-  const hasUsed = store.costList.some(item => item.pet === petName)
-  if (hasUsed) {
-    ElMessage.error('该宠物类型已有花费记录，无法删除')
-    return
+// 删除宠物
+const handleDeletePet = (pet) => {
+  try {
+    ElMessageBox.confirm(
+      `确定要删除宠物 "${pet.name}" 吗？`,
+      '提示',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    ).then(() => {
+      store.deletePet(pet.id)
+      ElMessage.success('删除成功')
+    }).catch(() => {})
+  } catch (error) {
+    ElMessage.error(error.message)
   }
-  
-  ElMessageBox.confirm(
-    `确定要删除宠物类型 "${petName}" 吗？`,
-    '提示',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(() => {
-    store.deletePet(petName)
-    ElMessage.success('删除成功')
-  }).catch(() => {})
 }
 
 // 添加花费类型
@@ -131,6 +166,7 @@ const handleImport = (e) => {
             store.costTypeList = data.costTypeList
           }
           store.saveData()
+          store.savePetData()
           ElMessage.success('数据导入成功')
         }).catch(() => {})
       } else {
@@ -169,30 +205,29 @@ const handleClearAll = () => {
         <el-card shadow="hover" class="setting-card">
           <template #header>
             <div class="card-header">
-              <span>宠物类型管理</span>
-              <div style="display: flex; align-items: center">
-                <el-input
-                  v-model="newPetName"
-                  placeholder="输入新宠物类型"
-                  style="width: 200px; margin-right: 10px"
-                  @keyup.enter="handleAddPet"
-                />
-                <el-button type="primary" @click="handleAddPet">添加</el-button>
-              </div>
+              <span>宠物信息管理</span>
+              <el-button type="primary" @click="handleAddPet">
+                <el-icon><Plus /></el-icon>
+                新增宠物
+              </el-button>
             </div>
           </template>
-          <div class="tag-list">
-            <el-tag
-              v-for="pet in store.petList"
-              :key="pet"
-              closable
-              @close="handleDeletePet(pet)"
-              style="margin-right: 10px; margin-bottom: 10px"
-            >
-              {{ pet }}
-            </el-tag>
-            <div v-if="store.petList.length === 0" style="color: #909399; text-align: center; padding: 20px">
-              暂无宠物类型
+
+          <!-- 宠物列表 -->
+          <div class="pet-list">
+            <div v-for="pet in store.petList" :key="pet.id" class="pet-item">
+              <div class="pet-info">
+                <div class="pet-name">{{ pet.name }}</div>
+                <div class="pet-detail" v-if="pet.owner">主人：{{ pet.owner }}</div>
+                <div class="pet-detail" v-if="pet.remark">{{ pet.remark }}</div>
+              </div>
+              <div class="pet-actions">
+                <el-button size="small" type="primary" @click="handleEditPet(pet)">编辑</el-button>
+                <el-button size="small" type="danger" @click="handleDeletePet(pet)">删除</el-button>
+              </div>
+            </div>
+            <div v-if="store.petList.length === 0" class="empty-pet">
+              暂无宠物信息，点击右上角"新增宠物"添加吧~
             </div>
           </div>
         </el-card>
@@ -220,7 +255,6 @@ const handleClearAll = () => {
               :key="type"
               closable
               @close="handleDeleteType(type)"
-              style="margin-right: 10px; margin-bottom: 10px"
             >
               {{ type }}
             </el-tag>
@@ -285,12 +319,40 @@ const handleClearAll = () => {
       </template>
       <div style="padding: 20px">
         <h3>🐾 宠物花费管理系统</h3>
-        <p>版本：v1.0.0</p>
+        <p>版本：v1.1.0</p>
         <p>技术栈：Vue3 + Vite + Element Plus + Pinia + VueRouter4</p>
         <p>特性：纯前端实现，数据本地存储，无需后端服务，支持数据导入导出，图表统计分析</p>
         <p style="margin-top: 10px; color: #909399">数据存储在浏览器的localStorage中，清理浏览器数据会导致数据丢失，建议定期导出备份。</p>
       </div>
     </el-card>
+
+    <!-- 宠物信息编辑弹窗 -->
+    <el-dialog
+      v-model="petDialogVisible"
+      :title="isPetEdit ? '编辑宠物信息' : '新增宠物'"
+      width="500px"
+      :before-close="() => petDialogVisible = false"
+    >
+      <el-form label-width="80px">
+        <el-form-item label="宠物名称" required>
+          <el-input v-model="petForm.name" placeholder="请输入宠物名称" />
+        </el-form-item>
+        <el-form-item label="主人姓名">
+          <el-input v-model="petForm.owner" placeholder="请输入主人姓名（可选）" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="petForm.remark" type="textarea" :rows="3" placeholder="请输入备注信息（可选）" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="petDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="handleSubmitPet">
+            确定
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -342,13 +404,56 @@ const handleClearAll = () => {
   font-size: 18px;
   font-weight: 700;
   margin-bottom: 12px;
-  color: #303133;
+  color: #303333;
 }
 .data-desc {
   color: #606266;
   font-size: 14px;
   line-height: 1.6;
   margin-bottom: 16px;
+}
+
+/* 宠物列表样式 */
+.pet-list {
+  padding: 10px 0;
+}
+.pet-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  margin-bottom: 12px;
+  background: rgba(102, 126, 234, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(102, 126, 234, 0.1);
+  transition: all 0.3s ease;
+}
+.pet-item:hover {
+  background: rgba(102, 126, 234, 0.08);
+  transform: translateX(4px);
+}
+.pet-info {
+  flex: 1;
+}
+.pet-name {
+  font-size: 17px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 4px;
+}
+.pet-detail {
+  font-size: 13px;
+  color: #606266;
+  margin-top: 2px;
+}
+.pet-actions {
+  display: flex;
+  gap: 8px;
+}
+.empty-pet {
+  text-align: center;
+  padding: 40px 20px;
+  color: #909399;
 }
 
 /* 响应式适配 */
@@ -370,6 +475,15 @@ const handleClearAll = () => {
   }
   .card-header .el-button {
     width: 100%;
+  }
+  .pet-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .pet-actions {
+    margin-top: 12px;
+    width: 100%;
+    justify-content: flex-end;
   }
 }
 </style>
