@@ -244,7 +244,7 @@ onMounted(() => {
           <div class="stat-content">
             <p class="stat-label">宠物数量</p>
             <p class="stat-value">{{ petStats.length }}只</p>
-            <p class="stat-change text-muted">共{{ monthStats.value.reduce((sum, item) => sum + item.记录数, 0) }}条记录</p>
+            <p class="stat-change text-muted">共{{ monthStats.reduce((sum, item) => sum + item.记录数, 0) }}条记录</p>
           </div>
         </el-card>
       </el-col>

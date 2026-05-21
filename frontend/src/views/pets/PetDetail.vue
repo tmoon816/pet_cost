@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as petsApi from '@/api/pets'
 import * as costsApi from '@/api/costs'
+import * as customersApi from '@/api/customers'
 import { useCategoryStore } from '@/stores/categoryStore'
 import CostFormDialog from '@/views/costs/CostFormDialog.vue'
 
@@ -51,7 +52,6 @@ async function loadPet() {
       note: pet.value.note || '',
     })
     try {
-      const customersApi = await import('@/api/customers')
       const c = await customersApi.getCustomer(pet.value.customer_id)
       customerName.value = c.name
     } catch {
