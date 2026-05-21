@@ -53,7 +53,7 @@ approved → (实施) → in_progress → done
 ## Backlog
 
 ## T-012: 宠物档案显示「最近一次到店 / 距今天数」
-- status: approved
+- status: in_progress
 - category: feature
 - auto_approve: false
 - merge_to_main_after: true
@@ -63,8 +63,8 @@ approved → (实施) → in_progress → done
   - PetList.vue 卡片底部加「最近到店：YYYY-MM-DD（X 天前）」/ 无消费时"—"
   - npm run build 通过
 - created_at: 2026-05-22
-- last_run: ""
-- attempt: 0
+- last_run: "2026-05-22T07:45:22+08:00"
+- attempt: 1
 
 ## T-013: 消费记录列表加按客户名筛选
 - status: approved
