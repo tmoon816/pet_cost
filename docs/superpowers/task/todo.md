@@ -52,21 +52,6 @@ approved → (实施) → in_progress → done
 
 ## Backlog
 
-## T-010: Dashboard 新增「3 个月未到店老客」预警列表
-- status: in_progress
-- category: feature
-- auto_approve: false
-- merge_to_main_after: true
-- acceptance:
-  - 新增 GET /api/v1/stats/dormant-customers?days=90&limit=10，返回 last_visit_at 距今 ≥ days 的老客
-  - 排序按 last_visit_at 升序（最久没来的排前）
-  - 后端补 1 个用例
-  - Dashboard.vue 加预警列表卡片，每行显示 客户名 / 最后到店日期 / 距今天数 / "查看"
-  - npm run build 通过
-- created_at: 2026-05-22
-- last_run: "2026-05-22T04:42+08:00"
-- attempt: 1
-
 ## T-011: 客户详情页加消费时间线
 - status: approved
 - category: feature

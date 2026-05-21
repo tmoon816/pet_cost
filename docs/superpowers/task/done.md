@@ -4,6 +4,17 @@
 
 ---
 
+## T-010: Dashboard 新增「3 个月未到店老客」预警列表
+- completed_at: 2026-05-22T04:42:00+08:00
+- commit: 79b578d
+- category: feature
+- auto_approve: false
+- merge_to_main_after: true
+- attempt: 1
+- result: done — 后端新增 GET /api/v1/stats/dormant-customers，口径：last_visit_at = 客户名下所有宠物的 max(occurred_on)，阈值 (today - last_visit_at ≥ days)，过滤后按 last_visit_at 升序 + limit 裁切；crud 函数支持 today 参数以便测试确定性；补 2 个用例（CRUD 阈值/排序/limit/起未命中 与 API 默认参数 smoke，pytest 62→64）。Dashboard 加一张预警卡片：可切 30/60/90/180 阈值，表格列：客户名 / 最后到店日期 / 距今天数（180+ danger / 其余 warning）/ 查看（跳 /customers/:id）；空结果提示「暂无久未到店老客 🎉」。npm run build 通过。
+
+---
+
 ## T-009: Dashboard 新增「本月新客 vs 回头客」卡片
 - completed_at: 2026-05-22T03:58:00+08:00
 - commit: 本 commit
