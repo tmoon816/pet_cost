@@ -108,3 +108,61 @@ def by_pet(
         {"pet_id": int(row.pet_id), "pet_name": row.pet_name, "total": Decimal(row.total or 0)}
         for row in rows
     ]
+
+
+def customer_acquisition(db: Session, year: int, month: int) -> dict:
+    """T-009: 给定年月，返回当月新客 vs 回头客数。
+
+    口径:
+      当月有消费(occurred_on 落在 [start, end_of_month]) 的去重客户里：
+        - 该客户全量消费历史的最早 occurred_on 在 [start, end_of_month] => 新客
+        - 否则 => 回头客
+    """
+    from calendar import monthrange
+
+    start = date(year, month, 1)
+    end = date(year, month, monthrange(year, month)[1])
+
+    # 客户在当月有消费
+    customers_with_cost_this_month = (
+        select(Pet.customer_id)
+        .join(CostRecord, CostRecord.pet_id == Pet.id)
+        .where(CostRecord.occurred_on >= start)
+        .where(CostRecord.occurred_on <= end)
+        .distinct()
+        .subquery()
+    )
+
+    # 每个客户的最早消费日期（全量历史）
+    first_cost_per_customer = (
+        select(
+            Pet.customer_id.label("customer_id"),
+            func.min(CostRecord.occurred_on).label("first_date"),
+        )
+        .join(CostRecord, CostRecord.pet_id == Pet.id)
+        .group_by(Pet.customer_id)
+        .subquery()
+    )
+
+    rows = db.execute(
+        select(
+            first_cost_per_customer.c.customer_id,
+            first_cost_per_customer.c.first_date,
+        ).join(
+            customers_with_cost_this_month,
+            customers_with_cost_this_month.c.customer_id
+            == first_cost_per_customer.c.customer_id,
+        )
+    ).all()
+
+    new_customers = sum(1 for r in rows if start <= r.first_date <= end)
+    total = len(rows)
+    returning_customers = total - new_customers
+
+    return {
+        "year": year,
+        "month": month,
+        "new_customers": new_customers,
+        "returning_customers": returning_customers,
+        "total": total,
+    }

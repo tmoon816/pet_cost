@@ -4,6 +4,17 @@
 
 ---
 
+## T-009: Dashboard 新增「本月新客 vs 回头客」卡片
+- completed_at: 2026-05-22T03:58:00+08:00
+- commit: 本 commit
+- category: feature
+- auto_approve: false
+- merge_to_main_after: true
+- attempt: 1
+- result: done — 后端新增 GET /api/v1/stats/customer-acquisition（year/month），口径：本月有消费的去重客户中，首次消费在本月为 new，其余为 returning；补 2 个用例（May 2026 双客户 1+1 / 空月 0+0，pytest 60→62）；Dashboard 在顶部 4 卡片后加一张 acquisition 卡片，三格：新客/回头客/本月活跃总数，含占比（总数 0 时显示 "—"）。
+
+---
+
 ## T-008: 客户列表标记「新客/老客」标签
 - completed_at: 2026-05-22T03:51:00+08:00
 - commit: 本 commit

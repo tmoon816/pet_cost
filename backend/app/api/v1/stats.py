@@ -9,6 +9,7 @@ from ...schemas.stats import (
     StatsByCategory,
     StatsByMonth,
     StatsByPet,
+    StatsCustomerAcquisition,
     StatsSummary,
 )
 
@@ -51,3 +52,13 @@ def stats_by_pet(
     db: Session = Depends(get_db),
 ):
     return crud_stats.by_pet(db, customer_id, limit, start, end)
+
+
+@router.get("/customer-acquisition", response_model=StatsCustomerAcquisition)
+def stats_customer_acquisition(
+    year: int = Query(..., ge=2000, le=2100),
+    month: int = Query(..., ge=1, le=12),
+    db: Session = Depends(get_db),
+):
+    """T-009: 某年某月的新客 vs 回头客。"""
+    return crud_stats.customer_acquisition(db, year, month)

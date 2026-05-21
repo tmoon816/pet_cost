@@ -107,3 +107,33 @@ def test_by_category_includes_orphan_label(client, fixture_data):
     rows = client.get("/api/v1/stats/by-category").json()
     by_code = {row["category"]: row["label"] for row in rows}
     assert by_code["training"] == "训练"
+
+
+def test_customer_acquisition_may_2026(client, fixture_data):
+    """T-009: 2026-05 c1 老客（3月就开始消费）/ c2 新客（首次消费在5月8日）。"""
+    resp = client.get(
+        "/api/v1/stats/customer-acquisition", params={"year": 2026, "month": 5}
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["year"] == 2026
+    assert body["month"] == 5
+    assert body["new_customers"] == 1
+    assert body["returning_customers"] == 1
+    assert body["total"] == 2
+
+
+def test_customer_acquisition_empty_month(client, fixture_data):
+    """月内无消费 → 全为 0。"""
+    resp = client.get(
+        "/api/v1/stats/customer-acquisition", params={"year": 2026, "month": 8}
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body == {
+        "year": 2026,
+        "month": 8,
+        "new_customers": 0,
+        "returning_customers": 0,
+        "total": 0,
+    }

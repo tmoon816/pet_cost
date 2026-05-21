@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { Pie, Bar } from '@ant-design/charts'
-import { getSummary, getByCategory, getByMonth, getByPet } from '@/api/stats'
+import { getSummary, getByCategory, getByMonth, getByPet, getCustomerAcquisition } from '@/api/stats'
 import { listCosts } from '@/api/costs'
 import { useCategoryStore } from '@/stores/categoryStore'
 
@@ -25,7 +25,9 @@ const categoryStats = ref([])
 const monthStats = ref([])
 const petStats = ref([])
 const recentBills = ref([])
-const loading = ref({ summary: false, category: false, month: false, pet: false, bills: false })
+// T-009: 本月新客 vs 回头客
+const acquisition = ref({ new_customers: 0, returning_customers: 0, total: 0 })
+const loading = ref({ summary: false, category: false, month: false, pet: false, bills: false, acquisition: false })
 
 const fetchSummary = async () => {
   loading.value.summary = true
@@ -116,7 +118,38 @@ const fetchAllData = () => {
   fetchMonthStats()
   fetchPetStats()
   fetchRecentBills()
+  fetchAcquisition()
 }
+
+const fetchAcquisition = async () => {
+  loading.value.acquisition = true
+  try {
+    const res = await getCustomerAcquisition({
+      year: now.getFullYear(),
+      month: now.getMonth() + 1,
+    })
+    acquisition.value = {
+      new_customers: Number(res.new_customers || 0),
+      returning_customers: Number(res.returning_customers || 0),
+      total: Number(res.total || 0),
+    }
+  } catch (e) {
+    acquisition.value = { new_customers: 0, returning_customers: 0, total: 0 }
+  } finally {
+    loading.value.acquisition = false
+  }
+}
+
+const acquisitionDisplay = computed(() => {
+  const { new_customers, returning_customers, total } = acquisition.value
+  if (!total) {
+    return { newPct: '—', returnPct: '—' }
+  }
+  return {
+    newPct: `${Math.round((new_customers / total) * 100)}%`,
+    returnPct: `${Math.round((returning_customers / total) * 100)}%`,
+  }
+})
 
 const pieConfig = computed(() => ({
   data: categoryStats.value,
@@ -196,6 +229,32 @@ onMounted(async () => {
             <p class="stat-label">服务宠物数</p>
             <p class="stat-value">{{ summary.pet_count }}</p>
             <p class="stat-change text-muted">本月被服务过的宠物</p>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- T-009: 本月新客 vs 回头客 -->
+    <el-row :gutter="20" style="margin-top: 20px;">
+      <el-col :span="24">
+        <el-card shadow="hover" v-loading="loading.acquisition">
+          <template #header><strong>本月新客 vs 回头客</strong></template>
+          <div class="acquisition-row">
+            <div class="acquisition-cell new">
+              <div class="acquisition-label">新客</div>
+              <div class="acquisition-value">{{ acquisition.new_customers }}</div>
+              <div class="acquisition-pct">{{ acquisitionDisplay.newPct }}</div>
+            </div>
+            <div class="acquisition-cell returning">
+              <div class="acquisition-label">回头客</div>
+              <div class="acquisition-value">{{ acquisition.returning_customers }}</div>
+              <div class="acquisition-pct">{{ acquisitionDisplay.returnPct }}</div>
+            </div>
+            <div class="acquisition-cell total">
+              <div class="acquisition-label">本月活跃总数</div>
+              <div class="acquisition-value">{{ acquisition.total }}</div>
+              <div class="acquisition-pct text-muted">去重客户数</div>
+            </div>
           </div>
         </el-card>
       </el-col>
@@ -302,6 +361,24 @@ onMounted(async () => {
 .bill-note { font-size: 12px; color: #909399; }
 .bill-right { text-align: right; }
 .bill-amount { font-size: 16px; font-weight: 700; color: #f56c6c; }
+/* T-009: 本月新客 vs 回头客 */
+.acquisition-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.acquisition-cell {
+  padding: 16px 20px;
+  border-radius: 10px;
+  background: #fafafa;
+  text-align: center;
+}
+.acquisition-cell.new { background: rgba(64, 158, 255, 0.08); }
+.acquisition-cell.returning { background: rgba(103, 194, 58, 0.08); }
+.acquisition-cell.total { background: rgba(144, 147, 153, 0.08); }
+.acquisition-label { font-size: 13px; color: #909399; margin-bottom: 8px; }
+.acquisition-value { font-size: 28px; font-weight: 700; color: #303133; }
+.acquisition-pct { font-size: 13px; color: #606266; margin-top: 4px; }
 @media (max-width: 1440px) {
   .stat-card { flex-direction: column; text-align: center; gap: 10px; min-height: 140px; }
 }

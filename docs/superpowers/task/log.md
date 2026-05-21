@@ -11,4 +11,5 @@
 | 2026-05-22T02:45+08:00 | T-001 | draft_spec | spec_drafted | 本 commit | 查实际代码后发现路由级 code-split 已实现，真正问题是 vendor 未拆（echarts/antd-charts/element-plus）；spec 提出 A/B/C 三案，建议 A；acceptance 200KB 阈值不现实需调 |
 | 2026-05-22T03:40+08:00 | T-006 | implement | done | e6bfb6a (main: e6bfb6a) | 后端增 1 个 phone 模糊搜索用例（pytest 56→57）；前端 CustomerList 接入 watch+300ms debounce，去掉「搜索」按钮，清空即恢复全量；npm run build 通过；auto-merge main FF 成功 |
 | 2026-05-22T03:45+08:00 | T-007 | implement | done | efe585d (main: efe585d) | 后端新增 GET /customers/{id}/summary、CustomerSummary schema、补 2 用例（pytest 57→59）；前端 CustomerDetail 加 3 个聚合卡片，空数据“—”；auto-merge main FF 成功 |
-| 2026-05-22T03:51+08:00 | T-008 | implement | done | 本 commit | 后端 GET /customers 加 has_cost(EXISTS 子查询)，新 schema CustomerListItem，补 1 用例（pytest 59→60）；前端 CustomerList 增「老客/新客」el-tag 列；build 通过，待后续 auto-merge main |
+| 2026-05-22T03:51+08:00 | T-008 | implement | done | 4879ff5 (main: 4879ff5) | 后端 GET /customers 加 has_cost(EXISTS)、CustomerListItem、补 1 用例（pytest 59→60）；前端 CustomerList 增「老客/新客」el-tag 列；auto-merge main FF 成功 |
+| 2026-05-22T03:58+08:00 | T-009 | implement | done | 本 commit | 后端 GET /stats/customer-acquisition (year/month)，StatsCustomerAcquisition schema，min(occurred_on) 判定首次消费；补 2 用例（pytest 60→62）；Dashboard 加三格 acquisition 卡片（新/回/总 + 占比）；build 通过，待后续 auto-merge main |

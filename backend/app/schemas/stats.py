@@ -32,3 +32,14 @@ class StatsByPetItem(BaseModel):
 StatsByCategory = List[StatsByCategoryItem]
 StatsByMonth = List[StatsByMonthItem]
 StatsByPet = List[StatsByPetItem]
+
+
+class StatsCustomerAcquisition(BaseModel):
+    """T-009: 本月新客 vs 回头客。total = new + returning。"""
+
+    year: int
+    month: int
+    new_customers: int
+    returning_customers: int
+    total: int
+

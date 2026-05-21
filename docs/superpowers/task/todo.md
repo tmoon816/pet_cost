@@ -52,21 +52,6 @@ approved → (实施) → in_progress → done
 
 ## Backlog
 
-## T-009: Dashboard 新增「本月新客 vs 回头客」卡片
-- status: in_progress
-- category: feature
-- auto_approve: false
-- merge_to_main_after: true
-- acceptance:
-  - 新增 GET /api/v1/stats/customer-acquisition?year=&month=，返回 new_customers/returning_customers/total
-  - 定义：当月有消费且首次消费在本月 = new；当月有消费且此前已有消费 = returning
-  - 后端补 1 个用例
-  - Dashboard.vue 加一张卡片显示这俩数字（含占比）
-  - npm run build 通过
-- created_at: 2026-05-22
-- last_run: "2026-05-22T03:54:00+08:00"
-- attempt: 1
-
 ## T-010: Dashboard 新增「3 个月未到店老客」预警列表
 - status: approved
 - category: feature
