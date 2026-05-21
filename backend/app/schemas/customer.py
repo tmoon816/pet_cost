@@ -29,6 +29,12 @@ class CustomerOut(CustomerBase):
     updated_at: datetime
 
 
+class CustomerListItem(CustomerOut):
+    """T-008: 列表项额外携带 has_cost（首次有消费即老客）。"""
+
+    has_cost: bool = False
+
+
 class CustomerWithPets(CustomerOut):
     pets: List["PetOut"] = []
 

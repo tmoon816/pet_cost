@@ -148,3 +148,29 @@ def test_customer_summary_happy_path(client):
 def test_customer_summary_404_when_missing(client):
     resp = client.get("/api/v1/customers/99999/summary")
     assert resp.status_code == 404
+
+
+def test_customer_list_has_cost_flag(client):
+    """T-008: 列表返回 has_cost；首次有消费即老客。"""
+    # 新客：只创建客户，没有消费
+    new_cust = client.post("/api/v1/customers", json={"name": "全新客户"}).json()
+
+    # 老客：创建客户 + 宠物 + 1 笔消费
+    old_cust = client.post("/api/v1/customers", json={"name": "回头客"}).json()
+    pet = client.post(
+        "/api/v1/pets", json={"customer_id": old_cust["id"], "name": "小黑"}
+    ).json()
+    client.post(
+        "/api/v1/costs",
+        json={
+            "pet_id": pet["id"],
+            "category_code": "food",
+            "amount": "20.00",
+            "occurred_on": "2026-05-15",
+        },
+    )
+
+    body = client.get("/api/v1/customers").json()
+    items_by_id = {it["id"]: it for it in body["items"]}
+    assert items_by_id[new_cust["id"]]["has_cost"] is False
+    assert items_by_id[old_cust["id"]]["has_cost"] is True

@@ -145,6 +145,12 @@ function viewDetail(row) {
     >
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column prop="name" label="姓名" min-width="120" />
+      <el-table-column label="类型" width="90" align="center">
+        <template #default="{ row }">
+          <el-tag v-if="row.has_cost" type="success" size="small" effect="plain">老客</el-tag>
+          <el-tag v-else type="info" size="small" effect="plain">新客</el-tag>
+        </template>
+      </el-table-column>
       <el-table-column prop="phone" label="手机号" min-width="140">
         <template #default="{ row }">{{ row.phone || '-' }}</template>
       </el-table-column>

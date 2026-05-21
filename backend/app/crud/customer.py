@@ -36,8 +36,19 @@ def get_with_pets(db: Session, customer_id: int) -> Customer | None:
 
 def list_paginated(
     db: Session, q: str | None, page: int, page_size: int
-) -> Tuple[List[Customer], int]:
-    stmt = select(Customer)
+) -> Tuple[List[dict], int]:
+    """T-008: 列表项额外返回 has_cost（该客户名下任一宠物是否有过消费记录）。
+
+    返回 dict 列表代替 ORM 实例，使 schema CustomerListItem 能直接读到 has_cost。
+    """
+    has_cost_subq = (
+        select(CostRecord.id)
+        .join(Pet, CostRecord.pet_id == Pet.id)
+        .where(Pet.customer_id == Customer.id)
+        .exists()
+    )
+
+    stmt = select(Customer, has_cost_subq.label("has_cost"))
     count_stmt = select(func.count(Customer.id))
     if q:
         like = f"%{q}%"
@@ -45,7 +56,22 @@ def list_paginated(
         stmt = stmt.where(cond)
         count_stmt = count_stmt.where(cond)
     stmt = stmt.order_by(Customer.id.desc()).offset((page - 1) * page_size).limit(page_size)
-    items = list(db.scalars(stmt).all())
+
+    rows = db.execute(stmt).all()
+    items: List[dict] = []
+    for row in rows:
+        customer: Customer = row[0]
+        items.append(
+            {
+                "id": customer.id,
+                "name": customer.name,
+                "phone": customer.phone,
+                "note": customer.note,
+                "created_at": customer.created_at,
+                "updated_at": customer.updated_at,
+                "has_cost": bool(row[1]),
+            }
+        )
     total = int(db.scalar(count_stmt) or 0)
     return items, total
 

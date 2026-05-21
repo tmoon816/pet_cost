@@ -4,12 +4,12 @@ from sqlalchemy.orm import Session
 from ...core.database import get_db
 from ...crud import customer as crud_customer
 from ...schemas.common import Page
-from ...schemas.customer import CustomerCreate, CustomerOut, CustomerSummary, CustomerUpdate, CustomerWithPets
+from ...schemas.customer import CustomerCreate, CustomerListItem, CustomerOut, CustomerSummary, CustomerUpdate, CustomerWithPets
 
 router = APIRouter(prefix="/customers", tags=["customers"])
 
 
-@router.get("", response_model=Page[CustomerOut])
+@router.get("", response_model=Page[CustomerListItem])
 def list_customers(
     q: str | None = None,
     page: int = Query(1, ge=1),

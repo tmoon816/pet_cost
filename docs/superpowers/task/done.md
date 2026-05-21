@@ -4,6 +4,17 @@
 
 ---
 
+## T-008: 客户列表标记「新客/老客」标签
+- completed_at: 2026-05-22T03:51:00+08:00
+- commit: 本 commit
+- category: feature
+- auto_approve: false
+- merge_to_main_after: true
+- attempt: 1
+- result: done — 后端 list_paginated 加 EXISTS 子查询计算 has_cost，返回结构改为 dict，response_model 切为 CustomerListItem(extends CustomerOut + has_cost)；不影响 CustomerWithPets/详情/创建/更新；补 1 个用例（pytest 59→60）；CustomerList 列表加 el-tag（老客/新客）；build 通过。
+
+---
+
 ## T-007: 客户详情页加聚合卡片（累计消费/上次到店/总订单数）
 - completed_at: 2026-05-22T03:45:00+08:00
 - commit: 本 commit
