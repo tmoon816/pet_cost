@@ -8,6 +8,8 @@ html, body, #app {
   width: 100%;
   height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
@@ -16,6 +18,42 @@ body {
   color: #303133;
   min-height: 100vh;
 }
+
+/* 字体层级规范 */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  color: #303133;
+  line-height: 1.4;
+  margin: 0;
+}
+h1 { font-size: 32px; }
+h2 { font-size: 24px; }
+h3 { font-size: 20px; }
+h4 { font-size: 18px; }
+h5 { font-size: 16px; }
+h6 { font-size: 14px; }
+
+/* 文字样式 */
+.text-primary { color: #667eea !important; }
+.text-success { color: #67c23a !important; }
+.text-warning { color: #e6a23c !important; }
+.text-danger { color: #f56c6c !important; }
+.text-muted { color: #909399 !important; }
+
+/* 间距规范 */
+.mt-4 { margin-top: 4px !important; }
+.mt-8 { margin-top: 8px !important; }
+.mt-12 { margin-top: 12px !important; }
+.mt-16 { margin-top: 16px !important; }
+.mt-20 { margin-top: 20px !important; }
+.mt-24 { margin-top: 24px !important; }
+
+.mb-4 { margin-bottom: 4px !important; }
+.mb-8 { margin-bottom: 8px !important; }
+.mb-12 { margin-bottom: 12px !important; }
+.mb-16 { margin-bottom: 16px !important; }
+.mb-20 { margin-bottom: 20px !important; }
+.mb-24 { margin-bottom: 24px !important; }
 
 /* 自定义滚动条 */
 ::-webkit-scrollbar {

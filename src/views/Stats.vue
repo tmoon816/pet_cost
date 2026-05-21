@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
 import { useCostStore } from '@/stores/costStore'
 import * as echarts from 'echarts'
 
@@ -24,7 +24,7 @@ const totalStats = computed(() => {
 
 // 初始化宠物花费占比图表
 const initPetChart = () => {
-  if (!petChartRef.value) return
+  if (!petChartRef.value || store.costList.length === 0) return
   petChart = echarts.init(petChartRef.value)
   const data = store.costByPet
   const option = {
@@ -67,7 +67,7 @@ const initPetChart = () => {
 
 // 初始化花费类型占比图表
 const initTypeChart = () => {
-  if (!typeChartRef.value) return
+  if (!typeChartRef.value || store.costList.length === 0) return
   typeChart = echarts.init(typeChartRef.value)
   const data = store.costByType
   const option = {
@@ -110,7 +110,7 @@ const initTypeChart = () => {
 
 // 初始化月度花费趋势图表
 const initMonthChart = () => {
-  if (!monthChartRef.value) return
+  if (!monthChartRef.value || store.costList.length === 0) return
   monthChart = echarts.init(monthChartRef.value)
   const data = store.costByMonth
   const option = {
@@ -144,7 +144,7 @@ const initMonthChart = () => {
           ])
         },
         itemStyle: {
-          color: '#409eff'
+          color: '#667eea'
         }
       }
     ]
@@ -159,11 +159,23 @@ const resizeCharts = () => {
   monthChart?.resize()
 }
 
-onMounted(() => {
+const initAllCharts = () => {
+  if (store.costList.length === 0) return
   initPetChart()
   initTypeChart()
   initMonthChart()
+}
+
+onMounted(() => {
+  initAllCharts()
   window.addEventListener('resize', resizeCharts)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', resizeCharts)
+  petChart?.dispose()
+  typeChart?.dispose()
+  monthChart?.dispose()
 })
 </script>
 
@@ -212,36 +224,49 @@ onMounted(() => {
       </el-col>
     </el-row>
 
-    <!-- 图表区域 -->
-    <el-row :gutter="20" style="margin-top: 20px">
-      <el-col :xs="24" :lg="12">
-        <el-card shadow="hover" class="chart-card">
-          <template #header>
-            <span>宠物花费占比</span>
-          </template>
-          <div ref="petChartRef" class="chart-container"></div>
-        </el-card>
-      </el-col>
-      <el-col :xs="24" :lg="12">
-        <el-card shadow="hover" class="chart-card">
-          <template #header>
-            <span>花费类型占比</span>
-          </template>
-          <div ref="typeChartRef" class="chart-container"></div>
-        </el-card>
-      </el-col>
-    </el-row>
+    <!-- 空状态 -->
+    <div v-if="store.costList.length === 0" class="empty-state">
+      <el-icon size="100" color="#c0c4cc"><DataAnalysis /></el-icon>
+      <p class="empty-title">暂无统计数据</p>
+      <p class="empty-desc">先添加一些花费记录再来查看统计分析吧~</p>
+      <el-button type="primary" @click="$router.push('/')" style="margin-top: 20px">
+        <el-icon><Plus /></el-icon>
+        去添加记录
+      </el-button>
+    </div>
 
-    <el-row style="margin-top: 20px">
-      <el-col :xs="24">
-        <el-card shadow="hover" class="chart-card">
-          <template #header>
-            <span>月度花费趋势</span>
-          </template>
-          <div ref="monthChartRef" class="chart-container" style="height: 400px"></div>
-        </el-card>
-      </el-col>
-    </el-row>
+    <!-- 图表区域 -->
+    <template v-else>
+      <el-row :gutter="20" style="margin-top: 20px">
+        <el-col :xs="24" :lg="12">
+          <el-card shadow="hover" class="chart-card">
+            <template #header>
+              <span>宠物花费占比</span>
+            </template>
+            <div ref="petChartRef" class="chart-container"></div>
+          </el-card>
+        </el-col>
+        <el-col :xs="24" :lg="12">
+          <el-card shadow="hover" class="chart-card">
+            <template #header>
+              <span>花费类型占比</span>
+            </template>
+            <div ref="typeChartRef" class="chart-container"></div>
+          </el-card>
+        </el-col>
+      </el-row>
+
+      <el-row style="margin-top: 20px">
+        <el-col :xs="24">
+          <el-card shadow="hover" class="chart-card">
+            <template #header>
+              <span>月度花费趋势</span>
+            </template>
+            <div ref="monthChartRef" class="chart-container" style="height: 400px"></div>
+          </el-card>
+        </el-col>
+      </el-row>
+    </template>
   </div>
 </template>
 
@@ -303,5 +328,50 @@ onMounted(() => {
 }
 .chart-card {
   margin-bottom: 24px;
+}
+
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: 100px 20px;
+  color: #909399;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 16px;
+  margin-top: 20px;
+  backdrop-filter: blur(10px);
+}
+.empty-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 24px 0 12px;
+  color: #606266;
+}
+.empty-desc {
+  font-size: 15px;
+  color: #909399;
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+  .stats-item {
+    flex-direction: column;
+    text-align: center;
+  }
+  .stats-icon {
+    margin-right: 0;
+    margin-bottom: 16px;
+  }
+  .stats-value {
+    font-size: 28px;
+  }
+  .chart-container {
+    height: 300px;
+  }
+  .chart-card {
+    margin-bottom: 20px;
+  }
+  .stats-card {
+    margin-bottom: 20px;
+  }
 }
 </style>

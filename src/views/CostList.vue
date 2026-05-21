@@ -182,7 +182,7 @@ const formatAmount = (row) => {
             style="width: 100%"
           />
         </el-col>
-        <el-col :xs="24" :sm="24" :md="6" style="text-align: right">
+        <el-col :xs="24" :sm="24" :md="6" class="filter-actions">
           <el-button @click="handleResetFilter" style="margin-right: 10px">重置</el-button>
           <el-button type="primary" @click="handleAdd">
             <el-icon><Plus /></el-icon>
@@ -192,16 +192,29 @@ const formatAmount = (row) => {
       </el-row>
     </el-card>
 
-    <el-card shadow="hover" class="list-card" style="margin-top: 20px">
+    <el-card shadow="hover" class="list-card">
       <template #header>
         <div class="card-header">
           <span>花费记录</span>
-          <span style="color: #909399; font-size: 14px; font-weight: normal">
+          <span class="total-text">
             总花费：¥ {{ store.totalCost }}
           </span>
         </div>
       </template>
-      <el-table :data="pageList" border stripe style="width: 100%">
+
+      <!-- 空状态 -->
+      <div v-if="filteredList.length === 0" class="empty-state">
+        <el-icon size="80" color="#c0c4cc"><DocumentRemove /></el-icon>
+        <p class="empty-title">暂无花费记录</p>
+        <p class="empty-desc">点击右上角"添加花费"按钮记录第一笔消费吧~</p>
+        <el-button type="primary" @click="handleAdd" style="margin-top: 20px">
+          <el-icon><Plus /></el-icon>
+          立即添加
+        </el-button>
+      </div>
+
+      <!-- 表格 -->
+      <el-table v-else :data="pageList" border stripe style="width: 100%" class="cost-table">
         <el-table-column prop="date" label="日期" width="120" />
         <el-table-column prop="pet" label="宠物" width="100" />
         <el-table-column prop="type" label="花费类型" width="120" />
@@ -214,7 +227,8 @@ const formatAmount = (row) => {
           </template>
         </el-table-column>
       </el-table>
-      <div class="pagination-wrap" style="margin-top: 20px; text-align: right">
+
+      <div v-if="filteredList.length > 0" class="pagination-wrap">
         <el-pagination
           v-model:current-page="pagination.currentPage"
           v-model:page-size="pagination.pageSize"
@@ -273,6 +287,11 @@ const formatAmount = (row) => {
   font-weight: 600;
   font-size: 16px;
 }
+.total-text {
+  color: #909399;
+  font-size: 14px;
+  font-weight: normal;
+}
 .filter-card {
   margin-bottom: 24px;
 }
@@ -281,5 +300,51 @@ const formatAmount = (row) => {
 }
 .pagination-wrap {
   margin-top: 24px;
+  text-align: right;
+}
+
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: 80px 20px;
+  color: #909399;
+}
+.empty-title {
+  font-size: 18px;
+  font-weight: 500;
+  margin: 20px 0 10px;
+  color: #606266;
+}
+.empty-desc {
+  font-size: 14px;
+  color: #909399;
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+  .cost-table {
+    font-size: 12px;
+  }
+  .cost-table .el-button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .filter-actions {
+    text-align: left !important;
+  }
+  .filter-card .el-col {
+    margin-bottom: 16px;
+  }
+  .filter-card .el-col:last-child {
+    margin-bottom: 0;
+  }
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .total-text {
+    font-size: 13px !important;
+  }
 }
 </style>

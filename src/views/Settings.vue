@@ -317,6 +317,8 @@ const handleClearAll = () => {
   color: white !important;
   transition: all 0.3s ease !important;
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+  margin-right: 10px;
+  margin-bottom: 10px;
 }
 .el-tag:hover {
   transform: translateY(-2px) scale(1.05);
@@ -347,5 +349,27 @@ const handleClearAll = () => {
   font-size: 14px;
   line-height: 1.6;
   margin-bottom: 16px;
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+  .data-card {
+    margin-bottom: 20px;
+  }
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .card-header > div:last-child {
+    width: 100%;
+  }
+  .card-header .el-input {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  .card-header .el-button {
+    width: 100%;
+  }
 }
 </style>
