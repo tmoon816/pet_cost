@@ -20,9 +20,9 @@ from .models import CostCategory, CostRecord, Customer, Pet
 
 
 CUSTOMER_PROFILES = [
-    {"name": "张伟", "phone": "13800001001", "note": "老客户，常带毛毛来洗澡"},
-    {"name": "李娜", "phone": "13900002002", "note": "最近收养了一只流浪猫"},
-    {"name": "王强", "phone": "13700003003", "note": "两只狗都是金毛"},
+    {"name": "张伟", "phone": "13800001001", "note": "会员积分 3200，常带毛毛来洗澡"},
+    {"name": "李娜", "phone": "13900002002", "note": "VIP 会员，最近收养了一只流浪猫"},
+    {"name": "王强", "phone": "13700003003", "note": "两只金毛，每月全套护理 + 定期寄养"},
 ]
 
 PET_TEMPLATES = [
