@@ -23,9 +23,7 @@
 ## 第一步：kill switch 检查
 读 todo.md 头部 yaml frontmatter：
 - 若 enabled: false → 立即退出，往 log.md 追加一行 "kill switch off"
-- 若 runs_today_date 不是今天 → 改成今天，runs_today 重置为 0
-- 若 runs_today >= max_runs_per_day → 退出，写 log "daily quota reached"
-- 否则 runs_today += 1，继续
+- 否则继续
 
 ## 第二步：同步代码
 git fetch origin
@@ -49,10 +47,19 @@ git pull --ff-only origin dev
 5. 都没有 → 跳到第五步
 
 ## 第四步：实施任务
-进入实施前先把任务状态改 in_progress，last_run 写当前时间，attempt += 1。
-commit & push 这次状态变更（commit message: "🤖 chore(T-XXX): start implementation"）。
 
-实施步骤：
+### 4a. no-op 预检（重要，先做这步）
+对 lint / dead-code / dep-patch / test 等"可能根本没事干"的任务，先快速核验：
+- lint：grep 目标 pattern，命中数为 0 → 直接跳到 4d
+- dead-code：跑 vulture / tree-shaking 等检测，无目标 → 跳到 4d
+- dep-patch：再跑一次 npm outdated / uv tree --outdated，目标版本仍未升级 → 实施；已是最新 → 跳到 4d
+- test：扫描覆盖率，目标已达标 → 跳到 4d
+
+### 4b. 状态推进（不单独提交）
+任务状态改 in_progress，last_run 写当前时间，attempt += 1。
+**不要为这次状态变更单独提交**——和 4c 的实际改动合并成一个 commit。
+
+### 4c. 实施
 - 读 spec（若有）
 - 写代码
 - 跑：cd backend && uv run pytest
@@ -61,16 +68,20 @@ commit & push 这次状态变更（commit message: "🤖 chore(T-XXX): start imp
 
 若失败：
 - 修代码再试，最多累计 attempt: 3
-- 仍失败 → 状态改 blocked，blocked_reason 写清楚根因（写"为什么"，不只是错误信息）
-- commit & push（commit message: "🚧 block(T-XXX): <根因摘要>"）
-- 跳到第五步
+- 仍失败 → 状态改 blocked，blocked_reason 写清楚根因
+- 一个 commit 包含：代码改动 + 任务状态变更，message 用 "🚧 block(T-XXX): <根因摘要>"
+- push & 跳第五步
 
 若成功：
-- commit 实际改动，commit message 用 emoji 前缀（✨/🐛/♻️/💄/📝/🔧）
+- 一个 commit 包含：代码改动 + 把任务从 todo.md 剪到 done.md + log.md 追加一行
+- commit message 用 emoji 前缀（✨/🐛/♻️/💄/📝/🔧）描述实际改动，不要用"start implementation"
 - push origin dev
-- 状态改 done
-- 把整条任务从 todo.md 剪切到 done.md 顶部，加一行完成时间和 commit hash
-- commit & push 状态变更
+
+### 4d. no-op 收尾
+- 不动业务代码
+- 一个 commit 包含：把任务从 todo.md 剪到 done.md（标注 result: no-op）+ log.md 追加一行
+- commit message: "📝 chore(T-XXX): no-op，<原因>"
+- push origin dev
 
 ## 第五步：巡检（每次 tick 都做，不论第三步选了什么）
 按 policy.md 第 5 节扫描信号源，识别新任务。
@@ -79,11 +90,16 @@ commit & push 这次状态变更（commit message: "🤖 chore(T-XXX): start imp
 - 否则在 todo.md 的「Backlog」段末尾追加，status: backlog
 - 写明信号来源（"npm outdated 显示 X 过期" / "FIXME at file:line"）
 
-## 第六步：写 log
+## 第六步：写 log（仅当第三步走的是"写 spec"或"无任务"分支时单独提交）
 往 docs/superpowers/log.md 表格追加一行：
 | 当前时间 | 任务ID或'-' | 第三步选择 | done/blocked/spec_drafted/no-op | commit hash 或 '-' | 备注 |
 
-commit & push（commit message: "📝 log: tick at <timestamp>"）。
+- 第三步走 spec_drafted 分支时：log 行已包含在 spec commit 里（第三步写 spec 时一并提交）
+- 第三步选了任务实施时：log 行已包含在第四步的合并 commit 里
+- 第三步无任务可做（含巡检结果为空）：单独提交 log，message: "📝 log: tick at <timestamp> (no-op)"
+- 巡检追加新任务时：合并到 log commit 里一起提交
+
+目标是**每次 tick 至多 1 个 commit**（spec_drafted 路径例外，因为 spec 文件本身要提交）。退出。
 
 # 红线（违反即视为本次 tick 失败）
 - 不合 main、不 force push、不 --no-verify

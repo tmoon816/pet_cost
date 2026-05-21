@@ -84,7 +84,6 @@ last_updated: 2026-05-22
 todo.md 头部 yaml frontmatter：
 
 - `enabled: false` → agent 立即退出，仅写 log
-- `runs_today >= max_runs_per_day` → agent 退出
-- 日期跨天后，agent 把 `runs_today` 重置为 0、`runs_today_date` 改为今天
 
 人类可以随时编辑 todo.md frontmatter 来暂停整个循环，无需删任务。
+不设每日上限——资源充足，节流靠 cron 触发频率本身。

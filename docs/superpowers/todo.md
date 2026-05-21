@@ -1,9 +1,5 @@
 ---
 enabled: true
-max_runs_per_day: 8
-runs_today: 2
-runs_today_date: 2026-05-22
-budget_left_usd: 5.0
 ---
 
 # 任务队列
