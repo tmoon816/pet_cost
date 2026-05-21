@@ -18,3 +18,4 @@
 | 2026-05-22T04:46+08:00 | - | tick_end | chain=1 | - | 本 tick 实施 T-010（done + main FF）。巡检：frontend npm outdated 仍只有 vite patch / vue-router major（均已在 backlog），backend uv tree --outdated 无直接依赖需升，grep TODO/FIXME/XXX 为空。未追加新任务。 |
 | 2026-05-22T05:43+08:00 | T-011 | implement | done | 244b80f (main: 1ff09c9) | 前端 CustomerDetail 加「消费时间线」el-timeline（pet_name/分类tag/金额/备注），page_size=20+「加载更多」分页，复用已有 GET /costs?customer_id=X 不动后端；build 通过，pytest 64 全过；auto-merge main FF 成功 |
 | 2026-05-22T05:44+08:00 | - | tick_end | chain=1 | - | 本 tick 实施 T-011（done + main FF 1ff09c9）。巡检：frontend npm outdated 仍只 vite patch / vue-router major（已在 backlog T-004/T-005），backend uv tree --outdated 无直接依赖需升，grep TODO/FIXME/XXX 为空。未追加新任务。 |
+| 2026-05-22T06:42+08:00 | - | tick_start | local_dirty_exit | - | backend/uv.lock 工作区脏（revision 2→3 + tsinghua mirror url 替换，疑似上一 tick uv 调用副作用），按协议第二步“local dirty, exit”立即退出，不做任何改动，不认领任务 |
