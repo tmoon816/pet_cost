@@ -25,6 +25,12 @@
 - 若 enabled: false → 立即退出，往 log.md 追加一行 "kill switch off"
 - 否则继续
 
+## 第 1.5 步：并发互斥检查（防止两个 tick 同时跑）
+扫 todo.md 所有任务，若存在任意 task 满足：
+  status: in_progress 且 last_run 距今 < 3 小时
+→ 视为另一个 cron tick 仍在执行，**立即退出**，写 log "concurrent tick deferred (T-XXX still running)"
+（3 小时是为了在 1h cron 间隔下留 3 倍安全余量；超过 3 小时按第三步的断线处理）
+
 ## 第二步：同步代码
 git fetch origin
 git checkout dev
@@ -34,7 +40,7 @@ git pull --ff-only origin dev
 ## 第三步：选任务
 按下面优先级遍历 todo.md，选第一条匹配的任务：
 
-1. status: in_progress 且 last_run 距今 > 1 小时 → 视为前次断线
+1. status: in_progress 且 last_run 距今 > 3 小时 → 视为前次断线
    → 状态改回 approved，attempt 不变，进入第四步
 2. status: approved → 直接进入第四步
 3. status: backlog 且 auto_approve: true 且 category 在 policy.md 自动批白名单内
@@ -55,9 +61,20 @@ git pull --ff-only origin dev
 - dep-patch：再跑一次 npm outdated / uv tree --outdated，目标版本仍未升级 → 实施；已是最新 → 跳到 4d
 - test：扫描覆盖率，目标已达标 → 跳到 4d
 
-### 4b. 状态推进（不单独提交）
-任务状态改 in_progress，last_run 写当前时间，attempt += 1。
-**不要为这次状态变更单独提交**——和 4c 的实际改动合并成一个 commit。
+### 4b. 原子认领（关键，防并发）
+- 把任务 status 改 in_progress，last_run 写当前时间（精确到秒），attempt += 1
+- 仅修改 todo.md 这一个文件
+- commit message: "🤖 claim(T-XXX): 标题"
+- **立即 git push origin dev**
+
+push 结果分支：
+- 成功 → 你已独占该任务的认领权，进入 4c 实施
+- 失败（non-fast-forward，因为另一 tick 抢先 push 了）：
+  - `git fetch origin dev && git reset --hard origin/dev`（放弃本地未推送的认领）
+  - 写 log "claim race lost on T-XXX"
+  - **立即退出本次 tick**（不要再选其他任务，避免雪崩）
+
+claim commit 是这个分布式系统的唯一互斥锁，必须单独 push，不能合并到 4c 的实施 commit。多出来的 1 个 commit 是为了正确性，值得。
 
 ### 4c. 实施
 - 读 spec（若有）
