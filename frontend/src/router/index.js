@@ -1,55 +1,63 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 
 const routes = [
-  { path: '/', redirect: '/customers' },
   {
-    path: '/customers',
-    name: 'customers',
-    component: () => import('@/views/customers/CustomerList.vue'),
-    meta: { title: '客户管理' },
+    path: '/',
+    redirect: '/dashboard'
   },
   {
-    path: '/customers/:id',
-    name: 'customer-detail',
-    component: () => import('@/views/customers/CustomerDetail.vue'),
-    meta: { title: '客户详情' },
-    props: true,
+    path: '/dashboard',
+    name: 'dashboard',
+    component: () => import('@/views/Dashboard.vue'),
+    meta: { title: '数据大盘' }
+  },
+  {
+    path: '/bills',
+    name: 'bills',
+    component: () => import('@/views/bills/BillList.vue'),
+    meta: { title: '收支账单' }
+  },
+  {
+    path: '/pets',
+    name: 'pets',
+    component: () => import('@/views/pets/PetList.vue'),
+    meta: { title: '宠物档案' }
   },
   {
     path: '/pets/:id',
     name: 'pet-detail',
     component: () => import('@/views/pets/PetDetail.vue'),
-    meta: { title: '宠物详情' },
-    props: true,
+    meta: { title: '宠物详情' }
   },
   {
-    path: '/costs',
-    name: 'costs',
-    component: () => import('@/views/costs/CostList.vue'),
-    meta: { title: '花费记录' },
+    path: '/categories',
+    name: 'categories',
+    component: () => import('@/views/categories/CategoryList.vue'),
+    meta: { title: '消费分类' }
   },
   {
-    path: '/stats',
-    name: 'stats',
-    component: () => import('@/views/Stats.vue'),
-    meta: { title: '花费统计' },
+    path: '/budget',
+    name: 'budget',
+    component: () => import('@/views/budget/Budget.vue'),
+    meta: { title: '月度预算' }
   },
   {
     path: '/settings',
     name: 'settings',
     component: () => import('@/views/Settings.vue'),
-    meta: { title: '分类设置' },
-  },
+    meta: { title: '系统设置' }
+  }
 ]
 
 const router = createRouter({
   history: createWebHashHistory(),
-  routes,
+  routes
 })
 
+// 路由守卫修改页面标题
 router.beforeEach((to, from, next) => {
   if (to.meta.title) {
-    document.title = to.meta.title
+    document.title = `${to.meta.title} - 宠物花费管理系统`
   }
   next()
 })

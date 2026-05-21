@@ -1,120 +1,160 @@
 <script setup>
-import { onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-import { useCategoryStore } from '@/stores/categoryStore'
+import { ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import {
+  HomeFilled,
+  Money,
+  TrendCharts,
+  Setting,
+  Pet,
+  List,
+  Search
+} from '@element-plus/icons-vue'
+import { useCategoryStore } from './stores/categoryStore'
 
+const router = useRouter()
 const route = useRoute()
 const categoryStore = useCategoryStore()
+const activeMenu = ref('')
 
-const menus = [
-  { name: 'customers', label: '客户', icon: 'User' },
-  { name: 'costs', label: '花费记录', icon: 'List' },
-  { name: 'stats', label: '统计分析', icon: 'DataAnalysis' },
-  { name: 'settings', label: '分类设置', icon: 'Setting' },
+const menuItems = [
+  {
+    path: '/dashboard',
+    title: '数据大盘',
+    icon: HomeFilled
+  },
+  {
+    path: '/bills',
+    title: '收支账单',
+    icon: Money
+  },
+  {
+    path: '/pets',
+    title: '宠物档案',
+    icon: Pet
+  },
+  {
+    path: '/categories',
+    title: '消费分类',
+    icon: List
+  },
+  {
+    path: '/budget',
+    title: '月度预算',
+    icon: TrendCharts
+  },
+  {
+    path: '/settings',
+    title: '系统设置',
+    icon: Setting
+  }
 ]
 
-const activeMenu = () => {
-  if (route.name === 'customer-detail') return 'customers'
-  if (route.name === 'pet-detail') return 'customers'
-  return route.name
+const handleMenuSelect = (path) => {
+  router.push(path)
 }
 
 onMounted(() => {
-  categoryStore.fetch().catch(() => {})
+  // 初始化活跃菜单
+  activeMenu.value = route.path
+  // 预加载分类数据
+  categoryStore.fetchCategories()
+
+  // 监听路由变化更新活跃菜单
+  router.afterEach((to) => {
+    activeMenu.value = to.path
+  })
 })
 </script>
 
 <template>
   <div class="app-container">
-    <el-menu :default-active="activeMenu()" mode="horizontal" router class="header-menu">
-      <el-menu-item :index="menu.name" v-for="menu in menus" :key="menu.name" class="nav-item">
-        <el-icon :size="20"><component :is="menu.icon" /></el-icon>
-        <span class="nav-text">{{ menu.label }}</span>
-      </el-menu-item>
-      <div class="header-title">
-        <h2>🐾 宠物花费管理</h2>
-      </div>
-    </el-menu>
+    <el-container style="height: 100vh;">
+      <!-- 侧边导航 -->
+      <el-aside width="240px" style="background: var(--card); border-right: 1px solid var(--border);">
+        <div class="sidebar-header">
+          <div class="logo">
+            <span class="paw-icon">🐾</span>
+            <span class="logo-text">宠物账本</span>
+          </div>
+        </div>
+        <el-menu
+          :default-active="activeMenu"
+          background-color="transparent"
+          text-color="var(--text-secondary)"
+          active-text-color="white"
+          @select="handleMenuSelect"
+        >
+          <el-menu-item
+            v-for="item in menuItems"
+            :key="item.path"
+            :index="item.path"
+          >
+            <el-icon><component :is="item.icon" /></el-icon>
+            <template #title>{{ item.title }}</template>
+          </el-menu-item>
+        </el-menu>
+      </el-aside>
 
-    <div class="main-content">
-      <router-view v-slot="{ Component }">
-        <transition name="fade" mode="out-in">
-          <component :is="Component" :key="$route.fullPath" />
-        </transition>
-      </router-view>
-    </div>
+      <el-container direction="vertical">
+        <!-- 顶部导航栏 -->
+        <el-header style="height: 64px; background: var(--card); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between;">
+          <div class="header-left">
+            <h1 style="font-size: 18px; font-weight: 600; margin: 0;">{{ menuItems.find(item => item.path === activeMenu)?.title || '宠物花费管理系统' }}</h1>
+          </div>
+          <div class="header-right" style="display: flex; align-items: center; gap: 16px;">
+            <el-input
+              placeholder="搜索账单、宠物、客户..."
+              style="width: 300px;"
+              :prefix-icon="Search"
+            />
+            <div class="user-avatar" style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; cursor: pointer;">
+              贾
+            </div>
+          </div>
+        </el-header>
+
+        <!-- 主内容区域 -->
+        <el-main style="background: var(--bg); padding: 24px; overflow-y: auto; max-width: 1920px; margin: 0 auto; width: 100%;">
+          <router-view />
+        </el-main>
+      </el-container>
+    </el-container>
   </div>
 </template>
 
 <style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: all 0.3s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-  transform: translateY(10px);
-}
-
 .app-container {
-  min-height: 100vh;
-  background: transparent;
+  height: 100vh;
+  overflow: hidden;
 }
-.header-menu {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  background: rgba(255, 255, 255, 0.95) !important;
-  backdrop-filter: blur(20px);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+.sidebar-header {
+  height: 64px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
   padding: 0 20px;
 }
-.nav-item {
-  padding: 0 20px !important;
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
-.nav-text {
-  margin-left: 8px;
+.logo .paw-icon {
+  font-size: 24px;
+  color: var(--primary);
 }
-.header-title {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-}
-.header-title h2 {
-  margin: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-size: 22px;
+.logo-text {
+  font-size: 18px;
   font-weight: 700;
+  color: var(--text-primary);
 }
-.main-content {
-  padding: 90px 24px 60px;
-  max-width: 1400px;
-  margin: 0 auto;
+.header-left h1 {
+  color: var(--text-primary);
 }
-
-@media (max-width: 768px) {
-  .header-menu {
-    padding: 0 10px;
-  }
-  .nav-text {
-    display: none;
-  }
-  .nav-item {
-    padding: 0 15px !important;
-  }
-  .header-title h2 {
-    font-size: 18px;
-  }
-  .main-content {
-    padding: 80px 16px 40px;
+@media (max-width: 1440px) {
+  .el-main {
+    padding: 16px;
   }
 }
 </style>
