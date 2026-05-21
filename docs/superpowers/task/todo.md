@@ -53,7 +53,7 @@ approved → (实施) → in_progress → done
 ## Backlog
 
 ## T-011: 客户详情页加消费时间线
-- status: approved
+- status: in_progress
 - category: feature
 - auto_approve: false
 - merge_to_main_after: true
@@ -63,8 +63,8 @@ approved → (实施) → in_progress → done
   - 默认显示最近 20 条，超过显示"加载更多"
   - npm run build 通过
 - created_at: 2026-05-22
-- last_run: ""
-- attempt: 0
+- last_run: "2026-05-22T05:42:30+08:00"
+- attempt: 1
 
 ## T-012: 宠物档案显示「最近一次到店 / 距今天数」
 - status: approved
