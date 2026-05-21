@@ -29,5 +29,6 @@ class CostOut(CostBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    pet_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime

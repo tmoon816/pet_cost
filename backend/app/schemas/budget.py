@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from decimal import Decimal
 from datetime import datetime
@@ -17,12 +17,11 @@ class BudgetUpdate(BaseModel):
     amount: Optional[Decimal] = Field(None, gt=0, max_digits=10, decimal_places=2, description="预算金额")
 
 class Budget(BudgetBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     spent: Decimal = Field(..., description="已花费金额")
     remaining: Decimal = Field(..., description="剩余金额")
     overspent: bool = Field(..., description="是否超支")
     created_at: datetime
     updated_at: datetime
-
-    class Config:
-        from_attributes = True

@@ -32,12 +32,11 @@ def list_paginated(
     page: int,
     page_size: int,
 ) -> Tuple[List[CostRecord], int]:
-    stmt = select(CostRecord)
-    count_stmt = select(func.count(CostRecord.id))
-    join_pet = customer_id is not None
-    if join_pet:
-        stmt = stmt.join(Pet, Pet.id == CostRecord.pet_id)
-        count_stmt = count_stmt.join(Pet, Pet.id == CostRecord.pet_id)
+    # 始终联表 Pet 以便返回 pet_name（宠物店前端账单列表必须展示宠物名）。
+    # 用元组查询：避免对 ORM 对象做 join 时产生重复行；CostRecord -> Pet 是多对一，安全。
+    stmt = select(CostRecord, Pet.name).join(Pet, Pet.id == CostRecord.pet_id)
+    count_stmt = select(func.count(CostRecord.id)).join(Pet, Pet.id == CostRecord.pet_id)
+    if customer_id is not None:
         stmt = stmt.where(Pet.customer_id == customer_id)
         count_stmt = count_stmt.where(Pet.customer_id == customer_id)
     if pet_id is not None:
@@ -57,7 +56,13 @@ def list_paginated(
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
-    items = list(db.scalars(stmt).all())
+    rows = db.execute(stmt).all()
+    items: List[CostRecord] = []
+    for row in rows:
+        record: CostRecord = row[0]
+        # 短生命周期对象，setattr 是安全的（不会被 session 再次刷新覆盖）
+        record.pet_name = row[1]
+        items.append(record)
     total = int(db.scalar(count_stmt) or 0)
     return items, total
 

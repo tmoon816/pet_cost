@@ -99,3 +99,21 @@ def test_cost_update_and_delete(client, customer_and_pet):
 
     assert client.delete(f"/api/v1/costs/{cost['id']}").status_code == 204
     assert client.get(f"/api/v1/costs/{cost['id']}").status_code == 404
+
+
+def test_list_costs_returns_pet_name(client, customer_and_pet):
+    """Task 2: 账单列表必须返回 pet_name，让前端不用再 N+1 反查。"""
+    _, pet = customer_and_pet
+    client.post(
+        "/api/v1/costs",
+        json={
+            "pet_id": pet["id"],
+            "category_code": "food",
+            "amount": "12.34",
+            "occurred_on": "2026-05-15",
+        },
+    )
+    body = client.get("/api/v1/costs").json()
+    assert body["total"] >= 1
+    assert all("pet_name" in item for item in body["items"])
+    assert body["items"][0]["pet_name"] == pet["name"]
