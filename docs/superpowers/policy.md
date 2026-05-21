@@ -44,7 +44,6 @@ last_updated: 2026-05-22
 
 ## 3. 红线（永远不做）
 
-- ❌ 合并到 main 分支（只能 push 到 dev）
 - ❌ `git push --force` / `--force-with-lease`
 - ❌ `--no-verify` 跳过 hook
 - ❌ 修改 `.git/`、CI 配置、`pyproject.toml` 的 build-system、`package.json` 的 scripts 段
@@ -52,6 +51,31 @@ last_updated: 2026-05-22
 - ❌ 提交含密钥、token、`.env`、credentials 的文件
 - ❌ 在主分支或 dev 上 `git reset --hard`
 - ❌ 跨任务实施（一次 tick 只处理一条任务）
+- ❌ 非 fast-forward 合并到 main（仅允许 `git merge --ff-only`，冲突立即放弃）
+
+---
+
+## 3.5 自动合并到 main 的条件
+
+**全局开关**：todo.md frontmatter 的 `auto_merge_main`。
+- `false` → 永远不合 main，仅 push 到 dev
+- `true` → 满足下列**所有**条件时自动合并：
+
+  1. 任务最终状态为 `done` 或 `no-op`（blocked 和 spec_drafted 一律不合）
+  2. 任务条目里没有 `skip_main_merge: true`
+  3. 任务是 auto_approve 类，**或**人审任务里显式标了 `merge_to_main_after: true`
+  4. `git merge --ff-only dev` 能成功（有冲突就放弃，写 log 让人介入）
+  5. pytest 和 npm build 已在第四步通过
+
+**合并步骤**（写在 cron-prompt 第 4e）
+```
+git checkout main
+git pull --ff-only origin main      # 失败 → 放弃，回 dev，写 log
+git merge --ff-only dev             # 失败 → 放弃，回 dev，写 log
+git push origin main
+git checkout dev                    # 必须回到工作分支
+```
+失败不要尝试非 ff 合并、不要 reset、不要 force，写 log 让人手动处理。
 
 ---
 

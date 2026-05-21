@@ -83,6 +83,24 @@ git pull --ff-only origin dev
 - commit message: "📝 chore(T-XXX): no-op，<原因>"
 - push origin dev
 
+### 4e. 自动合并到 main（仅当任务 done 或 no-op 时）
+读 todo.md frontmatter 的 `auto_merge_main`：
+- false → 跳过本步，进入第五步
+- true → 检查任务条目：
+  - 含 `skip_main_merge: true` → 跳过
+  - auto_approve 任务 或 含 `merge_to_main_after: true` → 执行合并
+  - 否则跳过（人审任务默认不自动合，除非显式标记）
+
+合并步骤（任何一步失败都立即停下，回到 dev，写 log，不重试不强合）：
+```
+git checkout main
+git pull --ff-only origin main
+git merge --ff-only dev
+git push origin main
+git checkout dev
+```
+log 里记录 main commit hash。失败原因（多半是非 ff、有冲突）写清楚让人介入。
+
 ## 第五步：巡检（每次 tick 都做，不论第三步选了什么）
 按 policy.md 第 5 节扫描信号源，识别新任务。
 对每个新任务：
@@ -102,11 +120,12 @@ git pull --ff-only origin dev
 目标是**每次 tick 至多 1 个 commit**（spec_drafted 路径例外，因为 spec 文件本身要提交）。退出。
 
 # 红线（违反即视为本次 tick 失败）
-- 不合 main、不 force push、不 --no-verify
+- 不 force push、不 --no-verify
 - 一次 tick 只处理一条任务（不要因为快就多做）
 - 不删 docs/superpowers/specs/ 和 docs/superpowers/plans/ 下任何已有文件
 - 不动 CI 配置、build-system、package.json scripts
 - 不提交 .env / 密钥 / token
+- 合并到 main 必须 fast-forward，遇冲突立即放弃
 
 # 决策不确定时
 - 任务描述含糊 → 不要猜，写到 spec 里让人审
@@ -129,7 +148,9 @@ git pull --ff-only origin dev
 
 ## 人类要做的事
 
-1. **批准任务**：审完 `spec_drafted` 状态的任务，把 status 改 `approved`，push 到 dev
+1. **批准任务**：审完 `spec_drafted` 状态的任务，把 status 改 `approved` push 到 dev
+   - 如果希望批准后自动一路合到 main，加一行 `merge_to_main_after: true`
 2. **暂停循环**：编辑 todo.md 头部 `enabled: false`
-3. **审 blocked 任务**：看 `blocked_reason`，决定是改任务描述重排还是放弃
-4. **合 main**：人工决定何时把 dev 合到 main（agent 不会做这件事）
+3. **暂停 main 自动合并**：编辑 todo.md 头部 `auto_merge_main: false`（任务仍正常实施，只是停在 dev）
+4. **审 blocked 任务**：看 `blocked_reason`，决定是改任务描述重排还是放弃
+5. **手动合 main**：仍然可以手动操作；agent 只处理满足条件的子集

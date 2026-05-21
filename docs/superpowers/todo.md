@@ -1,5 +1,6 @@
 ---
 enabled: true
+auto_merge_main: true
 ---
 
 # 任务队列
