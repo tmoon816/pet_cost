@@ -1,5 +1,6 @@
 from datetime import date
 from typing import List, Tuple
+from decimal import Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -96,3 +97,32 @@ def remove(db: Session, cost_id: int) -> bool:
     db.delete(obj)
     db.commit()
     return True
+
+def get_total_by_date_range(db: Session, start_date: str, end_date: str) -> Decimal:
+    """查询指定时间范围内的总花费"""
+    total = db.scalar(
+        select(func.sum(CostRecord.amount))
+        .where(CostRecord.occurred_on >= start_date)
+        .where(CostRecord.occurred_on < end_date)
+    )
+    return total or Decimal(0)
+
+def get_total_by_pet_and_date_range(db: Session, pet_id: int, start_date: str, end_date: str) -> Decimal:
+    """查询指定宠物指定时间范围内的总花费"""
+    total = db.scalar(
+        select(func.sum(CostRecord.amount))
+        .where(CostRecord.pet_id == pet_id)
+        .where(CostRecord.occurred_on >= start_date)
+        .where(CostRecord.occurred_on < end_date)
+    )
+    return total or Decimal(0)
+
+def get_total_by_category_and_date_range(db: Session, category_code: str, start_date: str, end_date: str) -> Decimal:
+    """查询指定分类指定时间范围内的总花费"""
+    total = db.scalar(
+        select(func.sum(CostRecord.amount))
+        .where(CostRecord.category_code == category_code)
+        .where(CostRecord.occurred_on >= start_date)
+        .where(CostRecord.occurred_on < end_date)
+    )
+    return total or Decimal(0)

@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from .api.v1 import categories, costs, customers, pets, stats
+from .api.v1 import categories, costs, customers, pets, stats, budgets
 from .core.config import settings
 from .core.exceptions import ConflictError
 
@@ -32,5 +32,5 @@ def health_check():
     return {"status": "ok"}
 
 
-for module in (customers, pets, costs, categories, stats):
+for module in (customers, pets, costs, categories, stats, budgets):
     app.include_router(module.router, prefix="/api/v1")
