@@ -1,11 +1,11 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import List
 
 from sqlalchemy import distinct, func, select
 from sqlalchemy.orm import Session
 
-from ..models import CostCategory, CostRecord, Pet
+from ..models import CostCategory, CostRecord, Customer, Pet
 
 
 def _apply_window(stmt, start: date | None, end: date | None):
@@ -166,3 +166,52 @@ def customer_acquisition(db: Session, year: int, month: int) -> dict:
         "returning_customers": returning_customers,
         "total": total,
     }
+
+
+def dormant_customers(db: Session, days: int, limit: int, today: date | None = None) -> List[dict]:
+    """T-010: 返回 last_visit_at 距今 ≥ days 天的老客预警列表。
+
+    口径:
+      - last_visit_at = 该客户名下所有宠物的最近一次 CostRecord.occurred_on
+      - 仅考虑历史上至少有一次消费的客户（“老客”）
+      - 今天 - last_visit_at ≥ days 天才入列
+      - 按 last_visit_at 升序（最久没来的排前），limit 裁切
+    """
+    today = today or date.today()
+    threshold = today - timedelta(days=days)
+
+    last_visit_per_customer = (
+        select(
+            Pet.customer_id.label("customer_id"),
+            func.max(CostRecord.occurred_on).label("last_visit_at"),
+        )
+        .join(CostRecord, CostRecord.pet_id == Pet.id)
+        .group_by(Pet.customer_id)
+        .subquery()
+    )
+
+    stmt = (
+        select(
+            Customer.id.label("customer_id"),
+            Customer.name.label("customer_name"),
+            last_visit_per_customer.c.last_visit_at,
+        )
+        .join(
+            last_visit_per_customer,
+            last_visit_per_customer.c.customer_id == Customer.id,
+        )
+        .where(last_visit_per_customer.c.last_visit_at <= threshold)
+        .order_by(last_visit_per_customer.c.last_visit_at.asc())
+        .limit(limit)
+    )
+
+    rows = db.execute(stmt).all()
+    return [
+        {
+            "customer_id": int(row.customer_id),
+            "customer_name": row.customer_name,
+            "last_visit_at": row.last_visit_at,
+            "days_since": (today - row.last_visit_at).days,
+        }
+        for row in rows
+    ]

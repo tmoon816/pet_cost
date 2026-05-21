@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 from typing import List
 
@@ -42,4 +43,16 @@ class StatsCustomerAcquisition(BaseModel):
     new_customers: int
     returning_customers: int
     total: int
+
+
+class StatsDormantCustomerItem(BaseModel):
+    """T-010: 久未到店老客预警项。"""
+
+    customer_id: int
+    customer_name: str
+    last_visit_at: date
+    days_since: int
+
+
+StatsDormantCustomers = List[StatsDormantCustomerItem]
 

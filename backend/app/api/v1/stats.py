@@ -10,6 +10,7 @@ from ...schemas.stats import (
     StatsByMonth,
     StatsByPet,
     StatsCustomerAcquisition,
+    StatsDormantCustomers,
     StatsSummary,
 )
 
@@ -62,3 +63,13 @@ def stats_customer_acquisition(
 ):
     """T-009: 某年某月的新客 vs 回头客。"""
     return crud_stats.customer_acquisition(db, year, month)
+
+
+@router.get("/dormant-customers", response_model=StatsDormantCustomers)
+def stats_dormant_customers(
+    days: int = Query(90, ge=1, le=3650),
+    limit: int = Query(10, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    """T-010: 返回距今 ≥ days 天未到店的老客，按 last_visit_at 升序。"""
+    return crud_stats.dormant_customers(db, days, limit)

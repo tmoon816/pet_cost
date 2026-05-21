@@ -137,3 +137,66 @@ def test_customer_acquisition_empty_month(client, fixture_data):
         "returning_customers": 0,
         "total": 0,
     }
+
+
+def test_dormant_customers_threshold_and_order(client, fixture_data, db_session):
+    """T-010: 补上一个老客长期未消费的场景，验证阈值、排序、days_since。"""
+    from datetime import date
+    from app.crud import stats as crud_stats
+
+    # 再添加一个老客 c3，最近消费 2026-01-10（比 c1 的 2026-05-01 更久）
+    c3 = client.post("/api/v1/customers", json={"name": "老客C"}).json()
+    p4 = client.post("/api/v1/pets", json={"customer_id": c3["id"], "name": "雪球"}).json()
+    client.post(
+        "/api/v1/costs",
+        json={
+            "pet_id": p4["id"],
+            "category_code": "food",
+            "amount": "60.00",
+            "occurred_on": "2026-01-10",
+        },
+    )
+
+    today = date(2026, 6, 1)  # 固定“今天”让断言稳定
+    session = db_session()
+    try:
+        # days=30 阈值 → cutoff = 2026-05-02
+        #   c1 last_visit=2026-05-01 ✅ (31 天 ≥ 30) → 入选
+        #   c2 last_visit=2026-05-20 ❌ (12 天 < 30) → 不入
+        #   c3 last_visit=2026-01-10 ✅ (142 天) → 入选
+        # 按 last_visit 升序：c3 在前，c1 在后
+        rows = crud_stats.dormant_customers(session, days=30, limit=10, today=today)
+        assert len(rows) == 2
+        assert rows[0]["customer_name"] == "老客C"
+        assert rows[0]["last_visit_at"] == date(2026, 1, 10)
+        assert rows[0]["days_since"] == 142
+        assert rows[1]["customer_name"] == "客户A"
+        assert rows[1]["last_visit_at"] == date(2026, 5, 1)
+        assert rows[1]["days_since"] == 31
+
+        # limit=1 只返一条，应为 c3（最久）
+        rows_limit = crud_stats.dormant_customers(session, days=30, limit=1, today=today)
+        assert len(rows_limit) == 1
+        assert rows_limit[0]["customer_name"] == "老客C"
+
+        # days 阈值抹去所有人（今天 − 任何消费 ≥ 1000）
+        rows_none = crud_stats.dormant_customers(session, days=1000, limit=10, today=today)
+        assert rows_none == []
+    finally:
+        session.close()
+
+
+def test_dormant_customers_api_default_params(client, fixture_data):
+    """T-010: API 默认参数调用可返 200 且结构正确。"""
+    resp = client.get("/api/v1/stats/dormant-customers")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert isinstance(body, list)
+    for item in body:
+        assert set(item.keys()) >= {
+            "customer_id",
+            "customer_name",
+            "last_visit_at",
+            "days_since",
+        }
+        assert item["days_since"] >= 90

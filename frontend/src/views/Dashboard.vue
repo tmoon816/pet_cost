@@ -1,10 +1,12 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { Pie, Bar } from '@ant-design/charts'
-import { getSummary, getByCategory, getByMonth, getByPet, getCustomerAcquisition } from '@/api/stats'
+import { getSummary, getByCategory, getByMonth, getByPet, getCustomerAcquisition, getDormantCustomers } from '@/api/stats'
 import { listCosts } from '@/api/costs'
 import { useCategoryStore } from '@/stores/categoryStore'
 
+const router = useRouter()
 const categoryStore = useCategoryStore()
 
 // 本月时间窗口（后端 stats 接受 start/end）
@@ -27,7 +29,10 @@ const petStats = ref([])
 const recentBills = ref([])
 // T-009: 本月新客 vs 回头客
 const acquisition = ref({ new_customers: 0, returning_customers: 0, total: 0 })
-const loading = ref({ summary: false, category: false, month: false, pet: false, bills: false, acquisition: false })
+// T-010: 久未到店老客预警
+const dormantList = ref([])
+const dormantDays = ref(90)
+const loading = ref({ summary: false, category: false, month: false, pet: false, bills: false, acquisition: false, dormant: false })
 
 const fetchSummary = async () => {
   loading.value.summary = true
@@ -119,6 +124,28 @@ const fetchAllData = () => {
   fetchPetStats()
   fetchRecentBills()
   fetchAcquisition()
+  fetchDormantCustomers()
+}
+
+const fetchDormantCustomers = async () => {
+  loading.value.dormant = true
+  try {
+    const res = await getDormantCustomers({ days: dormantDays.value, limit: 10 })
+    dormantList.value = (res || []).map((item) => ({
+      customer_id: Number(item.customer_id),
+      customer_name: item.customer_name,
+      last_visit_at: item.last_visit_at,
+      days_since: Number(item.days_since || 0),
+    }))
+  } catch (e) {
+    dormantList.value = []
+  } finally {
+    loading.value.dormant = false
+  }
+}
+
+const goToCustomer = (id) => {
+  router.push({ name: 'customer-detail', params: { id } })
 }
 
 const fetchAcquisition = async () => {
@@ -260,6 +287,57 @@ onMounted(async () => {
       </el-col>
     </el-row>
 
+    <!-- T-010: 3 个月未到店老客预警列表 -->
+    <el-row :gutter="20" style="margin-top: 20px;">
+      <el-col :span="24">
+        <el-card shadow="hover" v-loading="loading.dormant">
+          <template #header>
+            <div class="dormant-header">
+              <strong>久未到店老客预警（≥ {{ dormantDays }} 天）</strong>
+              <el-select
+                v-model="dormantDays"
+                size="small"
+                style="width: 130px;"
+                @change="fetchDormantCustomers"
+              >
+                <el-option :value="30" label="≥ 30 天" />
+                <el-option :value="60" label="≥ 60 天" />
+                <el-option :value="90" label="≥ 90 天" />
+                <el-option :value="180" label="≥ 180 天" />
+              </el-select>
+            </div>
+          </template>
+          <el-table
+            v-if="dormantList.length > 0"
+            :data="dormantList"
+            size="small"
+            stripe
+            style="width: 100%;"
+          >
+            <el-table-column prop="customer_name" label="客户名" min-width="160" />
+            <el-table-column prop="last_visit_at" label="最后到店日期" width="160" />
+            <el-table-column label="距今天数" width="120">
+              <template #default="{ row }">
+                <el-tag :type="row.days_since >= 180 ? 'danger' : 'warning'" effect="plain">
+                  {{ row.days_since }} 天
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="100" align="right">
+              <template #default="{ row }">
+                <el-button type="primary" link size="small" @click="goToCustomer(row.customer_id)">
+                  查看
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <div class="empty-chart" style="height: 120px;" v-else>
+            <p>暂无久未到店老客 🎉</p>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
     <!-- 图表 -->
     <el-row :gutter="20" style="margin-top: 20px;">
       <el-col :xs="24" :lg="12">
@@ -379,6 +457,12 @@ onMounted(async () => {
 .acquisition-label { font-size: 13px; color: #909399; margin-bottom: 8px; }
 .acquisition-value { font-size: 28px; font-weight: 700; color: #303133; }
 .acquisition-pct { font-size: 13px; color: #606266; margin-top: 4px; }
+/* T-010: 久未到店老客预警 */
+.dormant-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 @media (max-width: 1440px) {
   .stat-card { flex-direction: column; text-align: center; gap: 10px; min-height: 140px; }
 }
