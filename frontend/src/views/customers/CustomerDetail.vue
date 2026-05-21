@@ -3,12 +3,15 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useCustomerStore } from '@/stores/customerStore'
+import { useCategoryStore } from '@/stores/categoryStore'
 import * as petsApi from '@/api/pets'
 import * as customersApi from '@/api/customers'
+import { listCosts } from '@/api/costs'
 
 const props = defineProps({ id: { type: [String, Number], required: true } })
 const router = useRouter()
 const customerStore = useCustomerStore()
+const categoryStore = useCategoryStore()
 
 const detail = ref(null)
 const summary = ref(null)
@@ -16,6 +19,17 @@ const loading = ref(false)
 const editingInfo = ref(false)
 const submitting = ref(false)
 const customerForm = reactive({ name: '', phone: '', note: '' })
+
+// T-011: 消费时间线（分页加载）
+const TIMELINE_PAGE_SIZE = 20
+const timelineItems = ref([])
+const timelineTotal = ref(0)
+const timelinePage = ref(1)
+const timelineLoading = ref(false)
+const timelineLoaded = ref(false)
+const timelineHasMore = computed(
+  () => timelineItems.value.length < timelineTotal.value
+)
 
 const petDialog = ref(false)
 const editingPetId = ref(null)
@@ -53,9 +67,53 @@ async function load() {
     } catch (err) {
       summary.value = null
     }
+    // T-011: 确保分类字典已加载（用于显示分类 label），并刷新时间线第 1 页
+    try {
+      await categoryStore.fetch()
+    } catch (err) {
+      // 字典拉取失败不阻断详情页，时间线会回退显示 code
+    }
+    timelinePage.value = 1
+    timelineItems.value = []
+    timelineTotal.value = 0
+    timelineLoaded.value = false
+    await loadTimeline()
   } finally {
     loading.value = false
   }
+}
+
+async function loadTimeline() {
+  if (timelineLoading.value) return
+  timelineLoading.value = true
+  try {
+    const res = await listCosts({
+      customer_id: Number(props.id),
+      page: timelinePage.value,
+      page_size: TIMELINE_PAGE_SIZE,
+    })
+    const list = res?.items || []
+    if (timelinePage.value === 1) {
+      timelineItems.value = list
+    } else {
+      timelineItems.value = timelineItems.value.concat(list)
+    }
+    timelineTotal.value = Number(res?.total || 0)
+    timelineLoaded.value = true
+  } catch (err) {
+    if (timelinePage.value === 1) {
+      timelineItems.value = []
+      timelineTotal.value = 0
+    }
+  } finally {
+    timelineLoading.value = false
+  }
+}
+
+async function loadMoreTimeline() {
+  if (!timelineHasMore.value || timelineLoading.value) return
+  timelinePage.value += 1
+  await loadTimeline()
 }
 
 onMounted(load)
@@ -189,6 +247,18 @@ const costCountDisplay = computed(() => {
   if (c === undefined || c === null) return '—'
   return String(c)
 })
+
+// T-011: 时间线展示助手
+function categoryLabel(code) {
+  if (!code) return '-'
+  return categoryStore.list?.find?.((c) => c.code === code)?.label || code
+}
+
+function amountDisplay(v) {
+  const num = Number(v)
+  if (!Number.isFinite(num)) return '—'
+  return `¥${num.toFixed(2)}`
+}
 </script>
 
 <template>
@@ -281,6 +351,38 @@ const costCountDisplay = computed(() => {
       </el-table>
     </el-card>
 
+    <el-card v-if="detail" class="card">
+      <template #header>
+        <div class="card-header">
+          <span class="title">消费时间线<span class="title-count">（共 {{ timelineTotal }} 条）</span></span>
+        </div>
+      </template>
+
+      <div v-if="timelineLoaded && timelineItems.length === 0" class="timeline-empty">
+        该客户还没有消费记录
+      </div>
+
+      <el-timeline v-else class="timeline">
+        <el-timeline-item
+          v-for="cost in timelineItems"
+          :key="cost.id"
+          :timestamp="cost.occurred_on"
+          placement="top"
+        >
+          <div class="timeline-row">
+            <span class="timeline-pet">{{ cost.pet_name || `宠物#${cost.pet_id}` }}</span>
+            <el-tag size="small" type="info" effect="plain">{{ categoryLabel(cost.category_code) }}</el-tag>
+            <span class="timeline-amount">{{ amountDisplay(cost.amount) }}</span>
+          </div>
+          <div v-if="cost.note" class="timeline-note">{{ cost.note }}</div>
+        </el-timeline-item>
+      </el-timeline>
+
+      <div v-if="timelineHasMore" class="timeline-more">
+        <el-button :loading="timelineLoading" @click="loadMoreTimeline">加载更多</el-button>
+      </div>
+    </el-card>
+
     <el-dialog
       v-model="petDialog"
       :title="editingPetId ? '编辑宠物' : '新增宠物'"
@@ -365,6 +467,47 @@ const costCountDisplay = computed(() => {
 .card-header .title {
   font-size: 16px;
   font-weight: 600;
+}
+.card-header .title-count {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--el-text-color-secondary, #909399);
+  margin-left: 4px;
+}
+.timeline {
+  padding-left: 4px;
+}
+.timeline-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.timeline-pet {
+  font-weight: 600;
+  color: var(--el-text-color-primary, #303133);
+}
+.timeline-amount {
+  font-weight: 600;
+  color: var(--el-color-danger, #f56c6c);
+  margin-left: auto;
+}
+.timeline-note {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--el-text-color-secondary, #909399);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.timeline-empty {
+  padding: 16px 0;
+  text-align: center;
+  color: var(--el-text-color-secondary, #909399);
+}
+.timeline-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
 }
 .el-table :deep(.el-table__row) {
   cursor: pointer;
