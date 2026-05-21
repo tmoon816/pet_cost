@@ -1,43 +1,45 @@
 <script setup>
 import { onMounted } from 'vue'
-import { useCostStore } from '@/stores/costStore'
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
+import { useCategoryStore } from '@/stores/categoryStore'
 
-const store = useCostStore()
-const router = useRouter()
 const route = useRoute()
-
-const activeMenu = () => route.name
+const categoryStore = useCategoryStore()
 
 const menus = [
-  { name: 'home', label: '花费记录', icon: 'List' },
+  { name: 'customers', label: '客户', icon: 'User' },
+  { name: 'costs', label: '花费记录', icon: 'List' },
   { name: 'stats', label: '统计分析', icon: 'DataAnalysis' },
-  { name: 'settings', label: '设置', icon: 'Setting' }
+  { name: 'settings', label: '分类设置', icon: 'Setting' },
 ]
 
+const activeMenu = () => {
+  if (route.name === 'customer-detail') return 'customers'
+  if (route.name === 'pet-detail') return 'customers'
+  return route.name
+}
+
 onMounted(() => {
-  store.initData()
+  categoryStore.fetch().catch(() => {})
 })
 </script>
 
 <template>
   <div class="app-container">
-    <!-- 顶部导航 -->
     <el-menu :default-active="activeMenu()" mode="horizontal" router class="header-menu">
       <el-menu-item :index="menu.name" v-for="menu in menus" :key="menu.name" class="nav-item">
         <el-icon :size="20"><component :is="menu.icon" /></el-icon>
         <span class="nav-text">{{ menu.label }}</span>
       </el-menu-item>
       <div class="header-title">
-        <h2>🐾 宠物花费管理系统</h2>
+        <h2>🐾 宠物花费管理</h2>
       </div>
     </el-menu>
 
-    <!-- 主内容区 -->
     <div class="main-content">
       <router-view v-slot="{ Component }">
         <transition name="fade" mode="out-in">
-          <component :is="Component" :key="$route.path" />
+          <component :is="Component" :key="$route.fullPath" />
         </transition>
       </router-view>
     </div>
@@ -45,7 +47,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* 页面切换动画 */
 .fade-enter-active,
 .fade-leave-active {
   transition: all 0.3s ease;
@@ -82,6 +83,7 @@ onMounted(() => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 .header-title h2 {
   margin: 0;
@@ -98,7 +100,6 @@ onMounted(() => {
   margin: 0 auto;
 }
 
-/* 移动端适配 */
 @media (max-width: 768px) {
   .header-menu {
     padding: 0 10px;

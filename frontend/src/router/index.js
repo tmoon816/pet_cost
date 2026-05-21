@@ -1,36 +1,52 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 
 const routes = [
+  { path: '/', redirect: '/customers' },
   {
-    path: '/',
-    redirect: '/home'
+    path: '/customers',
+    name: 'customers',
+    component: () => import('@/views/customers/CustomerList.vue'),
+    meta: { title: '客户管理' },
   },
   {
-    path: '/home',
-    name: 'home',
-    component: () => import('@/views/CostList.vue'),
-    meta: { title: '宠物花费管理' }
+    path: '/customers/:id',
+    name: 'customer-detail',
+    component: () => import('@/views/customers/CustomerDetail.vue'),
+    meta: { title: '客户详情' },
+    props: true,
+  },
+  {
+    path: '/pets/:id',
+    name: 'pet-detail',
+    component: () => import('@/views/pets/PetDetail.vue'),
+    meta: { title: '宠物详情' },
+    props: true,
+  },
+  {
+    path: '/costs',
+    name: 'costs',
+    component: () => import('@/views/costs/CostList.vue'),
+    meta: { title: '花费记录' },
   },
   {
     path: '/stats',
     name: 'stats',
     component: () => import('@/views/Stats.vue'),
-    meta: { title: '花费统计' }
+    meta: { title: '花费统计' },
   },
   {
     path: '/settings',
     name: 'settings',
     component: () => import('@/views/Settings.vue'),
-    meta: { title: '设置' }
-  }
+    meta: { title: '分类设置' },
+  },
 ]
 
 const router = createRouter({
   history: createWebHashHistory(),
-  routes
+  routes,
 })
 
-// 路由守卫修改页面标题
 router.beforeEach((to, from, next) => {
   if (to.meta.title) {
     document.title = to.meta.title
