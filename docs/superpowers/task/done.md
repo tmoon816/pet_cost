@@ -4,6 +4,17 @@
 
 ---
 
+## T-007: 客户详情页加聚合卡片（累计消费/上次到店/总订单数）
+- completed_at: 2026-05-22T03:45:00+08:00
+- commit: 本 commit
+- category: feature
+- auto_approve: false
+- merge_to_main_after: true
+- attempt: 1
+- result: done — 后端新增 GET /api/v1/customers/{id}/summary（total_amount/last_visit_at/cost_count，pet 联表 sum/max/count），增 CustomerSummary schema；补 2 个用例（happy path 含空状态校验 + 404，pytest 57→59）；前端 CustomerDetail 顶部加 3 个统计卡片（累计消费/上次到店/总订单数），load() 顺势拉 summary，空数据显示 “—”。
+
+---
+
 ## T-006: 客户列表加按手机号实时搜索
 - completed_at: 2026-05-22T03:40:00+08:00
 - commit: 本 commit

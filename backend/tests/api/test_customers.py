@@ -108,3 +108,43 @@ def test_delete_cascades_pets_and_costs(client):
     assert client.get(f"/api/v1/pets/{pet['id']}").status_code == 404
     listed = client.get("/api/v1/costs", params={"pet_id": pet["id"]}).json()
     assert listed["total"] == 0
+
+
+def test_customer_summary_happy_path(client):
+    """T-007: 客户聚合卡片 — 累计金额/上次到店/总订单数。"""
+    cust = client.post("/api/v1/customers", json={"name": "汇总测试"}).json()
+    pet = client.post(
+        "/api/v1/pets", json={"customer_id": cust["id"], "name": "汪汪"}
+    ).json()
+
+    # 无消费记录：全部为 0 / None
+    empty = client.get(f"/api/v1/customers/{cust['id']}/summary").json()
+    assert empty["customer_id"] == cust["id"]
+    assert empty["total_amount"] == "0"
+    assert empty["last_visit_at"] is None
+    assert empty["cost_count"] == 0
+
+    # 写 3 笔消费，跨日期
+    client.post(
+        "/api/v1/costs",
+        json={"pet_id": pet["id"], "category_code": "food", "amount": "12.50", "occurred_on": "2026-05-01"},
+    )
+    client.post(
+        "/api/v1/costs",
+        json={"pet_id": pet["id"], "category_code": "medical", "amount": "100.00", "occurred_on": "2026-05-10"},
+    )
+    client.post(
+        "/api/v1/costs",
+        json={"pet_id": pet["id"], "category_code": "toy", "amount": "5.25", "occurred_on": "2026-05-05"},
+    )
+
+    summary = client.get(f"/api/v1/customers/{cust['id']}/summary").json()
+    assert summary["customer_id"] == cust["id"]
+    assert summary["total_amount"] == "117.75"
+    assert summary["cost_count"] == 3
+    assert summary["last_visit_at"].startswith("2026-05-10")
+
+
+def test_customer_summary_404_when_missing(client):
+    resp = client.get("/api/v1/customers/99999/summary")
+    assert resp.status_code == 404

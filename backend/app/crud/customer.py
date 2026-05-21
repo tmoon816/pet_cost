@@ -1,10 +1,12 @@
+from datetime import datetime
+from decimal import Decimal
 from typing import List, Tuple
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from ..core.exceptions import ConflictError
-from ..models import Customer
+from ..models import CostRecord, Customer, Pet
 from ..schemas.customer import CustomerCreate, CustomerUpdate
 
 
@@ -78,3 +80,36 @@ def remove(db: Session, customer_id: int) -> bool:
     db.delete(obj)
     db.commit()
     return True
+
+
+def get_summary(db: Session, customer_id: int) -> dict | None:
+    """T-007：返回客户聚合指标。customer 不存在 → None。
+
+    无消费记录 → total_amount=0、cost_count=0、last_visit_at=None。
+    last_visit_at 取 max(cost_records.occurred_on)，转为当日 00:00 的 datetime。
+    """
+    customer = db.get(Customer, customer_id)
+    if customer is None:
+        return None
+
+    stmt = (
+        select(
+            func.coalesce(func.sum(CostRecord.amount), 0).label("total_amount"),
+            func.max(CostRecord.occurred_on).label("last_visit_date"),
+            func.count(CostRecord.id).label("cost_count"),
+        )
+        .join(Pet, CostRecord.pet_id == Pet.id)
+        .where(Pet.customer_id == customer_id)
+    )
+    total_amount, last_visit_date, cost_count = db.execute(stmt).one()
+
+    last_visit_at: datetime | None = None
+    if last_visit_date is not None:
+        last_visit_at = datetime.combine(last_visit_date, datetime.min.time())
+
+    return {
+        "customer_id": customer_id,
+        "total_amount": Decimal(total_amount or 0),
+        "last_visit_at": last_visit_at,
+        "cost_count": int(cost_count or 0),
+    }

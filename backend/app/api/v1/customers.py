@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from ...core.database import get_db
 from ...crud import customer as crud_customer
 from ...schemas.common import Page
-from ...schemas.customer import CustomerCreate, CustomerOut, CustomerUpdate, CustomerWithPets
+from ...schemas.customer import CustomerCreate, CustomerOut, CustomerSummary, CustomerUpdate, CustomerWithPets
 
 router = APIRouter(prefix="/customers", tags=["customers"])
 
@@ -26,6 +26,15 @@ def get_customer(customer_id: int, db: Session = Depends(get_db)):
     if obj is None:
         raise HTTPException(status_code=404, detail="customer_not_found")
     return obj
+
+
+@router.get("/{customer_id}/summary", response_model=CustomerSummary)
+def get_customer_summary(customer_id: int, db: Session = Depends(get_db)):
+    """T-007：详情页聚合卡片（累计消费 / 上次到店 / 总订单数）。"""
+    summary = crud_customer.get_summary(db, customer_id)
+    if summary is None:
+        raise HTTPException(status_code=404, detail="customer_not_found")
+    return summary
 
 
 @router.post("", response_model=CustomerOut, status_code=201)

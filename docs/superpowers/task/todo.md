@@ -52,20 +52,6 @@ approved → (实施) → in_progress → done
 
 ## Backlog
 
-## T-007: 客户详情页加聚合卡片（累计消费/上次到店/总订单数）
-- status: in_progress
-- category: feature
-- auto_approve: false
-- merge_to_main_after: true
-- acceptance:
-  - 新增 GET /api/v1/customers/{id}/summary，返回 total_amount(decimal)、last_visit_at(datetime|null)、cost_count(int)
-  - 后端补 1 个 happy path 用例
-  - CustomerDetail.vue 顶部新增 3 个统计卡片（无消费时显示 "—"）
-  - npm run build 通过
-- created_at: 2026-05-22
-- last_run: "2026-05-22T03:42:00+08:00"
-- attempt: 1
-
 ## T-008: 客户列表标记「新客/老客」标签
 - status: approved
 - category: feature

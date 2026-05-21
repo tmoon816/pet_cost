@@ -1,15 +1,17 @@
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useCustomerStore } from '@/stores/customerStore'
 import * as petsApi from '@/api/pets'
+import * as customersApi from '@/api/customers'
 
 const props = defineProps({ id: { type: [String, Number], required: true } })
 const router = useRouter()
 const customerStore = useCustomerStore()
 
 const detail = ref(null)
+const summary = ref(null)
 const loading = ref(false)
 const editingInfo = ref(false)
 const submitting = ref(false)
@@ -45,6 +47,12 @@ async function load() {
       phone: detail.value.phone || '',
       note: detail.value.note || '',
     })
+    // T-007: 拉取客户聚合指标（失败不阻断详情页加载）
+    try {
+      summary.value = await customersApi.getCustomerSummary(props.id)
+    } catch (err) {
+      summary.value = null
+    }
   } finally {
     loading.value = false
   }
@@ -160,12 +168,48 @@ function speciesLabel(v) {
 function genderLabel(v) {
   return genderOptions.find((g) => g.value === v)?.label || '-'
 }
+
+// T-007: 卡片显示助手
+const totalAmountDisplay = computed(() => {
+  const n = summary.value?.total_amount
+  if (n === undefined || n === null) return '—'
+  const num = Number(n)
+  if (!Number.isFinite(num)) return '—'
+  return `¥${num.toFixed(2)}`
+})
+
+const lastVisitDisplay = computed(() => {
+  const ts = summary.value?.last_visit_at
+  if (!ts) return '—'
+  return String(ts).slice(0, 10)
+})
+
+const costCountDisplay = computed(() => {
+  const c = summary.value?.cost_count
+  if (c === undefined || c === null) return '—'
+  return String(c)
+})
 </script>
 
 <template>
   <div v-loading="loading" class="customer-detail">
     <div class="back-bar">
       <el-button :icon="'ArrowLeft'" link @click="router.push('/customers')">返回客户列表</el-button>
+    </div>
+
+    <div v-if="detail" class="summary-row">
+      <el-card class="summary-card" shadow="never">
+        <div class="summary-label">累计消费</div>
+        <div class="summary-value">{{ totalAmountDisplay }}</div>
+      </el-card>
+      <el-card class="summary-card" shadow="never">
+        <div class="summary-label">上次到店</div>
+        <div class="summary-value">{{ lastVisitDisplay }}</div>
+      </el-card>
+      <el-card class="summary-card" shadow="never">
+        <div class="summary-label">总订单数</div>
+        <div class="summary-value">{{ costCountDisplay }}</div>
+      </el-card>
     </div>
 
     <el-card v-if="detail" class="card">
@@ -288,6 +332,27 @@ function genderLabel(v) {
 }
 .back-bar {
   display: flex;
+}
+.summary-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.summary-card {
+  border-radius: 12px;
+}
+.summary-card :deep(.el-card__body) {
+  padding: 16px 20px;
+}
+.summary-label {
+  font-size: 13px;
+  color: var(--el-text-color-secondary, #909399);
+  margin-bottom: 6px;
+}
+.summary-value {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--el-text-color-primary, #303133);
 }
 .card {
   border-radius: 12px;
