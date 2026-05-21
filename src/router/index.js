@@ -3,6 +3,10 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 const routes = [
   {
     path: '/',
+    redirect: '/home'
+  },
+  {
+    path: '/home',
     name: 'home',
     component: () => import('@/views/CostList.vue'),
     meta: { title: '宠物花费管理' }
