@@ -4,6 +4,17 @@
 
 ---
 
+## T-011: 客户详情页加消费时间线
+- completed_at: 2026-05-22T05:43:00+08:00
+- commit: 244b80f
+- category: feature
+- auto_approve: false
+- merge_to_main_after: true
+- attempt: 1
+- result: done — 后端原已支持 customer_id 过滤 + occurred_on DESC 排序（list_paginated），不用改；前端 CustomerDetail.vue 新增「消费时间线」 el-card，el-timeline 展示日期/宠物名/分类 tag/金额/备注；load() 刷新详情同时重置时间线到 page=1，page_size=20。超过 20 条则底部显「加载更多」按钮递增 page 追加。分类 label 复用 categoryStore，备注为空时隐藏行；空状态提示「该客户还没有消费记录」。npm run build 通过，pytest 64 全过。
+
+---
+
 ## T-010: Dashboard 新增「3 个月未到店老客」预警列表
 - completed_at: 2026-05-22T04:42:00+08:00
 - commit: 79b578d

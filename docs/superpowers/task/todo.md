@@ -52,20 +52,6 @@ approved → (实施) → in_progress → done
 
 ## Backlog
 
-## T-011: 客户详情页加消费时间线
-- status: in_progress
-- category: feature
-- auto_approve: false
-- merge_to_main_after: true
-- acceptance:
-  - GET /api/v1/costs 支持 customer_id 过滤 + 按 occurred_on 倒序（已支持则核实）
-  - CustomerDetail.vue 加 el-timeline，显示历次消费：日期 / 宠物名 / 分类 / 金额 / 备注
-  - 默认显示最近 20 条，超过显示"加载更多"
-  - npm run build 通过
-- created_at: 2026-05-22
-- last_run: "2026-05-22T05:42:30+08:00"
-- attempt: 1
-
 ## T-012: 宠物档案显示「最近一次到店 / 距今天数」
 - status: approved
 - category: feature
