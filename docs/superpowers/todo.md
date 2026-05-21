@@ -1,7 +1,7 @@
 ---
 enabled: true
 max_runs_per_day: 8
-runs_today: 1
+runs_today: 2
 runs_today_date: 2026-05-22
 budget_left_usd: 5.0
 ---
@@ -56,8 +56,6 @@ approved → (实施) → in_progress → done
 ## Backlog
 
 ## T-001: Dashboard 主 chunk 体积超 500KB，做路由级 code-split
-
-## T-001: Dashboard 主 chunk 体积超 500KB，做路由级 code-split
 - status: backlog
 - category: refactor
 - auto_approve: false
@@ -72,7 +70,7 @@ approved → (实施) → in_progress → done
 - attempt: 0
 
 ## T-003: 清理前端 console.log / 调试输出
-- status: backlog
+- status: in_progress
 - category: lint
 - auto_approve: true
 - spec: ""
@@ -81,8 +79,8 @@ approved → (实施) → in_progress → done
   - grep -rn "console\\.log" frontend/src 命中数为 0（保留 console.error 和 console.warn）
 - blocked_reason: ""
 - created_at: 2026-05-22
-- last_run: ""
-- attempt: 0
+- last_run: "2026-05-22T02:25+08:00"
+- attempt: 1
 
 ## T-004: 前端 vite 依赖 patch 升级 8.0.13 → 8.0.14
 - status: backlog
