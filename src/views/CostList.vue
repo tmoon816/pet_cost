@@ -270,8 +270,16 @@ const formatAmount = (row) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-weight: 600;
+  font-size: 16px;
 }
 .filter-card {
+  margin-bottom: 24px;
+}
+.list-card {
   margin-bottom: 20px;
+}
+.pagination-wrap {
+  margin-top: 24px;
 }
 </style>

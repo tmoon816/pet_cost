@@ -43,7 +43,7 @@ onMounted(() => {
 <style scoped>
 .app-container {
   min-height: 100vh;
-  background-color: #f5f7fa;
+  background: transparent;
 }
 .header-menu {
   position: fixed;
@@ -51,8 +51,9 @@ onMounted(() => {
   left: 0;
   right: 0;
   z-index: 1000;
-  background-color: #fff;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
 }
 .header-title {
   position: absolute;
@@ -62,12 +63,16 @@ onMounted(() => {
 }
 .header-title h2 {
   margin: 0;
-  color: #409eff;
-  font-size: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-size: 22px;
+  font-weight: 700;
 }
 .main-content {
-  padding: 80px 20px 40px;
-  max-width: 1200px;
+  padding: 90px 20px 50px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 </style>

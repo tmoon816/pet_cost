@@ -7,12 +7,14 @@
 html, body, #app {
   width: 100%;
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 }
 
 body {
-  background-color: #f5f7fa;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-attachment: fixed;
   color: #303133;
+  min-height: 100vh;
 }
 
 /* 自定义滚动条 */
@@ -21,13 +23,129 @@ body {
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+  background: rgba(255, 255, 255, 0.3);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* 全局卡片样式优化 */
+.el-card {
+  border-radius: 16px !important;
+  border: none !important;
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08) !important;
+  transition: all 0.3s ease !important;
+}
+.el-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* 按钮样式优化 */
+.el-button {
+  border-radius: 10px !important;
+  font-weight: 500;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+}
+.el-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+}
+.el-button--primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  border: none !important;
+}
+
+/* 输入框、选择器样式优化 */
+.el-input__wrapper, .el-select__wrapper, .el-date-editor {
+  border-radius: 10px !important;
+  border: 1px solid #e4e7ed !important;
+  transition: all 0.3s ease !important;
+}
+.el-input__wrapper:hover, .el-select__wrapper:hover, .el-date-editor:hover {
+  border-color: #667eea !important;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+}
+.el-input__wrapper.is-focus, .el-select__wrapper.is-focus, .el-date-editor.is-focus {
+  border-color: #667eea !important;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2) !important;
+}
+
+/* 表格样式优化 */
+.el-table {
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+.el-table th {
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e7ed 100%) !important;
+  font-weight: 600;
+  color: #303133;
+}
+.el-table tr {
+  transition: background-color 0.3s ease;
+}
+.el-table tr:hover > td {
+  background-color: rgba(102, 126, 234, 0.05) !important;
+}
+
+/* 分页样式优化 */
+.el-pagination .el-pager li {
+  border-radius: 8px !important;
+  margin: 0 4px;
+}
+.el-pagination .el-pager li.is-active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: white !important;
+}
+
+/* 对话框样式优化 */
+.el-dialog {
+  border-radius: 16px !important;
+  overflow: hidden;
+}
+.el-dialog__header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: white !important;
+  padding: 20px 20px 20px !important;
+}
+.el-dialog__title {
+  color: white !important;
+  font-weight: 600 !important;
+}
+.el-dialog__headerbtn .el-dialog__close {
+  color: white !important;
+}
+.el-dialog__body {
+  padding: 30px 30px 20px !important;
+}
+.el-dialog__footer {
+  padding: 20px 30px 30px !important;
+  background: #f5f7fa;
+}
+
+/* 菜单样式优化 */
+.el-menu {
+  border: none !important;
+}
+.el-menu--horizontal .el-menu-item {
+  border-bottom: none !important;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+.el-menu--horizontal .el-menu-item.is-active {
+  color: #667eea !important;
+  border-bottom: 3px solid #667eea !important;
+  background: rgba(102, 126, 234, 0.05) !important;
+}
+.el-menu--horizontal .el-menu-item:hover {
+  color: #667eea !important;
+  background: rgba(102, 126, 234, 0.08) !important;
 }

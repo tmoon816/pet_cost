@@ -299,25 +299,53 @@ const handleClearAll = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-weight: 600;
+  font-size: 16px;
 }
 .tag-list {
-  padding: 20px 0;
+  padding: 24px 0;
+}
+.el-tag {
+  border-radius: 20px !important;
+  padding: 0 16px !important;
+  height: 36px !important;
+  line-height: 34px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  border: none !important;
+  color: white !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+.el-tag:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.3);
+}
+.setting-card {
+  margin-bottom: 24px;
 }
 .data-card {
   height: 100%;
+  transition: all 0.3s ease;
+}
+.data-card:hover {
+  transform: translateY(-4px) !important;
 }
 .data-item {
   text-align: center;
-  padding: 20px 0;
+  padding: 30px 20px;
 }
 .data-title {
   font-size: 18px;
-  font-weight: bold;
-  margin-bottom: 10px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: #303133;
 }
 .data-desc {
-  color: #909399;
+  color: #606266;
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.6;
+  margin-bottom: 16px;
 }
 </style>
