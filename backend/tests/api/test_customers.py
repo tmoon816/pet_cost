@@ -1,0 +1,85 @@
+def test_create_and_get_customer(client):
+    resp = client.post("/api/v1/customers", json={"name": "测试客户", "phone": "13900000001"})
+    assert resp.status_code == 201
+    body = resp.json()
+    cid = body["id"]
+    assert body["name"] == "测试客户"
+    assert body["phone"] == "13900000001"
+    assert "created_at" in body
+
+    detail = client.get(f"/api/v1/customers/{cid}")
+    assert detail.status_code == 200
+    assert detail.json()["pets"] == []
+
+
+def test_list_search_and_pagination(client):
+    for name in ["张三", "李四", "王五"]:
+        client.post("/api/v1/customers", json={"name": name})
+
+    resp = client.get("/api/v1/customers", params={"q": "李"})
+    body = resp.json()
+    assert body["total"] == 1
+    assert body["items"][0]["name"] == "李四"
+
+    paged = client.get("/api/v1/customers", params={"page": 1, "page_size": 2})
+    assert paged.status_code == 200
+    assert paged.json()["page_size"] == 2
+    assert len(paged.json()["items"]) == 2
+
+
+def test_phone_conflict_returns_409(client):
+    a = client.post("/api/v1/customers", json={"name": "A", "phone": "13888888888"})
+    assert a.status_code == 201
+    existing_id = a.json()["id"]
+
+    dup = client.post("/api/v1/customers", json={"name": "B", "phone": "13888888888"})
+    assert dup.status_code == 409
+    detail = dup.json()["detail"]
+    assert detail["detail"] == "phone_exists"
+    assert detail["existing_id"] == existing_id
+
+
+def test_update_phone_conflict_returns_409(client):
+    a = client.post("/api/v1/customers", json={"name": "A", "phone": "13800000001"}).json()
+    b = client.post("/api/v1/customers", json={"name": "B", "phone": "13800000002"}).json()
+
+    resp = client.patch(f"/api/v1/customers/{b['id']}", json={"phone": "13800000001"})
+    assert resp.status_code == 409
+    assert resp.json()["detail"]["existing_id"] == a["id"]
+
+    same = client.patch(f"/api/v1/customers/{a['id']}", json={"phone": "13800000001", "name": "AA"})
+    assert same.status_code == 200
+    assert same.json()["name"] == "AA"
+
+
+def test_get_missing_customer_returns_404(client):
+    resp = client.get("/api/v1/customers/9999")
+    assert resp.status_code == 404
+
+
+def test_create_validation_error_returns_422(client):
+    resp = client.post("/api/v1/customers", json={})
+    assert resp.status_code == 422
+
+
+def test_delete_cascades_pets_and_costs(client):
+    customer = client.post("/api/v1/customers", json={"name": "级联客户"}).json()
+    pet = client.post(
+        "/api/v1/pets", json={"customer_id": customer["id"], "name": "毛毛"}
+    ).json()
+    client.post(
+        "/api/v1/costs",
+        json={
+            "pet_id": pet["id"],
+            "category_code": "food",
+            "amount": "12.50",
+            "occurred_on": "2026-05-01",
+        },
+    )
+
+    resp = client.delete(f"/api/v1/customers/{customer['id']}")
+    assert resp.status_code == 204
+
+    assert client.get(f"/api/v1/pets/{pet['id']}").status_code == 404
+    listed = client.get("/api/v1/costs", params={"pet_id": pet["id"]}).json()
+    assert listed["total"] == 0

@@ -26,8 +26,10 @@ dist-ssr
 # 后端
 backend/.env
 backend/__pycache__/
+backend/**/__pycache__/
 backend/.venv/
 backend/.pytest_cache/
 backend/dev.db
 backend/*.db-journal
+backend/*.egg-info/
 frontend/node_modules

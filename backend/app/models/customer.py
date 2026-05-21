@@ -1,0 +1,27 @@
+from sqlalchemy import BigInteger, Column, DateTime, Index, Integer, String, Text, func
+from sqlalchemy.orm import relationship
+
+from ..core.database import Base
+
+
+class Customer(Base):
+    __tablename__ = "customers"
+    __table_args__ = (
+        Index("idx_customers_phone", "phone"),
+        Index("idx_customers_name", "name"),
+        {"mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_unicode_ci"},
+    )
+
+    id = Column(BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=True)
+    name = Column(String(50), nullable=False)
+    phone = Column(String(20), nullable=True)
+    note = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+    updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
+
+    pets = relationship(
+        "Pet",
+        back_populates="customer",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
