@@ -21,3 +21,6 @@ dependencies = [
   "httpx>=0.24.1",
   "faker>=19.0.0",
 ]
+
+[tool.setuptools]
+packages = ["app"]
