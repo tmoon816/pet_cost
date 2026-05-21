@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pet-cost-backend"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.100.0",
+  "uvicorn[standard]>=0.23.2",
+  "sqlalchemy>=2.0.20",
+  "alembic>=1.12.0",
+  "pymysql>=1.1.0",
+  "cryptography>=41.0.0",
+  "pydantic-settings>=2.0.3",
+  "python-dotenv>=1.0.0",
+  "python-multipart>=0.0.6",
+  "pytest>=7.4.0",
+  "pytest-asyncio>=0.21.1",
+  "httpx>=0.24.1",
+  "faker>=19.0.0",
+]
