@@ -56,6 +56,8 @@ approved → (实施) → in_progress → done
 ## Backlog
 
 ## T-001: Dashboard 主 chunk 体积超 500KB，做路由级 code-split
+
+## T-001: Dashboard 主 chunk 体积超 500KB，做路由级 code-split
 - status: backlog
 - category: refactor
 - auto_approve: false
@@ -69,20 +71,6 @@ approved → (实施) → in_progress → done
 - last_run: ""
 - attempt: 0
 
-## T-002: 后端覆盖率巡检并补缺失模块测试
-- status: in_progress
-- category: test
-- auto_approve: true
-- spec: ""
-- acceptance:
-  - 后端 pytest 全过
-  - 覆盖率不下降
-  - 新增的测试用例至少覆盖 1 个 happy path + 1 个 error path
-- blocked_reason: ""
-- created_at: 2026-05-22
-- last_run: "2026-05-22T02:14+08:00"
-- attempt: 1
-
 ## T-003: 清理前端 console.log / 调试输出
 - status: backlog
 - category: lint
@@ -95,3 +83,33 @@ approved → (实施) → in_progress → done
 - created_at: 2026-05-22
 - last_run: ""
 - attempt: 0
+
+## T-004: 前端 vite 依赖 patch 升级 8.0.13 → 8.0.14
+- status: backlog
+- category: dep-patch
+- auto_approve: true
+- spec: ""
+- acceptance:
+  - npm run build 通过
+  - package-lock.json 同步更新
+  - 仅升级 vite，不动其他依赖
+- blocked_reason: ""
+- created_at: 2026-05-22
+- last_run: ""
+- attempt: 0
+- signal_source: "cd frontend && npm outdated 显示 vite 8.0.13 → 8.0.14"
+
+## T-005: 前端 vue-router 依赖 major 升级 4.6.4 → 5.0.7
+- status: backlog
+- category: feature
+- auto_approve: false
+- spec: ""
+- acceptance:
+  - npm run build 通过
+  - 所有现有路由打开无报错
+  - breaking change 需在 spec 中逐项评估
+- blocked_reason: ""
+- created_at: 2026-05-22
+- last_run: ""
+- attempt: 0
+- signal_source: "cd frontend && npm outdated 显示 vue-router 4.6.4 → 5.0.7（major）"
