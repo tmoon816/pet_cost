@@ -38,10 +38,10 @@ async function fetchAll() {
     const petParams = { ...windowParams(), limit: 5 }
     if (customerId.value) petParams.customer_id = customerId.value
     const [s, c, m, p] = await Promise.all([
-      statsApi.statsSummary(summaryParams),
-      statsApi.statsByCategory(summaryParams),
-      statsApi.statsByMonth(summaryParams),
-      statsApi.statsByPet(petParams),
+      statsApi.getSummary(summaryParams),
+      statsApi.getByCategory(summaryParams),
+      statsApi.getByMonth(summaryParams),
+      statsApi.getByPet(petParams),
     ])
     summary.value = s
     byCategory.value = c
