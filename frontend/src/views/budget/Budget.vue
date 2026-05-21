@@ -8,161 +8,171 @@ import { listPets } from '@/api/pets'
 
 const categoryStore = useCategoryStore()
 
-const currentMonth = ref('2024-05')
-const totalBudget = ref(4000)
-const usedAmount = ref(3280.5)
-const remainAmount = computed(() => totalBudget.value - usedAmount.value)
-const usageRate = computed(() => (usedAmount.value / totalBudget.value * 100).toFixed(1))
-const isOverBudget = computed(() => usedAmount.value >= totalBudget.value)
-const isWarning = computed(() => usageRate.value >= 80 && usageRate.value < 100)
-
-const petBudgets = ref([
-  { id: 1, petName: '旺财', budget: 2000, used: 1860.5, remain: 139.5, rate: 93, status: 'warning' },
-  { id: 2, petName: '年糕', budget: 2000, used: 1420, remain: 580, rate: 71, status: 'normal' }
-])
-
-const categoryBudgets = ref([
-  { id: 1, category: '食品', budget: 1500, used: 1240, remain: 260, rate: 82.7, status: 'warning' },
-  { id: 2, category: '医疗', budget: 1000, used: 980, remain: 20, rate: 98, status: 'danger' },
-  { id: 3, category: '美容', budget: 500, used: 560, remain: -60, rate: 112, status: 'danger' },
-  { id: 4, category: '用品', budget: 400, used: 320, remain: 80, rate: 80, status: 'warning' },
-  { id: 5, category: '玩具', budget: 200, used: 180.5, remain: 19.5, rate: 90.25, status: 'warning' },
-  { id: 6, category: '其他', budget: 400, used: 0, remain: 400, rate: 0, status: 'normal' }
-])
+// 默认当前年月，不再硬编码 2024-05
+const now = new Date()
+const currentMonth = ref(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
 
 const loading = ref(false)
-const dialogVisible = ref(false)
-const editId = ref(null)
-const editType = ref('') // pet or category
-
-const handleMonthChange = (val) => {
-  currentMonth.value = val
-  // 切换月份后重新加载数据
-  fetchBudgetData()
-}
-
 const pets = ref([])
 
-const fetchBudgetData = async () => {
+// 所有预算的原始数据（[{id,type,target_id,year,month,amount,spent,remaining,overspent,...}]）
+const budgets = ref([])
+
+// 派生：三类
+const globalBudget = computed(() => budgets.value.find((b) => b.type === 'global') || null)
+const petBudgets = computed(() => budgets.value.filter((b) => b.type === 'pet'))
+const categoryBudgets = computed(() => budgets.value.filter((b) => b.type === 'category'))
+
+// 总预算卡片
+const totalBudget = computed(() => Number(globalBudget.value?.amount || 0))
+const usedAmount = computed(() => Number(globalBudget.value?.spent || 0))
+const remainAmount = computed(() => Number(globalBudget.value?.remaining || 0))
+const usageRate = computed(() => {
+  if (!totalBudget.value) return 0
+  return Number(((usedAmount.value / totalBudget.value) * 100).toFixed(1))
+})
+const isOverBudget = computed(() => !!globalBudget.value?.overspent)
+const isWarning = computed(() => !isOverBudget.value && usageRate.value >= 80)
+
+const petNameOf = (target_id) =>
+  pets.value.find((p) => String(p.id) === String(target_id))?.name || `宠物 #${target_id}`
+const categoryLabelOf = (target_id) =>
+  categoryStore.list.find((c) => c.code === target_id)?.label || target_id
+
+function statusOf(b) {
+  if (!b.amount || Number(b.amount) <= 0) return 'normal'
+  const rate = (Number(b.spent) / Number(b.amount)) * 100
+  if (b.overspent) return 'danger'
+  if (rate >= 80) return 'warning'
+  return 'normal'
+}
+function rateOf(b) {
+  const amount = Number(b.amount || 0)
+  if (amount <= 0) return 0
+  return Number(((Number(b.spent || 0) / amount) * 100).toFixed(1))
+}
+function statusColor(status) {
+  switch (status) {
+    case 'danger': return '#f56c6c'
+    case 'warning': return '#e6a23c'
+    default: return '#67c23a'
+  }
+}
+
+async function fetchBudgetData() {
   loading.value = true
   try {
     const [year, month] = currentMonth.value.split('-').map(Number)
-    // 同时加载预算、宠物和分类数据
     const [budgetsRes, petsRes] = await Promise.all([
       listBudgets({ year, month }),
-      listPets()
+      listPets({ page: 1, page_size: 100 })
     ])
-    await categoryStore.fetchCategories()
-    pets.value = petsRes
-    
-    // 处理总预算
-    const globalBudget = budgetsRes.find(b => b.type === 'global')
-    totalBudget.value = globalBudget ? Number(globalBudget.amount) : 0
-    usedAmount.value = globalBudget ? Number(globalBudget.spent) : 0
-    
-    // 处理宠物预算
-    petBudgets.value = budgetsRes.filter(b => b.type === 'pet').map(b => {
-      const used = Number(b.spent || 0)
-      const budget = Number(b.amount || 0)
-      const remain = budget - used
-      const rate = budget > 0 ? (used / budget * 100) : 0
-      let status = 'normal'
-      if (rate >= 100) status = 'danger'
-      else if (rate >= 80) status = 'warning'
-      return {
-        id: b.id,
-        petId: b.targetId,
-        petName: petsRes.find(p => p.id == b.targetId)?.name || `宠物${b.targetId}`,
-        budget,
-        used,
-        remain,
-        rate: rate.toFixed(1),
-        status
-      }
-    })
-    
-    // 处理分类预算
-    categoryBudgets.value = budgetsRes.filter(b => b.type === 'category').map(b => {
-      const used = Number(b.spent || 0)
-      const budget = Number(b.amount || 0)
-      const remain = budget - used
-      const rate = budget > 0 ? (used / budget * 100) : 0
-      let status = 'normal'
-      if (rate >= 100) status = 'danger'
-      else if (rate >= 80) status = 'warning'
-      return {
-        id: b.id,
-        categoryCode: b.targetId,
-        category: categoryStore.categories.find(c => c.code === b.targetId)?.label || b.targetId,
-        budget,
-        used,
-        remain,
-        rate: rate.toFixed(1),
-        status
-      }
-    })
+    await categoryStore.fetch(true)
+    budgets.value = Array.isArray(budgetsRes) ? budgetsRes : []
+    pets.value = petsRes?.items || []
   } catch (e) {
-    ElMessage.error('获取预算数据失败')
-    console.error(e)
+    budgets.value = []
+    pets.value = []
   } finally {
     loading.value = false
   }
 }
 
-const handleAddBudget = (type) => {
-  editId.value = null
-  editType.value = type
-  dialogVisible.value = true
-}
-
-const handleEdit = (row, type) => {
-  editId.value = row.id
-  editType.value = type
-  dialogVisible.value = true
-}
-
-const handleDelete = (row, type) => {
-  ElMessageBox.confirm(
-    `确定要删除该预算设置吗？`,
-    '提示',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(() => {
-    if (type === 'pet') {
-      petBudgets.value = petBudgets.value.filter(item => item.id !== row.id)
-    } else {
-      categoryBudgets.value = categoryBudgets.value.filter(item => item.id !== row.id)
-    }
-    ElMessage.success('删除成功')
-  }).catch(() => {})
-}
-
-const handleFormSuccess = () => {
-  dialogVisible.value = false
+function handleMonthChange() {
   fetchBudgetData()
 }
 
-const getStatusColor = (status) => {
-  switch (status) {
-    case 'danger': return 'var(--danger)'
-    case 'warning': return 'var(--warning)'
-    default: return 'var(--success)'
+// ============ 弹窗 ============
+const dialogVisible = ref(false)
+const dialogMode = ref('create') // create | edit
+const dialogType = ref('global') // global | pet | category
+const editingId = ref(null)
+const form = ref({
+  target_id: null,
+  amount: '',
+})
+
+function openCreate(type) {
+  dialogMode.value = 'create'
+  dialogType.value = type
+  editingId.value = null
+  form.value = { target_id: null, amount: '' }
+  dialogVisible.value = true
+}
+function openEdit(item) {
+  dialogMode.value = 'edit'
+  dialogType.value = item.type
+  editingId.value = item.id
+  form.value = {
+    target_id: item.target_id,
+    amount: Number(item.amount)
+  }
+  dialogVisible.value = true
+}
+
+async function submitDialog() {
+  const amountNum = Number(form.value.amount)
+  if (!amountNum || amountNum <= 0) {
+    ElMessage.warning('预算金额必须大于 0')
+    return
+  }
+  if (dialogType.value !== 'global' && !form.value.target_id) {
+    ElMessage.warning(dialogType.value === 'pet' ? '请选择宠物' : '请选择服务项目')
+    return
+  }
+  const [year, month] = currentMonth.value.split('-').map(Number)
+  try {
+    if (dialogMode.value === 'edit') {
+      // 后端只允许 PATCH amount
+      await updateBudget(editingId.value, { amount: String(amountNum.toFixed(2)) })
+      ElMessage.success('已更新')
+    } else {
+      await createBudget({
+        type: dialogType.value,
+        target_id: dialogType.value === 'global' ? null : String(form.value.target_id),
+        year,
+        month,
+        amount: String(amountNum.toFixed(2))
+      })
+      ElMessage.success('已新增')
+    }
+    dialogVisible.value = false
+    await fetchBudgetData()
+  } catch (e) {
+    // 拦截器兜底
+  }
+}
+
+async function handleDelete(item) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除该预算（${item.type}/${item.target_id || '全店'}）？`,
+      '确认删除',
+      { type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  try {
+    await deleteBudget(item.id)
+    ElMessage.success('已删除')
+    await fetchBudgetData()
+  } catch (e) {
+    // 拦截器兜底
   }
 }
 
 onMounted(() => {
+  categoryStore.fetch(true)
   fetchBudgetData()
 })
 </script>
 
 <template>
   <div class="budget-page">
-    <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-      <h2 style="margin: 0; font-size: 24px;">月度预算</h2>
-      <div style="display: flex; gap: 12px; align-items: center;">
+    <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+      <h2 style="margin: 0; font-size: 24px;">经营预算</h2>
+      <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
         <el-date-picker
           v-model="currentMonth"
           type="month"
@@ -171,346 +181,221 @@ onMounted(() => {
           style="width: 160px;"
           @change="handleMonthChange"
         />
-        <el-button type="primary" @click="handleAddBudget('pet')">
+        <el-button type="primary" :disabled="!!globalBudget" @click="openCreate('global')">
           <el-icon><Plus /></el-icon>
-          宠物预算
+          营收目标
         </el-button>
-        <el-button type="primary" @click="handleAddBudget('category')">
+        <el-button type="primary" @click="openCreate('pet')">
           <el-icon><Plus /></el-icon>
-          分类预算
+          单宠物预警
+        </el-button>
+        <el-button type="primary" @click="openCreate('category')">
+          <el-icon><Plus /></el-icon>
+          服务项目目标
         </el-button>
       </div>
     </div>
 
-    <!-- 总预算卡片 -->
+    <!-- 全店营收目标 -->
     <el-card shadow="hover" class="total-budget-card" v-loading="loading">
-      <div class="budget-header">
-        <h3>{{ currentMonth }} 总预算</h3>
-        <div :class="['budget-status', isOverBudget ? 'danger' : isWarning ? 'warning' : 'normal']">
-          {{ isOverBudget ? '已超支' : isWarning ? '即将超支' : '正常' }}
+      <template #header>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong>{{ currentMonth }} 全店营收目标</strong>
+          <div v-if="globalBudget" :class="['budget-status', isOverBudget ? 'danger' : isWarning ? 'warning' : 'normal']">
+            {{ isOverBudget ? '已超目标' : isWarning ? '即将达成' : '进度正常' }}
+          </div>
         </div>
+      </template>
+      <div v-if="!globalBudget" class="empty-block">
+        <div style="font-size: 48px;">🎯</div>
+        <p style="color: #909399; margin: 8px 0;">尚未设置本月全店营收目标</p>
+        <el-button type="primary" @click="openCreate('global')">立即设置</el-button>
       </div>
-      <div class="budget-stats">
-        <div class="stat-item">
-          <p class="label">总预算</p>
-          <p class="value">¥ {{ totalBudget.toFixed(2) }}</p>
+      <div v-else>
+        <div class="budget-stats">
+          <div class="stat-item">
+            <p class="label">营收目标</p>
+            <p class="value">¥ {{ totalBudget.toFixed(2) }}</p>
+          </div>
+          <div class="stat-item">
+            <p class="label">本月已营收</p>
+            <p class="value text-danger">¥ {{ usedAmount.toFixed(2) }}</p>
+          </div>
+          <div class="stat-item">
+            <p class="label">距离目标</p>
+            <p class="value" :class="remainAmount < 0 ? 'text-danger' : 'text-success'">¥ {{ remainAmount.toFixed(2) }}</p>
+          </div>
+          <div class="stat-item">
+            <p class="label">完成率</p>
+            <p class="value" :class="isOverBudget ? 'text-danger' : isWarning ? 'text-warning' : 'text-success'">{{ usageRate }}%</p>
+          </div>
         </div>
-        <div class="stat-item">
-          <p class="label">已使用</p>
-          <p class="value text-danger">¥ {{ usedAmount.toFixed(2) }}</p>
+        <div class="progress-wrap">
+          <el-progress
+            :percentage="Math.min(usageRate, 100)"
+            :color="statusColor(isOverBudget ? 'danger' : isWarning ? 'warning' : 'normal')"
+            :show-text="false"
+            striped
+          />
+          <p class="progress-text">完成 {{ usageRate }}%</p>
         </div>
-        <div class="stat-item">
-          <p class="label">剩余</p>
-          <p class="value" :class="remainAmount < 0 ? 'text-danger' : 'text-success'">¥ {{ remainAmount.toFixed(2) }}</p>
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+          <el-button size="small" @click="openEdit(globalBudget)">编辑</el-button>
+          <el-button size="small" type="danger" @click="handleDelete(globalBudget)">删除</el-button>
         </div>
-        <div class="stat-item">
-          <p class="label">使用率</p>
-          <p class="value" :class="isOverBudget ? 'text-danger' : isWarning ? 'text-warning' : 'text-success'">{{ usageRate }}%</p>
-        </div>
-      </div>
-      <div class="progress-wrap">
-        <el-progress
-          :percentage="Number(usageRate)"
-          :color="isOverBudget ? '#ef4444' : isWarning ? '#f97316' : '#4ade80'"
-          :show-text="false"
-          striped
-        />
-        <p class="progress-text">已使用 {{ usageRate }}%，剩余可用 ¥{{ remainAmount.toFixed(2) }}</p>
       </div>
     </el-card>
 
-    <!-- 宠物预算 -->
-    <el-card shadow="hover" title="宠物预算分配" style="margin-top: 20px;" v-loading="loading">
-      <div class="budget-list">
+    <!-- 单宠物消费预警 -->
+    <el-card shadow="hover" style="margin-top: 20px;" v-loading="loading">
+      <template #header>
+        <strong>单宠物消费预警</strong>
+        <span style="margin-left: 8px; font-size: 12px; color: #909399;">针对长期寄养/疗养客户的累计消费预警</span>
+      </template>
+      <div v-if="petBudgets.length === 0" class="empty-block">
+        <div style="font-size: 40px;">🐾</div>
+        <p style="color: #909399;">本月暂无单宠物预警</p>
+      </div>
+      <div v-else class="budget-list">
         <div v-for="item in petBudgets" :key="item.id" class="budget-item">
           <div class="item-header">
-            <div class="item-name">🐾 {{ item.petName }}</div>
-            <div class="item-actions">
-              <el-button size="small" @click="handleEdit(item, 'pet')">
-                <el-icon><Edit /></el-icon>
-                编辑
-              </el-button>
-              <el-button size="small" type="danger" @click="handleDelete(item, 'pet')">
-                <el-icon><Delete /></el-icon>
-                删除
-              </el-button>
+            <div class="item-name">🐾 {{ petNameOf(item.target_id) }}</div>
+            <div>
+              <el-button size="small" @click="openEdit(item)">编辑</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(item)">删除</el-button>
             </div>
           </div>
           <div class="item-stats">
-            <div>
-              <span class="stat-label">预算：</span>
-              <span class="stat-value">¥{{ item.budget.toFixed(2) }}</span>
-            </div>
-            <div>
-              <span class="stat-label">已用：</span>
-              <span class="stat-value text-danger">¥{{ item.used.toFixed(2) }}</span>
-            </div>
-            <div>
-              <span class="stat-label">剩余：</span>
-              <span class="stat-value" :class="item.remain < 0 ? 'text-danger' : 'text-success'">¥{{ item.remain.toFixed(2) }}</span>
-            </div>
-            <div>
-              <span class="stat-label">使用率：</span>
-              <span class="stat-value" :style="{ color: getStatusColor(item.status) }">{{ item.rate }}%</span>
-            </div>
+            <div><span class="stat-label">预警额度：</span><span class="stat-value">¥{{ Number(item.amount).toFixed(2) }}</span></div>
+            <div><span class="stat-label">已消费：</span><span class="stat-value text-danger">¥{{ Number(item.spent).toFixed(2) }}</span></div>
+            <div><span class="stat-label">剩余：</span><span class="stat-value" :class="Number(item.remaining) < 0 ? 'text-danger' : 'text-success'">¥{{ Number(item.remaining).toFixed(2) }}</span></div>
+            <div><span class="stat-label">已达：</span><span class="stat-value" :style="{ color: statusColor(statusOf(item)) }">{{ rateOf(item) }}%</span></div>
           </div>
-          <el-progress
-            :percentage="item.rate"
-            :color="getStatusColor(item.status)"
-            :show-text="false"
-            style="margin-top: 12px;"
-          />
+          <el-progress :percentage="Math.min(rateOf(item), 100)" :color="statusColor(statusOf(item))" :show-text="false" style="margin-top: 12px;" />
         </div>
       </div>
     </el-card>
 
-    <!-- 分类预算 -->
-    <el-card shadow="hover" title="分类预算分配" style="margin-top: 20px;" v-loading="loading">
-      <div class="budget-grid">
+    <!-- 服务项目营收目标 -->
+    <el-card shadow="hover" style="margin-top: 20px;" v-loading="loading">
+      <template #header>
+        <strong>服务项目营收目标</strong>
+      </template>
+      <div v-if="categoryBudgets.length === 0" class="empty-block">
+        <div style="font-size: 40px;">📊</div>
+        <p style="color: #909399;">本月暂无分项目标</p>
+      </div>
+      <div v-else class="budget-grid">
         <div v-for="item in categoryBudgets" :key="item.id" class="category-budget-card">
           <div class="card-header">
-            <h4>{{ item.category }}</h4>
-            <div class="card-actions">
-              <el-button size="small" @click="handleEdit(item, 'category')">
-                <el-icon><Edit /></el-icon>
-              </el-button>
-              <el-button size="small" type="danger" @click="handleDelete(item, 'category')">
-                <el-icon><Delete /></el-icon>
-              </el-button>
+            <h4>{{ categoryLabelOf(item.target_id) }}</h4>
+            <div>
+              <el-button size="small" @click="openEdit(item)">编辑</el-button>
+              <el-button size="small" type="danger" @click="handleDelete(item)">删除</el-button>
             </div>
           </div>
           <div class="card-body">
             <div class="amount-info">
-              <div class="amount-item">
-                <span class="amount-label">预算</span>
-                <span class="amount-value">¥{{ item.budget.toFixed(2) }}</span>
-              </div>
-              <div class="amount-item">
-                <span class="amount-label">已用</span>
-                <span class="amount-value text-danger">¥{{ item.used.toFixed(2) }}</span>
-              </div>
-              <div class="amount-item">
-                <span class="amount-label">剩余</span>
-                <span class="amount-value" :class="item.remain < 0 ? 'text-danger' : 'text-success'">¥{{ item.remain.toFixed(2) }}</span>
-              </div>
+              <div class="amount-item"><span class="amount-label">目标</span><span class="amount-value">¥{{ Number(item.amount).toFixed(2) }}</span></div>
+              <div class="amount-item"><span class="amount-label">已达</span><span class="amount-value text-danger">¥{{ Number(item.spent).toFixed(2) }}</span></div>
+              <div class="amount-item"><span class="amount-label">剩余</span><span class="amount-value" :class="Number(item.remaining) < 0 ? 'text-danger' : 'text-success'">¥{{ Number(item.remaining).toFixed(2) }}</span></div>
             </div>
-            <el-progress
-              :percentage="item.rate"
-              :color="getStatusColor(item.status)"
-              :show-text="false"
-              style="margin-top: 12px;"
-            />
-            <p class="rate-text" :style="{ color: getStatusColor(item.status) }">使用率：{{ item.rate }}%</p>
+            <el-progress :percentage="Math.min(rateOf(item), 100)" :color="statusColor(statusOf(item))" :show-text="false" style="margin-top: 12px;" />
+            <p class="rate-text" :style="{ color: statusColor(statusOf(item)) }">完成率：{{ rateOf(item) }}%</p>
           </div>
         </div>
       </div>
     </el-card>
 
-    <!-- 预算表单弹窗 -->
+    <!-- 预算表单弹窗（真正调接口） -->
     <el-dialog
       v-model="dialogVisible"
-      :title="editId ? '编辑预算' : '新增预算'"
+      :title="dialogMode === 'edit' ? '编辑预算' : (dialogType === 'global' ? '新增全店营收目标' : dialogType === 'pet' ? '新增单宠物预警' : '新增服务项目目标')"
       width="500px"
       :close-on-click-modal="false"
     >
-      <el-form label-width="80px" style="padding-right: 24px;">
-        <el-form-item label="预算类型">
-          <el-radio-group v-model="editType" disabled>
-            <el-radio label="pet">宠物预算</el-radio>
-            <el-radio label="category">分类预算</el-radio>
-          </el-radio-group>
+      <el-form label-width="100px" style="padding-right: 24px;">
+        <el-form-item label="生效月份">
+          <el-date-picker v-model="currentMonth" type="month" value-format="YYYY-MM" :disabled="dialogMode === 'edit'" style="width: 100%;" />
+          <div style="font-size: 12px; color: #909399; margin-top: 4px;" v-if="dialogMode === 'edit'">编辑模式下月份不可修改，如需切换月份请删除后重建</div>
         </el-form-item>
-        <el-form-item v-if="editType === 'pet'" label="所属宠物">
-          <el-select placeholder="选择宠物" style="width: 100%;">
-            <el-option label="旺财" value="1" />
-            <el-option label="年糕" value="2" />
+        <el-form-item v-if="dialogType === 'pet'" label="所属宠物">
+          <el-select v-model="form.target_id" placeholder="请选择宠物" filterable :disabled="dialogMode === 'edit'" style="width: 100%;">
+            <el-option v-for="p in pets" :key="p.id" :label="`#${p.id} · ${p.name}`" :value="String(p.id)" />
           </el-select>
         </el-form-item>
-        <el-form-item v-else label="所属分类">
-          <el-select placeholder="选择分类" style="width: 100%;">
-            <el-option label="食品" value="food" />
-            <el-option label="医疗" value="medical" />
-            <el-option label="美容" value="beauty" />
+        <el-form-item v-else-if="dialogType === 'category'" label="所属项目">
+          <el-select v-model="form.target_id" placeholder="请选择服务项目" :disabled="dialogMode === 'edit'" style="width: 100%;">
+            <el-option v-for="c in categoryStore.list" :key="c.code" :label="c.label" :value="c.code" />
           </el-select>
         </el-form-item>
         <el-form-item label="预算金额">
-          <el-input-number v-model="totalBudget" :min="0" step="0.01" style="width: 100%;" placeholder="请输入预算金额" />
-        </el-form-item>
-        <el-form-item label="生效月份">
-          <el-date-picker
-            v-model="currentMonth"
-            type="month"
-            value-format="YYYY-MM"
-            placeholder="选择生效月份"
-            style="width: 100%;"
-          />
+          <el-input-number v-model="form.amount" :min="0.01" :step="100" :precision="2" style="width: 100%;" placeholder="请输入金额" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleFormSuccess">保存</el-button>
+        <el-button type="primary" @click="submitDialog">保存</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <style scoped>
-.total-budget-card {
-  padding: 24px;
-}
-.budget-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-.budget-header h3 {
-  margin: 0;
-  font-size: 20px;
-  color: var(--text-primary);
-}
+.total-budget-card { padding: 0; }
 .budget-status {
   padding: 4px 12px;
   border-radius: 12px;
   font-size: 14px;
-  font-weight: 500;
   color: white;
 }
-.budget-status.danger {
-  background: var(--danger);
-}
-.budget-status.warning {
-  background: var(--warning);
-}
-.budget-status.normal {
-  background: var(--success);
-}
+.budget-status.danger { background: #f56c6c; }
+.budget-status.warning { background: #e6a23c; }
+.budget-status.normal { background: #67c23a; }
 .budget-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 20px;
-  margin-bottom: 24px;
-}
-.stat-item .label {
-  margin: 0 0 8px 0;
-  color: var(--text-muted);
-  font-size: 14px;
-}
-.stat-item .value {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-.progress-wrap {
-  margin-top: 16px;
-}
-.progress-text {
-  margin: 8px 0 0 0;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 14px;
-}
-.budget-list {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-.budget-item {
-  padding: 20px;
-  background: var(--bg-secondary);
-  border-radius: 12px;
-}
-.item-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 16px;
 }
-.item-name {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
+.stat-item .label { margin: 0 0 8px 0; color: #909399; font-size: 14px; }
+.stat-item .value { margin: 0; font-size: 22px; font-weight: 700; color: #303133; }
+.text-danger { color: #f56c6c; }
+.text-warning { color: #e6a23c; }
+.text-success { color: #67c23a; }
+.progress-wrap { margin-top: 8px; }
+.progress-text { margin: 6px 0 0 0; text-align: center; color: #909399; font-size: 13px; }
+.budget-list { display: flex; flex-direction: column; gap: 16px; }
+.budget-item {
+  padding: 16px;
+  background: #f6f8fa;
+  border-radius: 10px;
 }
+.item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.item-name { font-size: 16px; font-weight: 600; color: #303133; }
 .item-stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  margin-bottom: 12px;
+  gap: 16px;
 }
-.stat-label {
-  font-size: 14px;
-  color: var(--text-muted);
-}
-.stat-value {
-  font-size: 16px;
-  font-weight: 600;
-  margin-left: 4px;
-}
+.stat-label { font-size: 13px; color: #909399; }
+.stat-value { font-size: 15px; font-weight: 600; margin-left: 4px; }
 .budget-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
 }
-.category-budget-card {
-  background: var(--bg-secondary);
-  border-radius: 12px;
-  padding: 20px;
-}
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-.card-header h4 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-.amount-info {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.amount-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.amount-label {
-  font-size: 14px;
-  color: var(--text-muted);
-}
-.amount-value {
-  font-size: 16px;
-  font-weight: 600;
-}
-.rate-text {
-  margin: 8px 0 0 0;
-  text-align: right;
-  font-size: 14px;
-  font-weight: 500;
-}
+.category-budget-card { background: #f6f8fa; border-radius: 10px; padding: 16px; }
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.card-header h4 { margin: 0; font-size: 16px; font-weight: 600; color: #303133; }
+.amount-info { display: flex; flex-direction: column; gap: 6px; }
+.amount-item { display: flex; justify-content: space-between; }
+.amount-label { font-size: 13px; color: #909399; }
+.amount-value { font-size: 15px; font-weight: 600; }
+.rate-text { margin: 6px 0 0 0; text-align: right; font-size: 13px; font-weight: 500; }
+.empty-block { text-align: center; padding: 32px 0; }
 @media (max-width: 768px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-  .page-header .el-button {
-    width: 100%;
-  }
-  .budget-stats {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .item-stats {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .budget-grid {
-    grid-template-columns: 1fr;
-  }
+  .budget-stats, .item-stats { grid-template-columns: repeat(2, 1fr); }
+  .budget-grid { grid-template-columns: 1fr; }
 }
 </style>
