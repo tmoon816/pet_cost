@@ -52,6 +52,150 @@ approved → (实施) → in_progress → done
 
 ## Backlog
 
+## T-006: 客户列表加按手机号实时搜索
+- status: approved
+- category: feature
+- auto_approve: false
+- merge_to_main_after: true
+- acceptance:
+  - 后端 pytest 全过；GET /api/v1/customers 支持 phone 模糊匹配（已有则核实）
+  - 前端 CustomerList.vue 顶部加 input，debounce 300ms 触发列表查询
+  - 输入清空时恢复全部
+  - npm run build 通过
+- created_at: 2026-05-22
+- last_run: ""
+- attempt: 0
+
+## T-007: 客户详情页加聚合卡片（累计消费/上次到店/总订单数）
+- status: approved
+- category: feature
+- auto_approve: false
+- merge_to_main_after: true
+- acceptance:
+  - 新增 GET /api/v1/customers/{id}/summary，返回 total_amount(decimal)、last_visit_at(datetime|null)、cost_count(int)
+  - 后端补 1 个 happy path 用例
+  - CustomerDetail.vue 顶部新增 3 个统计卡片（无消费时显示 "—"）
+  - npm run build 通过
+- created_at: 2026-05-22
+- last_run: ""
+- attempt: 0
+
+## T-008: 客户列表标记「新客/老客」标签
+- status: approved
+- category: feature
+- auto_approve: false
+- merge_to_main_after: true
+- acceptance:
+  - GET /api/v1/customers 返回字段加 has_cost(bool)（首次有消费即老客）
+  - 后端补 1 个用例验证 has_cost 计算
+  - CustomerList.vue 列表项加 el-tag："新客" / "老客"
+  - npm run build 通过
+- created_at: 2026-05-22
+- last_run: ""
+- attempt: 0
+
+## T-009: Dashboard 新增「本月新客 vs 回头客」卡片
+- status: approved
+- category: feature
+- auto_approve: false
+- merge_to_main_after: true
+- acceptance:
+  - 新增 GET /api/v1/stats/customer-acquisition?year=&month=，返回 new_customers/returning_customers/total
+  - 定义：当月有消费且首次消费在本月 = new；当月有消费且此前已有消费 = returning
+  - 后端补 1 个用例
+  - Dashboard.vue 加一张卡片显示这俩数字（含占比）
+  - npm run build 通过
+- created_at: 2026-05-22
+- last_run: ""
+- attempt: 0
+
+## T-010: Dashboard 新增「3 个月未到店老客」预警列表
+- status: approved
+- category: feature
+- auto_approve: false
+- merge_to_main_after: true
+- acceptance:
+  - 新增 GET /api/v1/stats/dormant-customers?days=90&limit=10，返回 last_visit_at 距今 ≥ days 的老客
+  - 排序按 last_visit_at 升序（最久没来的排前）
+  - 后端补 1 个用例
+  - Dashboard.vue 加预警列表卡片，每行显示 客户名 / 最后到店日期 / 距今天数 / "查看"
+  - npm run build 通过
+- created_at: 2026-05-22
+- last_run: ""
+- attempt: 0
+
+## T-011: 客户详情页加消费时间线
+- status: approved
+- category: feature
+- auto_approve: false
+- merge_to_main_after: true
+- acceptance:
+  - GET /api/v1/costs 支持 customer_id 过滤 + 按 occurred_on 倒序（已支持则核实）
+  - CustomerDetail.vue 加 el-timeline，显示历次消费：日期 / 宠物名 / 分类 / 金额 / 备注
+  - 默认显示最近 20 条，超过显示"加载更多"
+  - npm run build 通过
+- created_at: 2026-05-22
+- last_run: ""
+- attempt: 0
+
+## T-012: 宠物档案显示「最近一次到店 / 距今天数」
+- status: approved
+- category: feature
+- auto_approve: false
+- merge_to_main_after: true
+- acceptance:
+  - GET /api/v1/pets 列表返回 last_visit_at 字段
+  - 后端补 1 个用例
+  - PetList.vue 卡片底部加「最近到店：YYYY-MM-DD（X 天前）」/ 无消费时"—"
+  - npm run build 通过
+- created_at: 2026-05-22
+- last_run: ""
+- attempt: 0
+
+## T-013: 消费记录列表加按客户名筛选
+- status: approved
+- category: feature
+- auto_approve: false
+- merge_to_main_after: true
+- acceptance:
+  - GET /api/v1/costs 支持 customer_id 筛选（已支持则核实）
+  - BillList.vue 顶部筛选区加客户下拉，远程搜索（沿用 CostFormDialog 的客户检索）
+  - 选中客户后列表只显示该客户消费
+  - npm run build 通过
+- created_at: 2026-05-22
+- last_run: ""
+- attempt: 0
+
+## T-014: 消费记录新增支持「最近 5 个客户」快选
+- status: approved
+- category: feature
+- auto_approve: false
+- merge_to_main_after: true
+- acceptance:
+  - 新增 GET /api/v1/customers/recent?limit=5，按客户名下最近一次消费时间倒序
+  - 无任何消费的客户不返回
+  - 后端补 1 个用例
+  - CostFormDialog.vue 客户下拉打开时顶部展示最近 5 个，点击直接选中
+  - npm run build 通过
+- created_at: 2026-05-22
+- last_run: ""
+- attempt: 0
+
+## T-015: 客户列表支持按累计消费金额排序
+- status: approved
+- category: feature
+- auto_approve: false
+- merge_to_main_after: true
+- acceptance:
+  - GET /api/v1/customers 支持 sort_by=total_amount&sort_dir=desc|asc
+  - 默认仍按 created_at 倒序
+  - 后端补 1 个用例
+  - CustomerList.vue 加表头"累计消费"列 + 切换排序按钮
+  - npm run build 通过
+- created_at: 2026-05-22
+- last_run: ""
+- attempt: 0
+
 ## T-001: Dashboard 主 chunk 体积超 500KB，做路由级 code-split
 - status: spec_drafted
 - category: refactor
