@@ -4,6 +4,17 @@
 
 ---
 
+## T-006: 客户列表加按手机号实时搜索
+- completed_at: 2026-05-22T03:40:00+08:00
+- commit: 本 commit
+- category: feature
+- auto_approve: false
+- merge_to_main_after: true
+- attempt: 1
+- result: done — 后端原已用 q 同时 LIKE name/phone，补一个 phone 模糊用例核实；前端去掉手动「搜索」按钮，watch(searchInput) + setTimeout 300ms debounce 实时触发查询，清空（el-input clearable）会令 v-model 变空字符串、watch 同样触发，fetchList 跳过空 q 返回全部。pytest 56→57、npm run build 通过。
+
+---
+
 ## T-003: 清理前端 console.log / 调试输出
 - completed_at: 2026-05-22T02:25+08:00
 - commit: 8f62eb9

@@ -27,6 +27,31 @@ def test_list_search_and_pagination(client):
     assert len(paged.json()["items"]) == 2
 
 
+def test_list_search_by_phone_fuzzy(client):
+    """T-006 核实：GET /api/v1/customers 支持 phone 模糊匹配。"""
+    client.post("/api/v1/customers", json={"name": "甲", "phone": "13811112222"})
+    client.post("/api/v1/customers", json={"name": "乙", "phone": "13822223333"})
+    client.post("/api/v1/customers", json={"name": "丙", "phone": "13911114444"})
+
+    # 精准后 7 位
+    exact = client.get("/api/v1/customers", params={"q": "11112222"})
+    assert exact.status_code == 200
+    body = exact.json()
+    assert body["total"] == 1
+    assert body["items"][0]["phone"] == "13811112222"
+
+    # 中间片段模糊命中多个
+    middle = client.get("/api/v1/customers", params={"q": "1111"})
+    assert middle.status_code == 200
+    phones = sorted(item["phone"] for item in middle.json()["items"])
+    assert phones == ["13811112222", "13911114444"]
+
+    # 手机号完全不匹配返回空
+    miss = client.get("/api/v1/customers", params={"q": "99999999"})
+    assert miss.status_code == 200
+    assert miss.json()["total"] == 0
+
+
 def test_phone_conflict_returns_409(client):
     a = client.post("/api/v1/customers", json={"name": "A", "phone": "13888888888"})
     assert a.status_code == 201

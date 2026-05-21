@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useCustomerStore } from '@/stores/customerStore'
@@ -18,15 +18,26 @@ const rules = {
   name: [{ required: true, message: '请输入客户姓名', trigger: 'blur' }],
 }
 
+// debounce 300ms实时搜索：输入变动 300ms 后触发查询；清空后恢复全部
+let searchTimer = null
+function triggerSearch() {
+  const next = searchInput.value.trim()
+  if (next === store.q) return
+  store.setQuery(next)
+  store.fetchList()
+}
+watch(searchInput, () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(triggerSearch, 300)
+})
+onUnmounted(() => {
+  if (searchTimer) clearTimeout(searchTimer)
+})
+
 onMounted(async () => {
   searchInput.value = store.q
   await store.fetchList()
 })
-
-async function onSearch() {
-  store.setQuery(searchInput.value.trim())
-  await store.fetchList()
-}
 
 function onPageChange(p) {
   store.setPage(p)
@@ -115,14 +126,11 @@ function viewDetail(row) {
     <div class="toolbar">
       <el-input
         v-model="searchInput"
-        placeholder="搜姓名 / 手机号"
+        placeholder="搜姓名 / 手机号（实时）"
         clearable
         class="search"
         :prefix-icon="'Search'"
-        @keyup.enter="onSearch"
-        @clear="onSearch"
       />
-      <el-button type="primary" @click="onSearch">搜索</el-button>
       <div class="grow" />
       <el-button type="primary" :icon="'Plus'" @click="openCreate">新增客户</el-button>
     </div>
