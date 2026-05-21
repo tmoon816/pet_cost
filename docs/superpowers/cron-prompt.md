@@ -106,8 +106,8 @@ commit & push（commit message: "📝 log: tick at <timestamp>"）。
 
 把上面整段提示词配置到云端 Claude 定时任务，触发表达式建议：
 
-- `0 9,21 * * *`（每天 9 点和 21 点）
-- 或 `0 */6 * * *`（每 6 小时一次）
+- `0 */3 * * *`（每 3 小时一次，推荐，每天 8 次）
+- 想稳一点：`0 9,21 * * *`（每天 9 点和 21 点）
 
 每次 tick 大概会消耗：1 次 git pull + 1-2 次写文件 + 巡检命令（npm/uv outdated、grep）+ 必要时一次 pytest/build。
 
