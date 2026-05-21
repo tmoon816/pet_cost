@@ -53,7 +53,7 @@ approved → (实施) → in_progress → done
 ## Backlog
 
 ## T-008: 客户列表标记「新客/老客」标签
-- status: approved
+- status: in_progress
 - category: feature
 - auto_approve: false
 - merge_to_main_after: true
@@ -63,8 +63,8 @@ approved → (实施) → in_progress → done
   - CustomerList.vue 列表项加 el-tag："新客" / "老客"
   - npm run build 通过
 - created_at: 2026-05-22
-- last_run: ""
-- attempt: 0
+- last_run: "2026-05-22T03:48:00+08:00"
+- attempt: 1
 
 ## T-009: Dashboard 新增「本月新客 vs 回头客」卡片
 - status: approved
