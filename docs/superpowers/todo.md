@@ -69,19 +69,6 @@ approved → (实施) → in_progress → done
 - last_run: ""
 - attempt: 0
 
-## T-003: 清理前端 console.log / 调试输出
-- status: in_progress
-- category: lint
-- auto_approve: true
-- spec: ""
-- acceptance:
-  - npm run build 通过
-  - grep -rn "console\\.log" frontend/src 命中数为 0（保留 console.error 和 console.warn）
-- blocked_reason: ""
-- created_at: 2026-05-22
-- last_run: "2026-05-22T02:25+08:00"
-- attempt: 1
-
 ## T-004: 前端 vite 依赖 patch 升级 8.0.13 → 8.0.14
 - status: backlog
 - category: dep-patch
