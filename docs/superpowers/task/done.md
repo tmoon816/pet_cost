@@ -4,6 +4,14 @@
 
 ---
 
+## T-018: 宠物详情页补消费记录表格
+- completed_at: 2026-05-22T23:25:30+08:00
+- commit: cd4dbbc
+- category: feature
+- auto_approve: false
+- attempt: 1
+- result: no-op — PetDetail.vue 已有完整消费记录表格（日期/分类/金额/备注列 + el-pagination），npm run build 通过。
+
 ## T-024: 后端 idna 依赖 patch 升级 v3.15 → v3.16
 - completed_at: 2026-05-22T21:42:00+08:00
 - commit: 151b42d
