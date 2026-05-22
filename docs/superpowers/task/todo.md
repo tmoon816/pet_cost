@@ -52,21 +52,6 @@ approved → (实施) → in_progress → done
 
 ## Backlog
 
-## T-001: Dashboard 主 chunk 体积超 500KB，做路由级 code-split
-- status: approved
-- category: refactor
-- auto_approve: false
-- spec: "docs/superpowers/specs/2026-05-22-T001-route-code-split.md"
-- chosen_plan: A
-- acceptance:
-  - 入口 chunk gzip < 100KB，各 vendor 独立拆分
-  - npm run build 通过
-  - 浏览器主流程页面切换无白屏
-- blocked_reason: ""
-- created_at: 2026-05-22
-- last_run: ""
-- attempt: 0
-
 ## T-002: 后端 starlette 依赖 patch 升级 1.0.0 → 1.0.1
 - status: backlog
 - category: dep-patch

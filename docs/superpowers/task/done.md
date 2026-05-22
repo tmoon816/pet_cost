@@ -4,6 +4,17 @@
 
 ---
 
+## T-001: Dashboard 主 chunk 体积超 500KB，做路由级 code-split
+- completed_at: 2026-05-22T11:20:00+08:00
+- commit: (本提交)
+- category: refactor
+- auto_approve: false
+- chosen_plan: A (vite manualChunks, 函数形式适配 Rolldown)
+- attempt: 1
+- result: done — 入口 chunk 从 1,190KB→48KB（gzip 378KB→19KB），vendor-vue/antd-charts/element-plus 独立拆分；npm run build 通过，pytest 67 全过
+
+---
+
 ## T-004: 前端 vite 依赖 patch 升级 8.0.13 → 8.0.14
 - completed_at: 2026-05-22T08:58:00+08:00
 - commit: (本提交)

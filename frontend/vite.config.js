@@ -14,5 +14,20 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 3000,
     open: true
-  }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('echarts')) return 'vendor-echarts'
+            if (id.includes('@ant-design/charts')) return 'vendor-antd-charts'
+            if (id.includes('element-plus')) return 'vendor-element-plus'
+            if (id.includes('vue') || id.includes('pinia') || id.includes('vue-router')) return 'vendor-vue'
+          }
+        },
+      },
+    },
+    chunkSizeWarningLimit: 800,
+  },
 })
