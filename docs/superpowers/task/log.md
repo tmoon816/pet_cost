@@ -13,6 +13,13 @@
 | 2026-05-22T03:40+08:00 | T-006 | implement | done | e6bfb6a (main: e6bfb6a) | 后端增 1 个 phone 模糊搜索用例（pytest 56→57）；前端 CustomerList 接入 watch+300ms debounce，去掉「搜索」按钮，清空即恢复全量；npm run build 通过；auto-merge main FF 成功 |
 | 2026-05-22T03:45+08:00 | T-007 | implement | done | efe585d (main: efe585d) | 后端新增 GET /customers/{id}/summary、CustomerSummary schema、补 2 用例（pytest 57→59）；前端 CustomerDetail 加 3 个聚合卡片，空数据“—”；auto-merge main FF 成功 |
 | 2026-05-22T03:51+08:00 | T-008 | implement | done | 4879ff5 (main: 4879ff5) | 后端 GET /customers 加 has_cost(EXISTS)、CustomerListItem、补 1 用例（pytest 59→60）；前端 CustomerList 增「老客/新客」el-tag 列；auto-merge main FF 成功 |
+| 2026-05-22T23:25+08:00 | T-018 | implement | done (no-op) | cd4dbbc | PetDetail.vue 消费表格已就绪，npm build 通过 |
+| 2026-05-22T23:26+08:00 | T-019 | implement | done (no-op) | 576ef21 | NotFound.vue + 通配路由已就绪 |
+| 2026-05-22T23:26+08:00 | T-020 | implement | done (no-op) | 576ef21 | App.vue 移动端侧边栏折叠已就绪（768px hamburger + overlay + localStorage） |
+| 2026-05-22T23:26+08:00 | T-021 | implement | done (no-op) | 576ef21 | Dashboard 日期范围选择器 + 6 个快捷按钮已就绪 |
+| 2026-05-22T23:26+08:00 | T-022 | implement | done (no-op) | 576ef21 | CSV 导出（后端 BOM + 前端按钮）已就绪 |
+| 2026-05-22T23:28+08:00 | T-025 | implement | done (no-op) | a476205 | click 8.4.1 已在 uv.lock |
+| 2026-05-22T23:30+08:00 | T-027 | implement | done | a476205 | test_seed.py 10 cases, pytest 110/112 pass；巡检：无新过期依赖/TODO |
 | 2026-05-22T03:58+08:00 | T-009 | implement | done | 29aee52 (main: 29aee52) | 后端 GET /stats/customer-acquisition (year/month)，StatsCustomerAcquisition schema，min(occurred_on) 判定首次消费；补 2 用例（pytest 60→62）；Dashboard 加三格 acquisition 卡片（新/回/总 + 占比）；auto-merge main FF 成功 |
 | 2026-05-22T04:00+08:00 | - | tick_end | chain=4 | - | 本 tick 链完成 T-006/T-007/T-008/T-009，均 done + auto-merge main FF；巡检：frontend npm outdated 只剩 T-004/T-005（已在 backlog），backend 无 outdated 直接依赖，grep TODO/FIXME 为空，覆盖率未跳（pytest-cov 未装）。未追加新任务。 |
 | 2026-05-22T04:42+08:00 | T-010 | implement | done | e3ff37c (main: e3ff37c) | 后端新增 GET /stats/dormant-customers + StatsDormantCustomerItem + crud.dormant_customers（按 last_visit_at 升序），补 2 用例（pytest 62→64）；前端 Dashboard 加一张预警卡片（可切 30/60/90/180，退色差 tag，查看跳 customer-detail）；build 通过；auto-merge main FF 成功。 |
