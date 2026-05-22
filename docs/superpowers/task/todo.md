@@ -53,12 +53,13 @@ approved → (实施) → in_progress → done
 ## Backlog
 
 ## T-001: Dashboard 主 chunk 体积超 500KB，做路由级 code-split
-- status: spec_drafted
+- status: approved
 - category: refactor
 - auto_approve: false
 - spec: "docs/superpowers/specs/2026-05-22-T001-route-code-split.md"
+- chosen_plan: A
 - acceptance:
-  - 主 bundle gzip 后 < 200KB
+  - 入口 chunk gzip < 100KB，各 vendor 独立拆分
   - npm run build 通过
   - 浏览器主流程页面切换无白屏
 - blocked_reason: ""
@@ -107,10 +108,11 @@ approved → (实施) → in_progress → done
 - signal_source: "cd backend && uv tree --outdated 显示 idna 3.15 → 3.16（minor）"
 
 ## T-005: 前端 vue-router 依赖 major 升级 4.6.4 → 5.0.7
-- status: spec_drafted
+- status: approved
 - category: feature
 - auto_approve: false
 - spec: "docs/superpowers/specs/2026-05-22-T005-vue-router-major.md"
+- merge_to_main_after: true
 - acceptance:
   - npm run build 通过
   - 所有现有路由打开无报错
