@@ -131,6 +131,26 @@ function toggleSortByAmount() {
   }
   store.fetchList()
 }
+
+async function handleExport() {
+  try {
+    const blob = await customersApi.exportCustomers({
+      q: store.q || undefined,
+      sort_by: store.sortBy || undefined,
+      sort_dir: store.sortBy ? store.sortDir : undefined,
+    })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const d = new Date()
+    a.download = `customers_${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    ElMessage.success('导出完成')
+  } catch {
+    ElMessage.error('导出失败')
+  }
+}
 const amountSortLabel = computed(() => {
   if (store.sortBy !== 'total_amount') return '按金额排序'
   return store.sortDir === 'desc' ? '金额 ↓' : '金额 ↑'
@@ -152,6 +172,10 @@ function formatAmount(v) {
         :prefix-icon="'Search'"
       />
       <el-button @click="toggleSortByAmount">{{ amountSortLabel }}</el-button>
+      <el-button @click="handleExport">
+        <el-icon><Download /></el-icon>
+        导出 CSV
+      </el-button>
       <div class="grow" />
       <el-button type="primary" :icon="'Plus'" @click="openCreate">新增客户</el-button>
     </div>

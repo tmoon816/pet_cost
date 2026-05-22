@@ -1,9 +1,9 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Download } from '@element-plus/icons-vue'
 import { useCategoryStore } from '@/stores/categoryStore'
-import { listCosts, deleteCost } from '@/api/costs'
+import { listCosts, deleteCost, exportCosts } from '@/api/costs'
 import * as customersApi from '@/api/customers'
 import * as petsApi from '@/api/pets'
 import CostFormDialog from '@/views/costs/CostFormDialog.vue'
@@ -109,6 +109,33 @@ function handleAdd() {
   editing.value = null
   dialogVisible.value = true
 }
+
+function formatDateStr(d) {
+  if (!d) return ''
+  const dt = d instanceof Date ? d : new Date(d)
+  return `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, '0')}${String(dt.getDate()).padStart(2, '0')}`
+}
+
+async function handleExport() {
+  try {
+    const params = {}
+    if (filterCustomer.value) params.customer_id = filterCustomer.value
+    if (filterPet.value) params.pet_id = filterPet.value
+    if (filterCategory.value) params.category = filterCategory.value
+    if (dateRange.value?.[0]) params.start = formatDateStr(dateRange.value[0])
+    if (dateRange.value?.[1]) params.end = formatDateStr(dateRange.value[1])
+    const blob = await exportCosts(params)
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `costs_${formatDateStr(new Date())}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    ElMessage.success('导出完成')
+  } catch {
+    ElMessage.error('导出失败')
+  }
+}
 function handleEdit(row) {
   editing.value = row
   dialogVisible.value = true
@@ -152,10 +179,16 @@ onMounted(async () => {
       <template #header>
         <div class="card-header">
           <span>筛选 / 查询</span>
-          <el-button type="primary" @click="handleAdd">
-            <el-icon><Plus /></el-icon>
-            新增订单
-          </el-button>
+          <div style="display: flex; gap: 8px;">
+            <el-button @click="handleExport">
+              <el-icon><Download /></el-icon>
+              导出 CSV
+            </el-button>
+            <el-button type="primary" @click="handleAdd">
+              <el-icon><Plus /></el-icon>
+              新增订单
+            </el-button>
+          </div>
         </div>
       </template>
       <el-row :gutter="20">

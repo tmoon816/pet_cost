@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from ...core.database import get_db
 from ...crud import customer as crud_customer
+from ...crud.export_csv import customers_csv
 from ...schemas.common import Page
 from ...schemas.customer import CustomerCreate, CustomerListItem, CustomerOut, CustomerSummary, CustomerUpdate, CustomerWithPets
 
@@ -31,6 +32,20 @@ def list_recent_customers(
 ):
     """T-014：按「名下最近一次消费」倒序返回最近消费过的客户。无消费不返回。"""
     return crud_customer.list_recent(db, limit=limit)
+
+
+@router.get("/export")
+def export_customers(
+    q: str | None = None,
+    sort_by: str | None = Query(None, pattern="^(total_amount|created_at)$"),
+    sort_dir: str = Query("desc", pattern="^(asc|desc)$"),
+    db: Session = Depends(get_db),
+):
+    """T-022：导出客户列表为 CSV（UTF-8 BOM）。"""
+    items, _ = crud_customer.list_paginated(
+        db, q=q, page=1, page_size=99999, sort_by=sort_by, sort_dir=sort_dir
+    )
+    return customers_csv(items)
 
 
 @router.get("/{customer_id}", response_model=CustomerWithPets)

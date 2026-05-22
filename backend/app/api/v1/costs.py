@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from ...core.database import get_db
 from ...crud import cost as crud_cost
+from ...crud.export_csv import costs_csv
 from ...models import CostCategory, Pet
 from ...schemas.common import Page
 from ...schemas.cost import CostCreate, CostOut, CostUpdate
@@ -34,6 +35,49 @@ def list_costs(
         page_size=page_size,
     )
     return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+
+@router.get("/export")
+def export_costs(
+    pet_id: int | None = None,
+    customer_id: int | None = None,
+    category: str | None = Query(None, alias="category"),
+    start: date | None = None,
+    end: date | None = None,
+    db: Session = Depends(get_db),
+):
+    """T-022：导出消费记录为 CSV（UTF-8 BOM）。"""
+    from app.models import Customer
+
+    items, _ = crud_cost.list_paginated(
+        db,
+        pet_id=pet_id,
+        customer_id=customer_id,
+        category_code=category,
+        start=start,
+        end=end,
+        page=1,
+        page_size=99999,
+    )
+    # 补客户名和分类 label
+    rows: list[dict] = []
+    for item in items:
+        pet = db.get(Pet, item.pet_id)
+        customer_name = ""
+        if pet and pet.customer_id:
+            c = db.get(Customer, pet.customer_id)
+            customer_name = c.name if c else ""
+        cat = db.get(CostCategory, item.category_code)
+        category_label = cat.label if cat else item.category_code
+        rows.append({
+            "occurred_on": item.occurred_on,
+            "pet_name": getattr(item, "pet_name", ""),
+            "customer_name": customer_name,
+            "category_label": category_label,
+            "amount": item.amount,
+            "note": item.note,
+        })
+    return costs_csv(rows)
 
 
 @router.get("/{cost_id}", response_model=CostOut)

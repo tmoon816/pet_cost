@@ -60,6 +60,12 @@ const routes = [
     name: 'settings',
     component: () => import('@/views/Settings.vue'),
     meta: { title: '系统设置' }
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'not-found',
+    component: () => import('@/views/NotFound.vue'),
+    meta: { title: '页面不存在' }
   }
 ]
 

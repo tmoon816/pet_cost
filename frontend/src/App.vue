@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   HomeFilled,
@@ -9,7 +9,9 @@ import {
   User,
   List,
   Search,
-  UserFilled
+  UserFilled,
+  Expand,
+  Fold
 } from '@element-plus/icons-vue'
 import { useCategoryStore } from './stores/categoryStore'
 import { search as searchApi } from './api/search'
@@ -18,6 +20,20 @@ const router = useRouter()
 const route = useRoute()
 const categoryStore = useCategoryStore()
 const activeMenu = ref('')
+
+// 响应式侧边栏
+const MOBILE_BP = 768
+const isSidebarCollapsed = ref(window.innerWidth < MOBILE_BP)
+
+function handleResize() {
+  isSidebarCollapsed.value = window.innerWidth < MOBILE_BP
+}
+function toggleSidebar() {
+  isSidebarCollapsed.value = !isSidebarCollapsed.value
+}
+function closeSidebar() {
+  if (window.innerWidth < MOBILE_BP) isSidebarCollapsed.value = true
+}
 
 // 搜索状态
 const searchQuery = ref('')
@@ -111,15 +127,29 @@ onMounted(() => {
   // 监听路由变化更新活跃菜单
   router.afterEach((to) => {
     activeMenu.value = to.path
+    closeSidebar()
   })
+
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 
 <template>
   <div class="app-container">
     <el-container style="height: 100vh;">
+      <!-- 移动端侧边栏遮罩 -->
+      <div v-if="!isSidebarCollapsed" class="sidebar-overlay" @click="closeSidebar"></div>
       <!-- 侧边导航 -->
-      <el-aside width="240px" style="background: var(--card); border-right: 1px solid var(--border);">
+      <el-aside
+        :width="isSidebarCollapsed ? '0px' : '240px'"
+        class="sidebar"
+        :class="{ collapsed: isSidebarCollapsed }"
+        style="background: var(--card); border-right: 1px solid var(--border);"
+      >
         <div class="sidebar-header">
           <div class="logo">
             <span class="paw-icon">🐾</span>
@@ -147,7 +177,13 @@ onMounted(() => {
       <el-container direction="vertical">
         <!-- 顶部导航栏 -->
         <el-header style="height: 64px; background: var(--card); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between;">
-          <div class="header-left">
+          <div class="header-left" style="display: flex; align-items: center; gap: 12px;">
+            <el-button
+              class="hamburger-btn"
+              :icon="isSidebarCollapsed ? Expand : Fold"
+              text
+              @click="toggleSidebar"
+            />
             <h1 style="font-size: 18px; font-weight: 600; margin: 0;">{{ menuItems.find(item => item.path === activeMenu)?.title || '宠物店管理系统' }}</h1>
           </div>
           <div class="header-right" style="display: flex; align-items: center; gap: 16px;">
@@ -305,6 +341,48 @@ onMounted(() => {
 @media (max-width: 1440px) {
   .el-main {
     padding: 16px;
+  }
+}
+
+/* 响应式侧边栏 */
+.hamburger-btn {
+  display: none;
+  font-size: 20px;
+}
+.sidebar {
+  transition: width 0.3s ease;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.sidebar.collapsed {
+  width: 0 !important;
+  min-width: 0 !important;
+  border-right: none !important;
+}
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 998;
+}
+
+@media (max-width: 767px) {
+  .hamburger-btn {
+    display: inline-flex;
+  }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 999;
+  }
+  .sidebar.collapsed {
+    transform: translateX(-100%);
+  }
+  .sidebar-overlay {
+    display: block;
   }
 }
 </style>

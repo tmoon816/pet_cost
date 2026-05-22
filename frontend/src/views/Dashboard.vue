@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Pie, Bar } from '@ant-design/charts'
 import { getSummary, getByCategory, getByMonth, getByPet, getCustomerAcquisition, getDormantCustomers } from '@/api/stats'
@@ -9,11 +9,26 @@ import { useCategoryStore } from '@/stores/categoryStore'
 const router = useRouter()
 const categoryStore = useCategoryStore()
 
-// 本月时间窗口（后端 stats 接受 start/end）
+// 日期范围选择器
 const now = new Date()
-const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
-const monthEndDate = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-const monthEnd = `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`
+const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1)
+const defaultEnd = new Date()
+const dateRange = ref([defaultStart, defaultEnd])
+const dateRangeKey = ref(0) // 强制刷新 key
+
+function formatDate(d) {
+  if (!d) return ''
+  const dt = d instanceof Date ? d : new Date(d)
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+}
+
+function getRange() {
+  const [start, end] = dateRange.value || []
+  return { start: formatDate(start), end: formatDate(end) }
+}
+
+const monthStart = computed(() => getRange().start)
+const monthEnd = computed(() => getRange().end)
 
 // 卡片 - 全部用后端 stats/summary 实有字段
 const summary = ref({
@@ -37,7 +52,7 @@ const loading = ref({ summary: false, category: false, month: false, pet: false,
 const fetchSummary = async () => {
   loading.value.summary = true
   try {
-    const res = await getSummary({ start: monthStart, end: monthEnd })
+    const res = await getSummary({ start: monthStart.value, end: monthEnd.value })
     summary.value = {
       total_amount: Number(res.total_amount || 0),
       record_count: Number(res.record_count || 0),
@@ -54,7 +69,7 @@ const fetchSummary = async () => {
 const fetchCategoryStats = async () => {
   loading.value.category = true
   try {
-    const res = await getByCategory({ start: monthStart, end: monthEnd })
+    const res = await getByCategory({ start: monthStart.value, end: monthEnd.value })
     categoryStats.value = (res || []).map((item) => ({
       type: item.label || item.category,
       value: Number(item.total || 0),
@@ -86,7 +101,7 @@ const fetchMonthStats = async () => {
 const fetchPetStats = async () => {
   loading.value.pet = true
   try {
-    const res = await getByPet({ start: monthStart, end: monthEnd, limit: 8 })
+    const res = await getByPet({ start: monthStart.value, end: monthEnd.value, limit: 8 })
     petStats.value = (res || []).map((item) => ({
       pet: item.pet_name || `宠物 #${item.pet_id}`,
       消费: Number(item.total || 0)
@@ -125,6 +140,14 @@ const fetchAllData = () => {
   fetchRecentBills()
   fetchAcquisition()
   fetchDormantCustomers()
+}
+
+function onDateChange() {
+  dateRangeKey.value++
+  fetchSummary()
+  fetchCategoryStats()
+  fetchPetStats()
+  fetchRecentBills()
 }
 
 const fetchDormantCustomers = async () => {
@@ -213,10 +236,41 @@ onMounted(async () => {
   await categoryStore.fetch(true).catch(() => {})
   fetchAllData()
 })
+
+const dateShortcuts = [
+  { text: '今天', value: () => [new Date(), new Date()] },
+  { text: '本周', value: () => {
+    const d = new Date()
+    const start = new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay() + 1)
+    return [start, d]
+  }},
+  { text: '本月', value: () => [new Date(now.getFullYear(), now.getMonth(), 1), new Date()] },
+  { text: '上月', value: () => {
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const end = new Date(now.getFullYear(), now.getMonth(), 0)
+    return [start, end]
+  }},
+  { text: '近30天', value: () => [new Date(now.getTime() - 30 * 86400000), new Date()] },
+  { text: '近90天', value: () => [new Date(now.getTime() - 90 * 86400000), new Date()] },
+]
 </script>
 
 <template>
-  <div class="dashboard-page">
+  <div class="dashboard-page" :key="dateRangeKey">
+    <!-- 日期范围选择器 -->
+    <div class="date-range-bar">
+      <el-date-picker
+        v-model="dateRange"
+        type="daterange"
+        range-separator="至"
+        start-placeholder="开始日期"
+        end-placeholder="结束日期"
+        :shortcuts="dateShortcuts"
+        :default-value="[defaultStart, defaultEnd]"
+        @change="onDateChange"
+        style="width: 320px;"
+      />
+    </div>
     <!-- 顶部统计卡片 - 全部用后端 stats/summary 真字段 -->
     <el-row :gutter="20">
       <el-col :xs="24" :sm="12" :md="6">
@@ -462,6 +516,9 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+.date-range-bar {
+  margin-bottom: 8px;
 }
 @media (max-width: 1440px) {
   .stat-card { flex-direction: column; text-align: center; gap: 10px; min-height: 140px; }
