@@ -1,8 +1,9 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { Pie, Bar } from '@ant-design/charts'
-import { getSummary, getByCategory, getByMonth, getByPet, getCustomerAcquisition, getDormantCustomers } from '@/api/stats'
+import { getSummary, getByCategory, getByMonth, getByPet, getCustomerAcquisition, getDormantCustomers, getTopCustomers } from '@/api/stats'
 import { listCosts } from '@/api/costs'
 import { useCategoryStore } from '@/stores/categoryStore'
 
@@ -47,7 +48,9 @@ const acquisition = ref({ new_customers: 0, returning_customers: 0, total: 0 })
 // T-010: 久未到店老客预警
 const dormantList = ref([])
 const dormantDays = ref(90)
-const loading = ref({ summary: false, category: false, month: false, pet: false, bills: false, acquisition: false, dormant: false })
+// P-001: Top 10 高价值客户
+const topCustomers = ref([])
+const loading = ref({ summary: false, category: false, month: false, pet: false, bills: false, acquisition: false, dormant: false, topCustomers: false })
 
 const fetchSummary = async () => {
   loading.value.summary = true
@@ -132,6 +135,24 @@ const fetchRecentBills = async () => {
   }
 }
 
+const fetchTopCustomers = async () => {
+  loading.value.topCustomers = true
+  try {
+    const res = await getTopCustomers({ limit: 10 })
+    topCustomers.value = (res || []).map((item) => ({
+      rank: item.rank,
+      customer_id: item.customer_id,
+      customer_name: item.customer_name,
+      total_amount: Number(item.total_amount || 0),
+      order_count: Number(item.order_count || 0),
+    }))
+  } catch (e) {
+    topCustomers.value = []
+  } finally {
+    loading.value.topCustomers = false
+  }
+}
+
 const fetchAllData = () => {
   fetchSummary()
   fetchCategoryStats()
@@ -140,6 +161,7 @@ const fetchAllData = () => {
   fetchRecentBills()
   fetchAcquisition()
   fetchDormantCustomers()
+  fetchTopCustomers()
 }
 
 function onDateChange() {
@@ -169,6 +191,15 @@ const fetchDormantCustomers = async () => {
 
 const goToCustomer = (id) => {
   router.push({ name: 'customer-detail', params: { id } })
+}
+
+async function copyPhone(phone) {
+  try {
+    await navigator.clipboard.writeText(phone)
+    ElMessage.success('手机号已复制')
+  } catch {
+    ElMessage.error('复制失败，请手动复制')
+  }
 }
 
 const fetchAcquisition = async () => {
@@ -377,6 +408,23 @@ const dateShortcuts = [
                 </el-tag>
               </template>
             </el-table-column>
+            <el-table-column label="联系方式" width="180">
+              <template #default="{ row }">
+                <template v-if="row.phone">
+                  <span class="phone-masked">{{ row.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') }}</span>
+                  <el-button
+                    type="primary"
+                    link
+                    size="small"
+                    style="margin-left: 6px;"
+                    @click="copyPhone(row.phone)"
+                  >
+                    复制
+                  </el-button>
+                </template>
+                <span v-else class="text-muted">—</span>
+              </template>
+            </el-table-column>
             <el-table-column label="操作" width="100" align="right">
               <template #default="{ row }">
                 <el-button type="primary" link size="small" @click="goToCustomer(row.customer_id)">
@@ -387,6 +435,55 @@ const dateShortcuts = [
           </el-table>
           <div class="empty-chart" style="height: 120px;" v-else>
             <p>暂无久未到店老客 🎉</p>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- P-001: Top 10 高价值客户排名 -->
+    <el-row :gutter="20" style="margin-top: 20px;">
+      <el-col :span="24">
+        <el-card shadow="hover" v-loading="loading.topCustomers">
+          <template #header>
+            <div class="dormant-header">
+              <strong>🏆 高价值客户 TOP 10（累计消费）</strong>
+            </div>
+          </template>
+          <el-table
+            v-if="topCustomers.length > 0"
+            :data="topCustomers"
+            size="small"
+            stripe
+            style="width: 100%;"
+          >
+            <el-table-column label="排名" width="80">
+              <template #default="{ row }">
+                <el-tag
+                  :type="row.rank <= 3 ? 'danger' : row.rank <= 5 ? 'warning' : 'info'"
+                  effect="plain"
+                  size="small"
+                >
+                  #{{ row.rank }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="customer_name" label="客户名" min-width="160" />
+            <el-table-column label="累计消费" width="140">
+              <template #default="{ row }">
+                <span class="top-amount">¥{{ row.total_amount.toFixed(2) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="order_count" label="订单数" width="100" align="center" />
+            <el-table-column label="操作" width="100" align="right">
+              <template #default="{ row }">
+                <el-button type="primary" link size="small" @click="goToCustomer(row.customer_id)">
+                  查看
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <div class="empty-chart" style="height: 120px;" v-else>
+            <p>暂无消费数据 📊</p>
           </div>
         </el-card>
       </el-col>
@@ -519,6 +616,15 @@ const dateShortcuts = [
 }
 .date-range-bar {
   margin-bottom: 8px;
+}
+.phone-masked {
+  font-family: 'Menlo', 'Monaco', monospace;
+  font-size: 13px;
+}
+.top-amount {
+  font-weight: 700;
+  color: var(--el-color-danger, #f56c6c);
+  font-size: 14px;
 }
 @media (max-width: 1440px) {
   .stat-card { flex-direction: column; text-align: center; gap: 10px; min-height: 140px; }

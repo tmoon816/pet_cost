@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useCategoryStore } from '@/stores/categoryStore'
 import * as petsApi from '@/api/pets'
@@ -22,6 +22,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:modelValue', 'saved'])
 
+const amountInputRef = ref(null)
 const categoryStore = useCategoryStore()
 
 const customers = ref([])
@@ -217,12 +218,46 @@ async function submit() {
       if (props.editing) {
         await costsApi.updateCost(props.editing.id, payload)
         ElMessage.success('已更新')
+        visible.value = false
+        emit('saved')
       } else {
         await costsApi.createCost(payload)
         ElMessage.success('已新增')
+        visible.value = false
+        emit('saved')
       }
-      visible.value = false
+    } finally {
+      submitting.value = false
+    }
+  })
+}
+
+async function saveAndContinue() {
+  if (!formRef.value) return
+  await formRef.value.validate(async (valid) => {
+    if (!valid) return
+    submitting.value = true
+    const payload = {
+      pet_id: form.pet_id,
+      category_code: form.category_code,
+      amount: String(form.amount),
+      occurred_on: form.occurred_on,
+      note: form.note?.trim() ? form.note : null,
+    }
+    try {
+      await costsApi.createCost(payload)
+      ElMessage.success('已保存，可继续录入')
+      // 保留客户/宠物/分类/日期，清空金额和备注
+      form.amount = ''
+      form.note = ''
+      // 清除表单项的校验状态
+      formRef.value.clearValidate(['amount', 'note'])
       emit('saved')
+      // 延迟聚焦金额输入框
+      nextTick(() => {
+        const el = formRef.value?.$el?.querySelector?.('input[placeholder*="元"]')
+        if (el) el.focus()
+      })
     } finally {
       submitting.value = false
     }
@@ -310,8 +345,35 @@ async function submit() {
     </el-form>
 
     <template #footer>
-      <el-button @click="visible = false">取消</el-button>
-      <el-button type="primary" :loading="submitting" @click="submit">保存</el-button>
+      <div class="dialog-footer">
+        <el-button @click="visible = false">取消</el-button>
+        <div class="dialog-footer-right">
+          <el-button
+            v-if="!editing"
+            type="success"
+            :loading="submitting"
+            @click="saveAndContinue"
+          >
+            保存并继续
+          </el-button>
+          <el-button type="primary" :loading="submitting" @click="submit">
+            {{ editing ? '保存' : '保存并关闭' }}
+          </el-button>
+        </div>
+      </div>
     </template>
   </el-dialog>
 </template>
+
+<style scoped>
+.dialog-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.dialog-footer-right {
+  display: flex;
+  gap: 8px;
+}
+</style>

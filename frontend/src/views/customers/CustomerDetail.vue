@@ -7,6 +7,7 @@ import { useCategoryStore } from '@/stores/categoryStore'
 import * as petsApi from '@/api/pets'
 import * as customersApi from '@/api/customers'
 import { listCosts } from '@/api/costs'
+import CostFormDialog from '@/views/costs/CostFormDialog.vue'
 
 const props = defineProps({ id: { type: [String, Number], required: true } })
 const router = useRouter()
@@ -36,6 +37,8 @@ const editingPetId = ref(null)
 const petForm = reactive({ name: '', species: '', breed: '', gender: '', birthday: null, note: '' })
 const petFormRef = ref(null)
 const petSubmitting = ref(false)
+// P-004: 客户详情页直达新增消费
+const costDialogVisible = ref(false)
 
 const speciesOptions = [
   { value: 'dog', label: '犬' },
@@ -259,6 +262,20 @@ function amountDisplay(v) {
   if (!Number.isFinite(num)) return '—'
   return `¥${num.toFixed(2)}`
 }
+
+async function onCostSaved() {
+  // 刷新时间线和客户指标
+  timelinePage.value = 1
+  timelineItems.value = []
+  timelineTotal.value = 0
+  timelineLoaded.value = false
+  await loadTimeline()
+  try {
+    summary.value = await customersApi.getCustomerSummary(props.id)
+  } catch {
+    summary.value = null
+  }
+}
 </script>
 
 <template>
@@ -355,6 +372,9 @@ function amountDisplay(v) {
       <template #header>
         <div class="card-header">
           <span class="title">消费时间线<span class="title-count">（共 {{ timelineTotal }} 条）</span></span>
+          <el-button size="small" type="primary" :icon="'Plus'" @click="costDialogVisible = true">
+            新增服务
+          </el-button>
         </div>
       </template>
 
@@ -423,6 +443,13 @@ function amountDisplay(v) {
         <el-button type="primary" :loading="petSubmitting" @click="submitPet">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- P-004: 客户详情页直达新增消费 -->
+    <CostFormDialog
+      v-model="costDialogVisible"
+      :initial-customer-id="Number(id)"
+      @saved="onCostSaved"
+    />
   </div>
 </template>
 
