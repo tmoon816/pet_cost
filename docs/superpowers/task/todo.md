@@ -128,3 +128,33 @@ approved → (实施) → in_progress → done
 - created_at: 2026-05-22
 - last_run: ""
 - attempt: 0
+
+---
+
+## backlog（待执行）
+
+## T-024: 后端 idna 依赖 patch 升级 v3.15 → v3.16
+- status: backlog
+- category: dep-patch
+- auto_approve: true
+- spec: ""
+- acceptance:
+  - 后端 pytest 全过
+  - `uv lock` 后 idna 版本升至 3.16
+- blocked_reason: ""
+- created_at: 2026-05-22
+- last_run: ""
+- attempt: 0
+
+## T-025: 后端 click 依赖 patch 升级 v8.4.0 → v8.4.1
+- status: backlog
+- category: dep-patch
+- auto_approve: true
+- spec: ""
+- acceptance:
+  - 后端 pytest 全过
+  - `uv lock` 后 click 版本升至 8.4.1
+- blocked_reason: ""
+- created_at: 2026-05-22
+- last_run: ""
+- attempt: 0

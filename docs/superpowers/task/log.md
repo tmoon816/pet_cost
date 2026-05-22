@@ -38,3 +38,5 @@
 | 2026-05-22T14:55+08:00 | T-017 | write_spec | spec_drafted | (本提交) | 全局搜索 spec 完成：后端 GET /api/v1/search?q= 聚合搜索 customer/name/phone + pet/name + cost/note，前端 App.vue debounce 300ms 下拉面板分三组展示，点击跳详情。按 spec_drafted 终止规则退出链。 |
 | 2026-05-22T17:42+08:00 | T-023 | implement | no-op | 5534827 | 前次 tick 已实施（覆盖率 22%→100%，24 个用例，pytest 93 全过）。本次仅归档清理 todo.md 残留条目。 |
 | 2026-05-22T17:42+08:00 | - | tick_end | chain=1 | - | 本 tick：T-023 no-op 归档。巡检：frontend npm outdated 无过期依赖，backend uv tree --outdated 无直接依赖需升，grep TODO/FIXME/XXX 为空，覆盖率 93%（所有 app 模块≥89%，seed.py 0% 为 migration seeder 不合规不追）。修正 T-018~T-022 状态从 backlog→spec_drafted（spec 文件已在 c987267 提交但状态未更新）。无新任务追加。 |
+| 2026-05-22T19:42+08:00 | - | tick_idle | scan | - | 无 approved/in_progress/backlog(白名单) 任务。巡检追加 2 条 backlog：T-024 idna 3.15→3.16 patch、T-025 click 8.4.0→8.4.1 patch。frontend npm outdated 无过期，后端 TODO/FIXME/XXX 为空，覆盖率 93%，lint: ruff 未安装跳过。T-018~T-022 仍待人审。 |
+local dirty, exit | 2026-05-22T10:44:26Z
