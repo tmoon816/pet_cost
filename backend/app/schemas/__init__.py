@@ -11,7 +11,11 @@ from .stats import (
     StatsByMonthItem,
     StatsByPet,
     StatsByPetItem,
+    StatsDormantCustomerItem,
+    StatsDormantCustomers,
     StatsSummary,
+    StatsTopCustomerItem,
+    StatsTopCustomers,
 )
 
 __all__ = [
@@ -37,5 +41,9 @@ __all__ = [
     "StatsByMonthItem",
     "StatsByPet",
     "StatsByPetItem",
+    "StatsDormantCustomerItem",
+    "StatsDormantCustomers",
     "StatsSummary",
+    "StatsTopCustomerItem",
+    "StatsTopCustomers",
 ]

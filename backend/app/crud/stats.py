@@ -111,10 +111,10 @@ def by_pet(
 
 
 def customer_acquisition(db: Session, year: int, month: int) -> dict:
-    """T-009: 给定年月，返回当月新客 vs 回头客数。
+    """T-009: 给定年月,返回当月新客 vs 回头客数。
 
     口径:
-      当月有消费(occurred_on 落在 [start, end_of_month]) 的去重客户里：
+      当月有消费(occurred_on 落在 [start, end_of_month]) 的去重客户里:
         - 该客户全量消费历史的最早 occurred_on 在 [start, end_of_month] => 新客
         - 否则 => 回头客
     """
@@ -133,7 +133,7 @@ def customer_acquisition(db: Session, year: int, month: int) -> dict:
         .subquery()
     )
 
-    # 每个客户的最早消费日期（全量历史）
+    # 每个客户的最早消费日期(全量历史)
     first_cost_per_customer = (
         select(
             Pet.customer_id.label("customer_id"),
@@ -173,7 +173,7 @@ def dormant_customers(db: Session, days: int, limit: int, today: date | None = N
 
     口径:
       - last_visit_at = 该客户名下所有宠物的最近一次 CostRecord.occurred_on
-      - 仅考虑历史上至少有一次消费的客户（“老客”）
+      - 仅考虑历史上至少有一次消费的客户（"老客"）
       - 今天 - last_visit_at ≥ days 天才入列
       - 按 last_visit_at 升序（最久没来的排前），limit 裁切
     """
@@ -194,6 +194,7 @@ def dormant_customers(db: Session, days: int, limit: int, today: date | None = N
         select(
             Customer.id.label("customer_id"),
             Customer.name.label("customer_name"),
+            Customer.phone.label("phone"),
             last_visit_per_customer.c.last_visit_at,
         )
         .join(
@@ -210,8 +211,50 @@ def dormant_customers(db: Session, days: int, limit: int, today: date | None = N
         {
             "customer_id": int(row.customer_id),
             "customer_name": row.customer_name,
+            "phone": row.phone or "",
             "last_visit_at": row.last_visit_at,
             "days_since": (today - row.last_visit_at).days,
         }
         for row in rows
+    ]
+
+
+def top_customers(db: Session, limit: int = 10) -> List[dict]:
+    """T-026: 按累计消费金额返回 Top N 高价值客户。"""
+    total_per_customer = (
+        select(
+            Pet.customer_id.label("customer_id"),
+            func.coalesce(func.sum(CostRecord.amount), 0).label("total_amount"),
+            func.count(CostRecord.id).label("order_count"),
+        )
+        .join(CostRecord, CostRecord.pet_id == Pet.id)
+        .group_by(Pet.customer_id)
+        .subquery()
+    )
+
+    stmt = (
+        select(
+            Customer.id.label("customer_id"),
+            Customer.name.label("customer_name"),
+            total_per_customer.c.total_amount,
+            total_per_customer.c.order_count,
+        )
+        .join(
+            total_per_customer,
+            total_per_customer.c.customer_id == Customer.id,
+        )
+        .order_by(total_per_customer.c.total_amount.desc())
+        .limit(limit)
+    )
+
+    rows = db.execute(stmt).all()
+    return [
+        {
+            "rank": idx + 1,
+            "customer_id": int(row.customer_id),
+            "customer_name": row.customer_name,
+            "total_amount": Decimal(row.total_amount or 0),
+            "order_count": int(row.order_count),
+        }
+        for idx, row in enumerate(rows)
     ]

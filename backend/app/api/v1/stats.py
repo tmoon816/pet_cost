@@ -12,6 +12,8 @@ from ...schemas.stats import (
     StatsCustomerAcquisition,
     StatsDormantCustomers,
     StatsSummary,
+    StatsTopCustomerItem,
+    StatsTopCustomers,
 )
 
 router = APIRouter(prefix="/stats", tags=["stats"])
@@ -73,3 +75,12 @@ def stats_dormant_customers(
 ):
     """T-010: 返回距今 ≥ days 天未到店的老客，按 last_visit_at 升序。"""
     return crud_stats.dormant_customers(db, days, limit)
+
+
+@router.get("/top-customers", response_model=StatsTopCustomers)
+def stats_top_customers(
+    limit: int = Query(10, ge=1, le=50),
+    db: Session = Depends(get_db),
+):
+    """T-026: 按累计消费金额返回 Top N 高价值客户。"""
+    return crud_stats.top_customers(db, limit)

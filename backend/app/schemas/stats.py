@@ -52,7 +52,19 @@ class StatsDormantCustomerItem(BaseModel):
     customer_name: str
     last_visit_at: date
     days_since: int
+    phone: str = ""
+
+
+class StatsTopCustomerItem(BaseModel):
+    """T-026: 高价值客户 Top N。"""
+
+    rank: int
+    customer_id: int
+    customer_name: str
+    total_amount: Decimal
+    order_count: int
 
 
 StatsDormantCustomers = List[StatsDormantCustomerItem]
+StatsTopCustomers = List[StatsTopCustomerItem]
 
