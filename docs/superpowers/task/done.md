@@ -4,6 +4,17 @@
 
 ---
 
+## T-013: 消费记录列表加按客户名筛选
+- completed_at: 2026-05-22T08:44:00+08:00
+- commit: (本提交)
+- category: feature
+- auto_approve: false
+- merge_to_main_after: true
+- attempt: 1
+- result: no-op — 验证后发现所有验收点已实现：后端 `GET /api/v1/costs` 已支持 `customer_id` 参数（costs.py:18 声明 + crud/cost.py:28 联表 Pet.customer_id）；前端 BillList.vue 顶部筛选区已含 filterable+remote 客户下拉（loadCustomers 调 customersApi.listCustomers），选中后 fetchList 会带 `params.customer_id`。查询、重置、联动宠物筛选都已在位。本地验：pytest 65 全过，npm run build 通过。不改业务代码，仅归档。
+
+---
+
 ## T-012: 宠物档案显示「最近一次到店 / 距今天数」
 - completed_at: 2026-05-22T07:46:00+08:00
 - commit: (本提交)

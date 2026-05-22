@@ -52,20 +52,6 @@ approved → (实施) → in_progress → done
 
 ## Backlog
 
-## T-013: 消费记录列表加按客户名筛选
-- status: in_progress
-- category: feature
-- auto_approve: false
-- merge_to_main_after: true
-- acceptance:
-  - GET /api/v1/costs 支持 customer_id 筛选（已支持则核实）
-  - BillList.vue 顶部筛选区加客户下拉，远程搜索（沿用 CostFormDialog 的客户检索）
-  - 选中客户后列表只显示该客户消费
-  - npm run build 通过
-- created_at: 2026-05-22
-- last_run: "2026-05-22T08:43:00+08:00"
-- attempt: 1
-
 ## T-014: 消费记录新增支持「最近 5 个客户」快选
 - status: approved
 - category: feature
