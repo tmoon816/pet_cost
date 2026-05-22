@@ -4,6 +4,14 @@
 
 ---
 
+## T-017: 全局搜索 — 顶部搜索框接线
+- completed_at: 2026-05-22T16:47:35+08:00
+- commit: f042771
+- category: feature
+- auto_approve: false
+- attempt: 1
+- result: done — 后端新增 GET /api/v1/search?q=，扫 customer name/phone、pet name、cost note，各组 LIMIT 5 最多 15 条；前端 App.vue 搜索框绑定 v-model + @input debounce 300ms 调搜索 API，结果分三组（客户/宠物/账单）下拉面板展示，点击跳详情页、回车跳第一个、路由变化自动关闭。pytest 69 全过，npm run build 通过。
+
 ## T-002: 后端 starlette 依赖 patch 升级 1.0.0 → 1.0.1
 - completed_at: 2026-05-22T12:42:00+08:00
 - commit: dcb58d9

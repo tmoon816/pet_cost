@@ -52,22 +52,6 @@ approved → (实施) → in_progress → done
 
 ## Backlog
 
-## T-017: 全局搜索 — 顶部搜索框接线
-- status: in_progress
-- category: feature
-- auto_approve: false
-- spec: "docs/superpowers/specs/2026-05-22-T017-global-search.md"
-- acceptance:
-  - 后端 pytest 全过
-  - 前端 npm run build 通过
-  - 顶部搜索框输入关键词后，下拉面板展示搜索到的客户 / 宠物 / 账单结果
-  - 点击结果项跳转到对应详情页
-  - 回车打开第一个结果
-- blocked_reason: ""
-- created_at: 2026-05-22
-- last_run: "2026-05-22 16:47:35"
-- attempt: 1
-
 ## T-018: 宠物详情页补消费记录表格
 - status: backlog
 - category: feature
