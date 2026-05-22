@@ -53,7 +53,7 @@ approved → (实施) → in_progress → done
 ## Backlog
 
 ## T-002: 后端 starlette 依赖 patch 升级 1.0.0 → 1.0.1
-- status: backlog
+- status: in_progress
 - category: dep-patch
 - auto_approve: true
 - spec: ""
@@ -61,8 +61,8 @@ approved → (实施) → in_progress → done
   - 后端 pytest 全过（67 条全绿）
 - blocked_reason: ""
 - created_at: 2026-05-22
-- last_run: ""
-- attempt: 0
+- last_run: "2026-05-22T12:42:00+08:00"
+- attempt: 1
 - signal_source: "cd backend && uv tree --outdated 显示 starlette 1.0.0 → 1.0.1（patch）"
 
 ## T-003: 前端 sass 依赖升级 1.99.0 → 1.100.0
