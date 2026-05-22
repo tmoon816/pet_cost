@@ -41,3 +41,8 @@
 | 2026-05-22T17:42+08:00 | - | tick_end | chain=1 | - | 本 tick：T-023 no-op 归档。巡检：frontend npm outdated 无过期依赖，backend uv tree --outdated 无直接依赖需升，grep TODO/FIXME/XXX 为空，覆盖率 93%（所有 app 模块≥89%，seed.py 0% 为 migration seeder 不合规不追）。修正 T-018~T-022 状态从 backlog→spec_drafted（spec 文件已在 c987267 提交但状态未更新）。无新任务追加。 |
 | 2026-05-22T19:42+08:00 | - | tick_idle | scan | - | 无 approved/in_progress/backlog(白名单) 任务。巡检追加 2 条 backlog：T-024 idna 3.15→3.16 patch、T-025 click 8.4.0→8.4.1 patch。frontend npm outdated 无过期，后端 TODO/FIXME/XXX 为空，覆盖率 93%，lint: ruff 未安装跳过。T-018~T-022 仍待人审。 |
 local dirty, exit | 2026-05-22T10:44:26Z
+
+## 2026-05-22T22:42 tick
+- T-026: spec_drafted → 写到 docs/superpowers/specs/2026-05-22-T026-pydantic-core-minor-upgrade.md（minor 升级需人审）
+- 巡检：无新任务。npm outdated 挂起跳过；uv tree 仅 pydantic-core/click 已跟踪；TODO/FIXME 无；coverage 仅 seed.py 0%（T-027 已 backlog）
+- 注意：本地有 10 个 dirty 文件未提交（stats/cost/customer/schemas 等模块），导致 test_stats 2 个 KeyError: 'db' 失败
