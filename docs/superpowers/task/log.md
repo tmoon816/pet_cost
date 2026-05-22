@@ -53,3 +53,4 @@ local dirty, exit | 2026-05-22T10:44:26Z
 - T-026: spec_drafted → 写到 docs/superpowers/specs/2026-05-22-T026-pydantic-core-minor-upgrade.md（minor 升级需人审）
 - 巡检：无新任务。npm outdated 挂起跳过；uv tree 仅 pydantic-core/click 已跟踪；TODO/FIXME 无；coverage 仅 seed.py 0%（T-027 已 backlog）
 - 注意：本地有 10 个 dirty 文件未提交（stats/cost/customer/schemas 等模块），导致 test_stats 2 个 KeyError: 'db' 失败
+| 2026-05-22T23:42+08:00 | - | tick_idle | nothing_to_do | - | 队列空，无 approved/in_progress/backlog(白名单) 任务。T-026 blocked 原因仍成立（pydantic-core v2.47.0 PyPI 未发布）。巡检：npm outdated 超时，uv tree 仅 pydantic-core（已跟踪），grep TODO/FIXME/XXX 无，coverage 98% 全模块≥80%。无新任务。 |
