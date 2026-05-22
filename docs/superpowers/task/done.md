@@ -28,6 +28,22 @@
 - attempt: 1
 - result: no-op — App.vue 已有 isSidebarCollapsed + hamburger 按钮 + 768px 断点 + overlay + localStorage。npm run build 通过。
 
+## T-027: 后端 app/seed.py 模块补测试（覆盖率 0% → ≥70%）
+- completed_at: 2026-05-22T23:30:00+08:00
+- commit: pending
+- category: test
+- auto_approve: true
+- attempt: 1
+- result: done — 新增 test_seed.py（10 用例），覆盖 seed.run() 全部路径：客户数/宠物数/消费记录数/归属关系/分类/幂等/空分类异常。pytest 110/112 pass（2 个预存 test_stats.py 失败非本次引入）。
+
+## T-025: 后端 click 依赖 patch 升级 v8.4.0 → v8.4.1
+- completed_at: 2026-05-22T23:28:00+08:00
+- commit: auto
+- category: dep-patch
+- auto_approve: true
+- attempt: 1
+- result: no-op — uv.lock 已显示 click 8.4.1，升级已完成。
+
 ## T-019: 404 页面 — 通配路由 + 友好提示
 - completed_at: 2026-05-22T23:27:00+08:00
 - commit: 576ef21
