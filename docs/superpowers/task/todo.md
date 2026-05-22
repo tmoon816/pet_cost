@@ -53,7 +53,7 @@ approved → (实施) → in_progress → done
 ## Backlog
 
 ## T-015: 客户列表支持按累计消费金额排序
-- status: approved
+- status: in_progress
 - category: feature
 - auto_approve: false
 - merge_to_main_after: true
@@ -64,8 +64,8 @@ approved → (实施) → in_progress → done
   - CustomerList.vue 加表头"累计消费"列 + 切换排序按钮
   - npm run build 通过
 - created_at: 2026-05-22
-- last_run: ""
-- attempt: 0
+- last_run: "2026-05-22T08:51:00+08:00"
+- attempt: 1
 
 ## T-001: Dashboard 主 chunk 体积超 500KB，做路由级 code-split
 - status: spec_drafted
