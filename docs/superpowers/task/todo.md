@@ -134,7 +134,7 @@ approved → (实施) → in_progress → done
 ## backlog（待执行）
 
 ## T-024: 后端 idna 依赖 patch 升级 v3.15 → v3.16
-- status: backlog
+- status: in_progress
 - category: dep-patch
 - auto_approve: true
 - spec: ""
@@ -143,8 +143,8 @@ approved → (实施) → in_progress → done
   - `uv lock` 后 idna 版本升至 3.16
 - blocked_reason: ""
 - created_at: 2026-05-22
-- last_run: ""
-- attempt: 0
+- last_run: "2026-05-22T21:42:00+08:00"
+- attempt: 1
 
 ## T-025: 后端 click 依赖 patch 升级 v8.4.0 → v8.4.1
 - status: backlog
