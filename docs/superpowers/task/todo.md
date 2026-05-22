@@ -53,7 +53,7 @@ approved → (实施) → in_progress → done
 ## Backlog
 
 ## T-014: 消费记录新增支持「最近 5 个客户」快选
-- status: approved
+- status: in_progress
 - category: feature
 - auto_approve: false
 - merge_to_main_after: true
@@ -64,8 +64,8 @@ approved → (实施) → in_progress → done
   - CostFormDialog.vue 客户下拉打开时顶部展示最近 5 个，点击直接选中
   - npm run build 通过
 - created_at: 2026-05-22
-- last_run: ""
-- attempt: 0
+- last_run: "2026-05-22T08:46:00+08:00"
+- attempt: 1
 
 ## T-015: 客户列表支持按累计消费金额排序
 - status: approved
