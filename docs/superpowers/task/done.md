@@ -4,6 +4,16 @@
 
 ---
 
+## T-004: 前端 vite 依赖 patch 升级 8.0.13 → 8.0.14
+- completed_at: 2026-05-22T08:58:00+08:00
+- commit: (本提交)
+- category: dep-patch
+- auto_approve: true
+- attempt: 1
+- result: done — `cd frontend && npm install vite@8.0.14 --save-dev`。package.json devDependencies.vite 从 `^8.0.12`（实装 8.0.13） → `^8.0.14`；package-lock.json 同步更新：vite 8.0.13→8.0.14 + 随之随增的传递依赖 @oxc-project/types 0.130.0→0.132.0 与 rolldown 1.0.1→1.0.2（都是 vite 自带的 rolldown 内部依赖，仅 vite 一个顶层依赖变动，项目本身不直接引用）。验证：npm ls vite 是一棵 8.0.14、npm outdated 只剩 T-005 vue-router major、npm run build 通过、backend pytest 67 全过。
+
+---
+
 ## T-015: 客户列表支持按累计消费金额排序
 - completed_at: 2026-05-22T08:55:00+08:00
 - commit: (本提交)

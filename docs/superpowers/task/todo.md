@@ -66,21 +66,6 @@ approved → (实施) → in_progress → done
 - last_run: ""
 - attempt: 0
 
-## T-004: 前端 vite 依赖 patch 升级 8.0.13 → 8.0.14
-- status: in_progress
-- category: dep-patch
-- auto_approve: true
-- spec: ""
-- acceptance:
-  - npm run build 通过
-  - package-lock.json 同步更新
-  - 仅升级 vite，不动其他依赖
-- blocked_reason: ""
-- created_at: 2026-05-22
-- last_run: "2026-05-22T08:57:00+08:00"
-- attempt: 1
-- signal_source: "cd frontend && npm outdated 显示 vite 8.0.13 → 8.0.14"
-
 ## T-005: 前端 vue-router 依赖 major 升级 4.6.4 → 5.0.7
 - status: backlog
 - category: feature
