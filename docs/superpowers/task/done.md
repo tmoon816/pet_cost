@@ -12,6 +12,13 @@
 - attempt: 1
 - result: done — uv add starlette>=1.0.1，uv.lock 更新 starlette 1.0.0→1.0.1（仅 1 个顶层依赖变动）。pytest 67 全过。
 
+## T-016: 后端 database.py 模块覆盖率补测试（69% → 100%）
+- completed_at: 2026-05-22T13:42:15+08:00
+- commit: ae3b474
+- category: test
+- auto_approve: true
+- attempt: 1
+- result: done — 新增 tests/test_database.py（2 个测试用例），覆盖 SQLite FK PRAGMA 启用路径与 get_db() 生成器。覆盖率 69%→100%（miss 行 15,22-26 → 全绿）。pytest 67→69 全过，npm run build 通过，不修改业务源码。
 ---
 
 ## T-005: 前端 vue-router 依赖 major 升级 4.6.4 → 5.0.7
