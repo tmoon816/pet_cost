@@ -4,6 +4,16 @@
 
 ---
 
+## T-002: 后端 starlette 依赖 patch 升级 1.0.0 → 1.0.1
+- completed_at: 2026-05-22T12:42:00+08:00
+- commit: dcb58d9
+- category: dep-patch
+- auto_approve: true
+- attempt: 1
+- result: done — uv add starlette>=1.0.1，uv.lock 更新 starlette 1.0.0→1.0.1（仅 1 个顶层依赖变动）。pytest 67 全过。
+
+---
+
 ## T-005: 前端 vue-router 依赖 major 升级 4.6.4 → 5.0.7
 - completed_at: 2026-05-22T11:42:00+08:00
 - commit: ffbb41f
