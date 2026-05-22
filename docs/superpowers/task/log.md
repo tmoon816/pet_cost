@@ -36,3 +36,4 @@
 | 2026-05-22T14:32+08:00 | T-003 | implement | done | (本提交) | sass 1.99→1.100，npm build 通过，pytest 69 全过。人审任务 merge_to_main_after → 将 auto FF 合 main |
 | 2026-05-22T14:42+08:00 | - | tick_idle | nothing_to_do | - | 队列空，无可实施/待审/backlog 任务。巡检：frontend npm outdated 无过期依赖，backend uv tree --outdated 无直接依赖需升（仅 idna 3.15→3.16、click 8.4.0→8.4.1 两个传递依赖，按惯例不追），grep TODO/FIXME/XXX 为空，pytest 69 全过覆盖率 93%（所有 app 模块≥89%），npm run build 通过（仅 vendor @vueuse/core INVALID_ANNOTATION 警告，非项目源码）。无新任务追加。
 | 2026-05-22T14:55+08:00 | T-017 | write_spec | spec_drafted | (本提交) | 全局搜索 spec 完成：后端 GET /api/v1/search?q= 聚合搜索 customer/name/phone + pet/name + cost/note，前端 App.vue debounce 300ms 下拉面板分三组展示，点击跳详情。按 spec_drafted 终止规则退出链。 |
+| 2026-05-22T17:42+08:00 | T-023 | implement | no-op | 5534827 | 前次 tick 已实施（覆盖率 22%→100%，24 个用例，pytest 93 全过）。本次仅归档清理 todo.md 残留条目。 |

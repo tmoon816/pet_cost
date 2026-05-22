@@ -202,4 +202,10 @@
 
 ---
 
-(暂无)
+## T-023: app/crud/search.py 模块覆盖率补测试（22% → ≥80%）
+- completed_at: 2026-05-22T17:42:00+08:00
+- commit: 5534827
+- category: test
+- auto_approve: true
+- attempt: 1
+- result: no-op — 前次 tick 已实施并提交（5534827），覆盖率已达 100%，全部 93 个 pytest 通过。本次仅归档清理 todo.md 残留条目。

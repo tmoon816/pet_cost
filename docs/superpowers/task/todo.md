@@ -129,17 +129,3 @@ approved → (实施) → in_progress → done
 - last_run: ""
 - attempt: 0
 
-## T-023: app/crud/search.py 模块覆盖率补测试（22% → ≥80%）
-- status: backlog
-- category: test
-- auto_approve: true
-- spec: ""
-- acceptance:
-  - 后端 pytest 全过
-  - app/crud/search.py 覆盖率 ≥ 80%
-  - 覆盖：空 q 返回空、客户 name/phone 匹配、宠物 name 匹配、cost note 匹配、各组 LIMIT 5 上限、混合结果 type/url 字段完整
-- blocked_reason: ""
-- created_at: 2026-05-22
-- last_run: ""
-- attempt: 0
-
