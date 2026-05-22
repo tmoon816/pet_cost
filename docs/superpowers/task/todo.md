@@ -46,67 +46,7 @@ approved → (实施) → in_progress → done
 
 ## 进行中 / 待审
 
-## T-019: 404 页面 — 通配路由 + 友好提示
-- status: in_progress
-- category: feature
-- auto_approve: false
-- spec: "docs/superpowers/specs/2026-05-22-T019-404-page.md"
-- acceptance:
-  - 前端 npm run build 通过
-  - 访问 /abc /xyz/123 等不存在路径时展示设计统一的 404 页面
-  - 含"返回首页"按钮可跳回 /dashboard
-  - 侧边栏 / 顶部导航保持正常显示
-- blocked_reason: ""
-- created_at: 2026-05-22
-- last_run: "2026-05-22T23:26:00+08:00"
-- attempt: 1
-
-## T-020: 侧边栏移动端响应式折叠
-- status: approved
-- category: feature
-- auto_approve: false
-- spec: "docs/superpowers/specs/2026-05-22-T020-mobile-sidebar.md"
-- acceptance:
-  - 前端 npm run build 通过
-  - 视口宽度 < 768px 时侧边栏默认折叠为图标模式或隐藏
-  - 顶部显示 hamburger 按钮可切换侧边栏展开/收起
-  - 不破坏桌面端 1440px+ 现有布局
-- blocked_reason: ""
-- created_at: 2026-05-22
-- last_run: ""
-- attempt: 0
-
-## T-021: Dashboard 日期范围选择器
-- status: approved
-- category: feature
-- auto_approve: false
-- spec: "docs/superpowers/specs/2026-05-22-T021-dashboard-date-range.md"
-- acceptance:
-  - 后端 pytest 全过
-  - 前端 npm run build 通过
-  - Dashboard 顶部增加日期范围选择组件，默认当月
-  - 选择范围后全部卡片 / 图表联动刷新
-  - 后端现有 stats API 已支持 start/end 参数（仅需前端联调，后端不动）
-- blocked_reason: ""
-- created_at: 2026-05-22
-- last_run: ""
-- attempt: 0
-
-## T-022: 数据导出 — 客户 & 账单 CSV 导出
-- status: approved
-- category: feature
-- auto_approve: false
-- spec: "docs/superpowers/specs/2026-05-22-T022-csv-export.md"
-- acceptance:
-  - 后端 pytest 全过
-  - 前端 npm run build 通过
-  - 客户列表页增加"导出"按钮，下载当前筛选条件下的 CSV
-  - 账单列表页增加"导出"按钮，下载当前筛选条件下的 CSV
-  - CSV 含中文表头，Excel 打开不乱码（BOM 前缀）
-- blocked_reason: ""
-- created_at: 2026-05-22
-- last_run: ""
-- attempt: 0
+(空)
 
 ---
 

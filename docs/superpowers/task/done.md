@@ -4,6 +4,38 @@
 
 ---
 
+## T-022: 数据导出 — 客户 & 账单 CSV 导出
+- completed_at: 2026-05-22T23:27:00+08:00
+- commit: 576ef21
+- category: feature
+- auto_approve: false
+- attempt: 1
+- result: no-op — 后端 export_csv.py（UTF-8 BOM）+ /customers/export /costs/export 端点已就绪，前端 CustomerList/BillList 导出按钮正常。npm run build 通过。
+
+## T-021: Dashboard 日期范围选择器
+- completed_at: 2026-05-22T23:27:00+08:00
+- commit: 576ef21
+- category: feature
+- auto_approve: false
+- attempt: 1
+- result: no-op — Dashboard.vue 已有 el-date-picker 日期范围选择器 + 6 个快捷按钮 + onDateChange 联动刷新。npm run build 通过。
+
+## T-020: 侧边栏移动端响应式折叠
+- completed_at: 2026-05-22T23:27:00+08:00
+- commit: 576ef21
+- category: feature
+- auto_approve: false
+- attempt: 1
+- result: no-op — App.vue 已有 isSidebarCollapsed + hamburger 按钮 + 768px 断点 + overlay + localStorage。npm run build 通过。
+
+## T-019: 404 页面 — 通配路由 + 友好提示
+- completed_at: 2026-05-22T23:27:00+08:00
+- commit: 576ef21
+- category: feature
+- auto_approve: false
+- attempt: 1
+- result: no-op — NotFound.vue（🐾 404 + 返回首页按钮）+ router /:pathMatch(.*)* 通配路由已就绪。npm run build 通过。
+
 ## T-018: 宠物详情页补消费记录表格
 - completed_at: 2026-05-22T23:25:30+08:00
 - commit: cd4dbbc
