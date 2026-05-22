@@ -46,27 +46,8 @@ approved → (实施) → in_progress → done
 
 ## 进行中 / 待审
 
-(空)
-
----
-
-## spec_drafted（等人审）
-
-## T-026: 后端 pydantic-core 依赖 minor 升级 v2.46.4 → v2.47.0
-- status: spec_drafted
-- category: dep-patch
-- auto_approve: false
-- spec: "docs/superpowers/specs/2026-05-22-T026-pydantic-core-minor-upgrade.md"
-- acceptance:
-  - 后端 pytest 全过
-  - `uv lock` 后 pydantic-core 版本升至 2.47.0
-- blocked_reason: ""
-- created_at: 2026-05-22
-- last_run: ""
-- attempt: 0
-
 ## T-018: 宠物详情页补消费记录表格
-- status: spec_drafted
+- status: approved
 - category: feature
 - auto_approve: false
 - spec: "docs/superpowers/specs/2026-05-22-T018-pet-detail-cost-table.md"
@@ -81,7 +62,7 @@ approved → (实施) → in_progress → done
 - attempt: 0
 
 ## T-019: 404 页面 — 通配路由 + 友好提示
-- status: spec_drafted
+- status: approved
 - category: feature
 - auto_approve: false
 - spec: "docs/superpowers/specs/2026-05-22-T019-404-page.md"
@@ -96,7 +77,7 @@ approved → (实施) → in_progress → done
 - attempt: 0
 
 ## T-020: 侧边栏移动端响应式折叠
-- status: spec_drafted
+- status: approved
 - category: feature
 - auto_approve: false
 - spec: "docs/superpowers/specs/2026-05-22-T020-mobile-sidebar.md"
@@ -111,7 +92,7 @@ approved → (实施) → in_progress → done
 - attempt: 0
 
 ## T-021: Dashboard 日期范围选择器
-- status: spec_drafted
+- status: approved
 - category: feature
 - auto_approve: false
 - spec: "docs/superpowers/specs/2026-05-22-T021-dashboard-date-range.md"
@@ -127,7 +108,7 @@ approved → (实施) → in_progress → done
 - attempt: 0
 
 ## T-022: 数据导出 — 客户 & 账单 CSV 导出
-- status: spec_drafted
+- status: approved
 - category: feature
 - auto_approve: false
 - spec: "docs/superpowers/specs/2026-05-22-T022-csv-export.md"
@@ -140,6 +121,23 @@ approved → (实施) → in_progress → done
 - blocked_reason: ""
 - created_at: 2026-05-22
 - last_run: ""
+- attempt: 0
+
+---
+
+## blocked（阻塞中）
+
+## T-026: 后端 pydantic-core 依赖 minor 升级 v2.46.4 → v2.47.0
+- status: blocked
+- category: dep-patch
+- auto_approve: false
+- spec: "docs/superpowers/specs/2026-05-22-T026-pydantic-core-minor-upgrade.md"
+- acceptance:
+  - 后端 pytest 全过
+  - `uv lock` 后 pydantic-core 版本升至 2.47.0
+- blocked_reason: "PyPI 上 pydantic-core v2.47.0 尚未发布，当前最新 2.46.4"
+- created_at: 2026-05-22
+- last_run: "2026-05-22"
 - attempt: 0
 
 ---
