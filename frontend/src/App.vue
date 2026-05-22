@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   HomeFilled,
@@ -12,11 +12,19 @@ import {
   UserFilled
 } from '@element-plus/icons-vue'
 import { useCategoryStore } from './stores/categoryStore'
+import { search as searchApi } from './api/search'
 
 const router = useRouter()
 const route = useRoute()
 const categoryStore = useCategoryStore()
 const activeMenu = ref('')
+
+// 搜索状态
+const searchQuery = ref('')
+const searchResults = ref([])
+const searchPopoverVisible = ref(false)
+const searchLoading = ref(false)
+let debounceTimer = null
 
 const menuItems = [
   { path: '/dashboard',  title: '营业概览',     icon: HomeFilled },
@@ -31,6 +39,68 @@ const menuItems = [
 const handleMenuSelect = (path) => {
   router.push(path)
 }
+
+// 分组建模
+const groupResults = () => {
+  const typeMap = { customer: '客户', pet: '宠物', cost: '账单' }
+  const groups = []
+  for (const r of searchResults.value) {
+    const last = groups[groups.length - 1]
+    if (last && last.label === typeMap[r.type]) {
+      last.items.push(r)
+    } else {
+      groups.push({ label: typeMap[r.type], items: [r] })
+    }
+  }
+  return groups
+}
+
+const doSearch = async () => {
+  const q = searchQuery.value.trim()
+  if (!q) {
+    searchResults.value = []
+    searchPopoverVisible.value = false
+    return
+  }
+  searchLoading.value = true
+  try {
+    const res = await searchApi(q)
+    searchResults.value = res.results || []
+    searchPopoverVisible.value = true
+  } catch {
+    searchResults.value = []
+  } finally {
+    searchLoading.value = false
+  }
+}
+
+const onSearchInput = () => {
+  if (debounceTimer) clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(doSearch, 300)
+}
+
+const onSearchKeyup = (e) => {
+  if (e.key === 'Enter' && searchResults.value.length > 0) {
+    router.push(searchResults.value[0].url)
+    closeSearch()
+  }
+}
+
+const onResultClick = (item) => {
+  router.push(item.url)
+  closeSearch()
+}
+
+const closeSearch = () => {
+  searchPopoverVisible.value = false
+  searchQuery.value = ''
+  searchResults.value = []
+}
+
+// 路由变化时关闭搜索面板
+watch(() => route.path, () => {
+  closeSearch()
+})
 
 onMounted(() => {
   // 初始化活跃菜单
@@ -81,11 +151,40 @@ onMounted(() => {
             <h1 style="font-size: 18px; font-weight: 600; margin: 0;">{{ menuItems.find(item => item.path === activeMenu)?.title || '宠物店管理系统' }}</h1>
           </div>
           <div class="header-right" style="display: flex; align-items: center; gap: 16px;">
-            <el-input
-              placeholder="搜索账单、宠物、客户..."
-              style="width: 300px;"
-              :prefix-icon="Search"
-            />
+            <div class="search-wrapper">
+              <el-input
+                v-model="searchQuery"
+                placeholder="搜索账单、宠物、客户..."
+                style="width: 300px;"
+                :prefix-icon="Search"
+                :loading="searchLoading"
+                @input="onSearchInput"
+                @keyup="onSearchKeyup"
+                @blur="closeSearch"
+              />
+              <div v-if="searchPopoverVisible" class="search-dropdown">
+                <template v-if="searchResults.length === 0">
+                  <div class="search-empty">无匹配结果</div>
+                </template>
+                <template v-else>
+                  <div v-for="group in groupResults()" :key="group.label" class="search-group">
+                    <div class="search-group-title">{{ group.label }}</div>
+                    <div
+                      v-for="item in group.items"
+                      :key="`${item.type}-${item.id}`"
+                      class="search-item"
+                      @mousedown.prevent="onResultClick(item)"
+                    >
+                      <span class="search-item-icon">{{ item.type === 'customer' ? '👤' : item.type === 'pet' ? '🐾' : '💰' }}</span>
+                      <div class="search-item-body">
+                        <div class="search-item-title">{{ item.title }}</div>
+                        <div class="search-item-subtitle">{{ item.subtitle }}</div>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
             <div class="user-avatar" style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; cursor: pointer;">
               贾
             </div>
@@ -130,6 +229,79 @@ onMounted(() => {
 .header-left h1 {
   color: var(--text-primary);
 }
+
+/* 搜索下拉面板 */
+.search-wrapper {
+  position: relative;
+}
+.search-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  max-height: 420px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+.search-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+.search-group-title {
+  padding: 8px 16px 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.search-group:first-child .search-group-title {
+  padding-top: 12px;
+}
+.search-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.search-item:hover {
+  background: var(--bg);
+}
+.search-item:last-child {
+  border-radius: 0 0 8px 8px;
+}
+.search-item-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.search-item-body {
+  overflow: hidden;
+}
+.search-item-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.search-item-subtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @media (max-width: 1440px) {
   .el-main {
     padding: 16px;

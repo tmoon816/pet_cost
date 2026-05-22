@@ -3,6 +3,7 @@ from .common import Page
 from .cost import CostCreate, CostOut, CostUpdate
 from .customer import CustomerCreate, CustomerOut, CustomerUpdate, CustomerWithPets
 from .pet import PetCreate, PetOut, PetUpdate
+from .search import SearchResponse, SearchResult
 from .stats import (
     StatsByCategory,
     StatsByCategoryItem,
@@ -28,6 +29,8 @@ __all__ = [
     "PetCreate",
     "PetOut",
     "PetUpdate",
+    "SearchResponse",
+    "SearchResult",
     "StatsByCategory",
     "StatsByCategoryItem",
     "StatsByMonth",
