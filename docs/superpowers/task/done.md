@@ -4,6 +4,14 @@
 
 ---
 
+## T-024: 后端 idna 依赖 patch 升级 v3.15 → v3.16
+- completed_at: 2026-05-22T21:42:00+08:00
+- commit: 151b42d
+- category: dep-patch
+- auto_approve: true
+- attempt: 1
+- result: done — uv lock --upgrade-package idna，idna v3.15→v3.16（仅 uv.lock 3 行变动）。pytest 100/102 pass（2 个失败是预存 dirty test_stats.py 引入，非本次变更引起）。
+
 ## T-017: 全局搜索 — 顶部搜索框接线
 - completed_at: 2026-05-22T16:47:35+08:00
 - commit: f042771
