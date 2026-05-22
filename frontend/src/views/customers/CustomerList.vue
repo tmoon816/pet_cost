@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useCustomerStore } from '@/stores/customerStore'
@@ -119,6 +119,26 @@ async function onDelete(row) {
 function viewDetail(row) {
   router.push(`/customers/${row.id}`)
 }
+
+// T-015：按「累计消费」排序切换。连击：默认 → desc → asc → 默认。
+function toggleSortByAmount() {
+  if (store.sortBy !== 'total_amount') {
+    store.setSort('total_amount') // desc
+  } else if (store.sortDir === 'desc') {
+    store.setSort('total_amount') // asc
+  } else {
+    store.setSort(null) // 恢复默认
+  }
+  store.fetchList()
+}
+const amountSortLabel = computed(() => {
+  if (store.sortBy !== 'total_amount') return '按金额排序'
+  return store.sortDir === 'desc' ? '金额 ↓' : '金额 ↑'
+})
+function formatAmount(v) {
+  const n = Number(v || 0)
+  return Number.isFinite(n) ? n.toFixed(2) : '0.00'
+}
 </script>
 
 <template>
@@ -131,6 +151,7 @@ function viewDetail(row) {
         class="search"
         :prefix-icon="'Search'"
       />
+      <el-button @click="toggleSortByAmount">{{ amountSortLabel }}</el-button>
       <div class="grow" />
       <el-button type="primary" :icon="'Plus'" @click="openCreate">新增客户</el-button>
     </div>
@@ -156,6 +177,11 @@ function viewDetail(row) {
       </el-table-column>
       <el-table-column prop="note" label="备注" min-width="180" show-overflow-tooltip>
         <template #default="{ row }">{{ row.note || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="累计消费" width="140" align="right">
+        <template #default="{ row }">
+          <span style="color: #f56c6c; font-weight: 600;">¥ {{ formatAmount(row.total_amount) }}</span>
+        </template>
       </el-table-column>
       <el-table-column label="创建时间" width="180">
         <template #default="{ row }">{{ row.created_at?.replace('T', ' ').slice(0, 19) }}</template>

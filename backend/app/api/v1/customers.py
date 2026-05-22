@@ -12,11 +12,15 @@ router = APIRouter(prefix="/customers", tags=["customers"])
 @router.get("", response_model=Page[CustomerListItem])
 def list_customers(
     q: str | None = None,
+    sort_by: str | None = Query(None, pattern="^(total_amount|created_at)$"),
+    sort_dir: str = Query("desc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    items, total = crud_customer.list_paginated(db, q=q, page=page, page_size=page_size)
+    items, total = crud_customer.list_paginated(
+        db, q=q, page=page, page_size=page_size, sort_by=sort_by, sort_dir=sort_dir
+    )
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 

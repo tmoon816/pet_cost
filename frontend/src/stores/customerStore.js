@@ -8,6 +8,8 @@ export const useCustomerStore = defineStore('customer', () => {
   const page = ref(1)
   const pageSize = ref(20)
   const q = ref('')
+  const sortBy = ref(null) // T-015: null 默认 created_at；'total_amount' 按累计金额
+  const sortDir = ref('desc')
   const loading = ref(false)
   const current = ref(null)
 
@@ -18,6 +20,8 @@ export const useCustomerStore = defineStore('customer', () => {
         q: q.value || undefined,
         page: page.value,
         page_size: pageSize.value,
+        sort_by: sortBy.value || undefined,
+        sort_dir: sortBy.value ? sortDir.value : undefined,
       })
       items.value = data.items
       total.value = data.total
@@ -52,12 +56,28 @@ export const useCustomerStore = defineStore('customer', () => {
     page.value = value
   }
 
+  // T-015：切换排序。传 null 恢复默认（created_at）；同一列重复点击在 desc/asc 间切换
+  function setSort(by) {
+    if (by === null || by === undefined) {
+      sortBy.value = null
+      sortDir.value = 'desc'
+    } else if (sortBy.value === by) {
+      sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc'
+    } else {
+      sortBy.value = by
+      sortDir.value = 'desc'
+    }
+    page.value = 1
+  }
+
   return {
     items,
     total,
     page,
     pageSize,
     q,
+    sortBy,
+    sortDir,
     loading,
     current,
     fetchList,
@@ -67,5 +87,6 @@ export const useCustomerStore = defineStore('customer', () => {
     remove,
     setQuery,
     setPage,
+    setSort,
   }
 })

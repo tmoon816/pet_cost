@@ -35,9 +35,17 @@ def get_with_pets(db: Session, customer_id: int) -> Customer | None:
 
 
 def list_paginated(
-    db: Session, q: str | None, page: int, page_size: int
+    db: Session,
+    q: str | None,
+    page: int,
+    page_size: int,
+    sort_by: str | None = None,
+    sort_dir: str = "desc",
 ) -> Tuple[List[dict], int]:
     """T-008: 列表项额外返回 has_cost（该客户名下任一宠物是否有过消费记录）。
+
+    T-015: 额外返回 total_amount（名下所有宠物累计消费，无消费为 0）。支持
+    sort_by=total_amount 按金额排序；sort_by=None 保持原默认 created_at DESC。
 
     返回 dict 列表代替 ORM 实例，使 schema CustomerListItem 能直接读到 has_cost。
     """
@@ -47,15 +55,37 @@ def list_paginated(
         .where(Pet.customer_id == Customer.id)
         .exists()
     )
+    # T-015：correlated scalar subquery 算累计消费（无消费 → 0）
+    total_amount_subq = (
+        select(func.coalesce(func.sum(CostRecord.amount), 0))
+        .join(Pet, CostRecord.pet_id == Pet.id)
+        .where(Pet.customer_id == Customer.id)
+        .correlate(Customer)
+        .scalar_subquery()
+    )
 
-    stmt = select(Customer, has_cost_subq.label("has_cost"))
+    stmt = select(
+        Customer,
+        has_cost_subq.label("has_cost"),
+        total_amount_subq.label("total_amount"),
+    )
     count_stmt = select(func.count(Customer.id))
     if q:
         like = f"%{q}%"
         cond = or_(Customer.name.like(like), Customer.phone.like(like))
         stmt = stmt.where(cond)
         count_stmt = count_stmt.where(cond)
-    stmt = stmt.order_by(Customer.id.desc()).offset((page - 1) * page_size).limit(page_size)
+
+    if sort_by == "total_amount":
+        order_col = total_amount_subq
+        order_expr = order_col.asc() if sort_dir == "asc" else order_col.desc()
+        # 金额相同时按 id 倒序保证顺序稳定
+        stmt = stmt.order_by(order_expr, Customer.id.desc())
+    else:
+        # 默认：以 created_at 倒序（这里用 id DESC 作为 created_at 倒序的有效代理，与原逻辑一致）
+        stmt = stmt.order_by(Customer.id.desc())
+
+    stmt = stmt.offset((page - 1) * page_size).limit(page_size)
 
     rows = db.execute(stmt).all()
     items: List[dict] = []
@@ -70,6 +100,7 @@ def list_paginated(
                 "created_at": customer.created_at,
                 "updated_at": customer.updated_at,
                 "has_cost": bool(row[1]),
+                "total_amount": Decimal(row[2] or 0),
             }
         )
     total = int(db.scalar(count_stmt) or 0)

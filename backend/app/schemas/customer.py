@@ -30,9 +30,12 @@ class CustomerOut(CustomerBase):
 
 
 class CustomerListItem(CustomerOut):
-    """T-008: 列表项额外携带 has_cost（首次有消费即老客）。"""
+    """T-008: 列表项额外携带 has_cost（首次有消费即老客）。
+    T-015: 额外返回 total_amount（名下所有宠物累计消费，无消费为 0）。
+    """
 
     has_cost: bool = False
+    total_amount: Decimal = Decimal(0)
 
 
 class CustomerWithPets(CustomerOut):

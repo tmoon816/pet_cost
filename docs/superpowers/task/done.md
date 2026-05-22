@@ -4,6 +4,17 @@
 
 ---
 
+## T-015: 客户列表支持按累计消费金额排序
+- completed_at: 2026-05-22T08:55:00+08:00
+- commit: (本提交)
+- category: feature
+- auto_approve: false
+- merge_to_main_after: true
+- attempt: 1
+- result: done — 后端 GET /customers 新增 `sort_by` (pattern `^(total_amount|created_at)$`) 与 `sort_dir` (`^(asc|desc)$`, default desc) Query 参数；crud.list_paginated 增加 correlated scalar subquery 算 total_amount（名下所有宠物累计消费 + COALESCE 默认 0）以面向排序和返回，按金额排序时叠加 Customer.id DESC 作为稳定次序，默认仍 Customer.id DESC（= created_at 倒序代理）； CustomerListItem schema 加 total_amount: Decimal=0。补 1 个用例覆盖：desc/asc/默认顺序、total_amount 计算正确（包括同人多条累加 + 无消费=0）、非法 sort_by 返 422。pytest 66→67。前端 customerStore 加 sortBy/sortDir state 与 setSort/fetchList 传参；CustomerList.vue 顶部加「金额排序」按钮（连击 desc→asc→默认）与标题动态位、表中新增「累计消费」右对齐列（¥ 0.00 格式）；npm run build 通过。
+
+---
+
 ## T-014: 消费记录新增支持「最近 5 个客户」快选
 - completed_at: 2026-05-22T08:48:00+08:00
 - commit: (本提交)

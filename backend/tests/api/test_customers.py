@@ -222,3 +222,65 @@ def test_recent_customers_returns_by_last_visit_desc_excludes_no_cost(client):
     resp2 = client.get("/api/v1/customers/recent", params={"limit": 2})
     assert resp2.status_code == 200
     assert [it["id"] for it in resp2.json()] == [cust_b["id"], cust_c["id"]]
+
+
+def test_customer_list_sort_by_total_amount(client):
+    """T-015：sort_by=total_amount&sort_dir=desc|asc 生效，默认仍以 id DESC（created_at 代理）。"""
+    # 创建 3 客户，各自补不同金额的消费；D 无消费 → total_amount=0
+    cust_a = client.post("/api/v1/customers", json={"name": "小金额 A"}).json()
+    cust_b = client.post("/api/v1/customers", json={"name": "大金额 B"}).json()
+    cust_c = client.post("/api/v1/customers", json={"name": "中金额 C"}).json()
+    cust_d = client.post("/api/v1/customers", json={"name": "无消费 D"}).json()
+
+    pet_a = client.post("/api/v1/pets", json={"customer_id": cust_a["id"], "name": "a"}).json()
+    pet_b = client.post("/api/v1/pets", json={"customer_id": cust_b["id"], "name": "b"}).json()
+    pet_c = client.post("/api/v1/pets", json={"customer_id": cust_c["id"], "name": "c"}).json()
+
+    client.post(
+        "/api/v1/costs",
+        json={"pet_id": pet_a["id"], "category_code": "food", "amount": "10.00", "occurred_on": "2026-05-01"},
+    )
+    client.post(
+        "/api/v1/costs",
+        json={"pet_id": pet_b["id"], "category_code": "food", "amount": "100.00", "occurred_on": "2026-05-01"},
+    )
+    client.post(
+        "/api/v1/costs",
+        json={"pet_id": pet_b["id"], "category_code": "food", "amount": "50.00", "occurred_on": "2026-05-02"},
+    )  # B 总额 150
+    client.post(
+        "/api/v1/costs",
+        json={"pet_id": pet_c["id"], "category_code": "food", "amount": "30.00", "occurred_on": "2026-05-01"},
+    )
+
+    # 默认排序：id DESC（= created_at 倒序代理），后创建的在前。仅验证本用例创建的 4 个。
+    default = client.get("/api/v1/customers").json()
+    ids_in_default = [
+        it["id"] for it in default["items"] if it["id"] in {cust_a["id"], cust_b["id"], cust_c["id"], cust_d["id"]}
+    ]
+    assert ids_in_default == [cust_d["id"], cust_c["id"], cust_b["id"], cust_a["id"]]
+
+    # total_amount 字段被正确计算
+    by_id = {it["id"]: it for it in default["items"]}
+    assert by_id[cust_a["id"]]["total_amount"] == "10.00"
+    assert by_id[cust_b["id"]]["total_amount"] == "150.00"
+    assert by_id[cust_c["id"]]["total_amount"] == "30.00"
+    assert by_id[cust_d["id"]]["total_amount"] == "0"
+
+    # 按金额 desc：B(150) > C(30) > A(10) > D(0)
+    desc = client.get("/api/v1/customers", params={"sort_by": "total_amount", "sort_dir": "desc"}).json()
+    ids_desc = [
+        it["id"] for it in desc["items"] if it["id"] in {cust_a["id"], cust_b["id"], cust_c["id"], cust_d["id"]}
+    ]
+    assert ids_desc == [cust_b["id"], cust_c["id"], cust_a["id"], cust_d["id"]]
+
+    # 按金额 asc：D(0) < A(10) < C(30) < B(150)
+    asc = client.get("/api/v1/customers", params={"sort_by": "total_amount", "sort_dir": "asc"}).json()
+    ids_asc = [
+        it["id"] for it in asc["items"] if it["id"] in {cust_a["id"], cust_b["id"], cust_c["id"], cust_d["id"]}
+    ]
+    assert ids_asc == [cust_d["id"], cust_a["id"], cust_c["id"], cust_b["id"]]
+
+    # 非法 sort_by/sort_dir 被 pattern 拦下
+    bad = client.get("/api/v1/customers", params={"sort_by": "hack"})
+    assert bad.status_code == 422
