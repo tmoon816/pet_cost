@@ -139,3 +139,21 @@ def get_summary(db: Session, customer_id: int) -> dict | None:
         "last_visit_at": last_visit_at,
         "cost_count": int(cost_count or 0),
     }
+
+
+def list_recent(db: Session, limit: int = 5) -> List[Customer]:
+    """T-014：返回最近产生过消费的客户，按名下最近一次消费时间（max(occurred_on)）倒序。
+
+    无任何消费的客户不返回（INNER JOIN 筛掉）。
+    同一客户下多条记录只计最近一次（GROUP BY customer_id）。
+    """
+    last_visit = func.max(CostRecord.occurred_on).label("last_visit")
+    stmt = (
+        select(Customer, last_visit)
+        .join(Pet, Pet.customer_id == Customer.id)
+        .join(CostRecord, CostRecord.pet_id == Pet.id)
+        .group_by(Customer.id)
+        .order_by(last_visit.desc(), Customer.id.desc())
+        .limit(limit)
+    )
+    return [row[0] for row in db.execute(stmt).all()]

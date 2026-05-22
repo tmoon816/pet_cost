@@ -20,6 +20,15 @@ def list_customers(
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
+@router.get("/recent", response_model=list[CustomerOut])
+def list_recent_customers(
+    limit: int = Query(5, ge=1, le=20),
+    db: Session = Depends(get_db),
+):
+    """T-014：按「名下最近一次消费」倒序返回最近消费过的客户。无消费不返回。"""
+    return crud_customer.list_recent(db, limit=limit)
+
+
 @router.get("/{customer_id}", response_model=CustomerWithPets)
 def get_customer(customer_id: int, db: Session = Depends(get_db)):
     obj = crud_customer.get_with_pets(db, customer_id)

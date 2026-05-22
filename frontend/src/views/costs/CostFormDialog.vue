@@ -25,6 +25,7 @@ const emit = defineEmits(['update:modelValue', 'saved'])
 const categoryStore = useCategoryStore()
 
 const customers = ref([])
+const recentCustomers = ref([]) // T-014: 最近 5 个有消费的客户
 const customerLoading = ref(false)
 const pets = ref([])
 const submitting = ref(false)
@@ -71,6 +72,35 @@ async function searchCustomers(query) {
     customerLoading.value = false
   }
 }
+
+async function loadRecentCustomers() {
+  // T-014：拉取最近 5 个有消费的客户用于下拉顶部快选
+  try {
+    const items = await customersApi.listRecentCustomers({ limit: 5 })
+    recentCustomers.value = Array.isArray(items) ? items : []
+  } catch {
+    recentCustomers.value = []
+  }
+}
+
+// T-014：合并最近 5 个 + 搜索结果，按 id 去重后最近的优先，供下拉渲染
+const displayCustomers = computed(() => {
+  const list = []
+  const seen = new Set()
+  for (const c of recentCustomers.value) {
+    if (!seen.has(c.id)) {
+      seen.add(c.id)
+      list.push({ ...c, __recent: true })
+    }
+  }
+  for (const c of customers.value) {
+    if (!seen.has(c.id)) {
+      seen.add(c.id)
+      list.push({ ...c, __recent: false })
+    }
+  }
+  return list
+})
 
 async function loadPets(customerId) {
   if (!customerId) {
@@ -143,6 +173,11 @@ async function init() {
     await searchCustomers('')
   }
 
+  // T-014：新增场景（非编辑）下达到拉取最近 5 个客户
+  if (!props.editing) {
+    await loadRecentCustomers()
+  }
+
   if (!props.editing) {
     form.occurred_on = todayStr()
   }
@@ -162,6 +197,7 @@ function reset() {
     note: '',
   })
   customers.value = []
+  recentCustomers.value = []
   pets.value = []
 }
 
@@ -209,16 +245,25 @@ async function submit() {
           remote
           :remote-method="searchCustomers"
           :loading="customerLoading"
-          placeholder="搜姓名 / 手机号"
+          placeholder="搜姓名 / 手机号（顶部为最近 5 个客户）"
           style="width: 100%"
           :disabled="lockPet"
         >
           <el-option
-            v-for="c in customers"
+            v-for="c in displayCustomers"
             :key="c.id"
             :label="`${c.name}${c.phone ? ' · ' + c.phone : ''}`"
             :value="c.id"
-          />
+          >
+            <span>{{ c.name }}{{ c.phone ? ' · ' + c.phone : '' }}</span>
+            <el-tag
+              v-if="c.__recent"
+              size="small"
+              type="success"
+              effect="plain"
+              style="margin-left: 8px;"
+            >最近</el-tag>
+          </el-option>
         </el-select>
       </el-form-item>
 

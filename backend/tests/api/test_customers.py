@@ -174,3 +174,51 @@ def test_customer_list_has_cost_flag(client):
     items_by_id = {it["id"]: it for it in body["items"]}
     assert items_by_id[new_cust["id"]]["has_cost"] is False
     assert items_by_id[old_cust["id"]]["has_cost"] is True
+
+
+def test_recent_customers_returns_by_last_visit_desc_excludes_no_cost(client):
+    """T-014：GET /api/v1/customers/recent 按「名下最近一次消费」倒序，无消费不返回，同人多条只计最近一次。"""
+    # 创建 4 个客户。A/B/C 有消费，D 无消费。
+    cust_a = client.post("/api/v1/customers", json={"name": "客户A"}).json()
+    cust_b = client.post("/api/v1/customers", json={"name": "客户B"}).json()
+    cust_c = client.post("/api/v1/customers", json={"name": "客户C"}).json()
+    cust_d = client.post("/api/v1/customers", json={"name": "客户D无消费"}).json()
+
+    pet_a = client.post("/api/v1/pets", json={"customer_id": cust_a["id"], "name": "a1"}).json()
+    pet_b = client.post("/api/v1/pets", json={"customer_id": cust_b["id"], "name": "b1"}).json()
+    pet_c = client.post("/api/v1/pets", json={"customer_id": cust_c["id"], "name": "c1"}).json()
+
+    # A: 最早 (2026-05-01)
+    client.post(
+        "/api/v1/costs",
+        json={"pet_id": pet_a["id"], "category_code": "food", "amount": "10", "occurred_on": "2026-05-01"},
+    )
+    # B: 最近 (2026-05-20)。为证明“同人多条取 max”，同时补一条更早的 2026-05-02
+    client.post(
+        "/api/v1/costs",
+        json={"pet_id": pet_b["id"], "category_code": "food", "amount": "10", "occurred_on": "2026-05-02"},
+    )
+    client.post(
+        "/api/v1/costs",
+        json={"pet_id": pet_b["id"], "category_code": "food", "amount": "10", "occurred_on": "2026-05-20"},
+    )
+    # C: 中间 (2026-05-10)
+    client.post(
+        "/api/v1/costs",
+        json={"pet_id": pet_c["id"], "category_code": "food", "amount": "10", "occurred_on": "2026-05-10"},
+    )
+
+    resp = client.get("/api/v1/customers/recent")
+    assert resp.status_code == 200
+    items = resp.json()
+    ids = [it["id"] for it in items]
+    # 排序：B (05-20) > C (05-10) > A (05-01)；D 不出现
+    assert ids == [cust_b["id"], cust_c["id"], cust_a["id"]]
+    assert cust_d["id"] not in ids
+    # 默认 limit=5，这里只有 3 个有消费的客户，都该返回
+    assert len(items) == 3
+
+    # 验证 limit 参数生效
+    resp2 = client.get("/api/v1/customers/recent", params={"limit": 2})
+    assert resp2.status_code == 200
+    assert [it["id"] for it in resp2.json()] == [cust_b["id"], cust_c["id"]]

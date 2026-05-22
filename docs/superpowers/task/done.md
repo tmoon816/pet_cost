@@ -4,6 +4,17 @@
 
 ---
 
+## T-014: 消费记录新增支持「最近 5 个客户」快选
+- completed_at: 2026-05-22T08:48:00+08:00
+- commit: (本提交)
+- category: feature
+- auto_approve: false
+- merge_to_main_after: true
+- attempt: 1
+- result: done — 后端新增 `GET /api/v1/customers/recent?limit=5`（路由顺序放在 `/{customer_id}` 之前避免 path 冲突），crud.list_recent 用 INNER JOIN Pet/CostRecord + GROUP BY customer_id + ORDER BY max(occurred_on) DESC + LIMIT N，同一客户多条只取最近一次，无消费客户被 JOIN 天然筛掉。补 1 个用例（test_recent_customers_returns_by_last_visit_desc_excludes_no_cost）验证：排序、同人取 max、无消费不返回、limit 参数生效；pytest 65→66。前端 api/customers.js 加 listRecentCustomers；CostFormDialog.vue init() 非编辑模式下额外拉 loadRecentCustomers，displayCustomers computed 合并 [最近, 搜索结果] 并按 id 去重，最近项追加 `最近` el-tag 位于下拉顶部，点击直接赋值 form.customer_id；npm run build 通过。
+
+---
+
 ## T-013: 消费记录列表加按客户名筛选
 - completed_at: 2026-05-22T08:44:00+08:00
 - commit: (本提交)
