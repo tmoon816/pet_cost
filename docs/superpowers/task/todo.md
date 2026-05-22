@@ -133,6 +133,33 @@ approved → (实施) → in_progress → done
 
 ## backlog（待执行）
 
+## T-026: 后端 pydantic-core 依赖 minor 升级 v2.46.4 → v2.47.0
+- status: backlog
+- category: dep-patch
+- auto_approve: false
+- spec: ""
+- acceptance:
+  - 后端 pytest 全过
+  - `uv lock` 后 pydantic-core 版本升至 2.47.0
+- blocked_reason: ""
+- created_at: 2026-05-22
+- last_run: ""
+- attempt: 0
+
+## T-027: 后端 app/seed.py 模块补测试（覆盖率 0% → ≥70%）
+- status: backlog
+- category: test
+- auto_approve: true
+- spec: ""
+- acceptance:
+  - 后端 pytest 全过
+  - `app/seed.py` 模块覆盖率 ≥ 70%
+  - 不修改 seed.py 业务源码
+- blocked_reason: ""
+- created_at: 2026-05-22
+- last_run: ""
+- attempt: 0
+
 ## T-025: 后端 click 依赖 patch 升级 v8.4.0 → v8.4.1
 - status: backlog
 - category: dep-patch
