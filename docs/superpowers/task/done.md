@@ -32,6 +32,17 @@
 
 ---
 
+## T-003: 前端 sass 依赖升级 1.99.0 → 1.100.0
+- completed_at: 2026-05-22T14:32:00+08:00
+- commit: (本提交)
+- category: feature
+- auto_approve: false
+- merge_to_main_after: true
+- attempt: 1
+- result: done — npm install sass@1.100.0，npm ls sass 确认为 1.100.0，npm run build 通过，pytest 69 全过，无新增警告
+
+---
+
 ## T-001: Dashboard 主 chunk 体积超 500KB，做路由级 code-split
 - completed_at: 2026-05-22T11:20:00+08:00
 - commit: (本提交)

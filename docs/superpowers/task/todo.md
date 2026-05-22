@@ -52,19 +52,5 @@ approved → (实施) → in_progress → done
 
 ## Backlog
 
-## T-003: 前端 sass 依赖升级 1.99.0 → 1.100.0
-- status: approved
-- category: feature
-- auto_approve: false
-- spec: "docs/superpowers/specs/2026-05-22-T003-sass-upgrade.md"
-- merge_to_main_after: true
-- acceptance:
-  - npm run build 通过
-  - npm ls sass 显示 sass@1.100.0
-  - 样式无回归
-- blocked_reason: ""
-- created_at: 2026-05-22
-- last_run: ""
-- attempt: 0
-- signal_source: "cd frontend && npm outdated 显示 sass 1.99.0 → 1.100.0（非 patch，需评估）"
+(空)
 

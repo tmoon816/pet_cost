@@ -33,3 +33,4 @@
 | 2026-05-22T12:42+08:00 | T-002 | implement | done | dcb58d9 (main: a4e3250) | uv add starlette>=1.0.1，uv.lock 更新 starlette 1.0.0→1.0.1；pytest 67 全过；auto-merge main FF 成功。巡检：idna(T-004)/sass(T-003)/database(T-016) 均在 backlog，click 传递依赖不追，grep TODO 为空。无新任务。
 | 2026-05-22T13:42+08:00 | T-016 | implement | done | ae3b474 (main: 66322a4) | auto-approve test 生效：新增 tests/test_database.py（2 个用例），覆盖 SQLite FK PRAGMA 与 get_db()；database.py 覆盖率 69%→100%，pytest 67→69 全过；npm run build 通过；auto-merge main FF 成功。 |
 | 2026-05-22T13:42+08:00 | - | tick_end | chain=1 | - | 本 tick 实施 T-016（done + main FF 66322a4）。巡检：frontend npm outdated 仅 sass（T-003 backlog）一项，backend uv tree --outdated 无直接依赖，grep TODO/FIXME/XXX 为空。无新任务追加。 |
+| 2026-05-22T14:32+08:00 | T-003 | implement | done | (本提交) | sass 1.99→1.100，npm build 通过，pytest 69 全过。人审任务 merge_to_main_after → 将 auto FF 合 main |
