@@ -53,10 +53,10 @@ approved → (实施) → in_progress → done
 ## Backlog
 
 ## T-017: 全局搜索 — 顶部搜索框接线
-- status: backlog
+- status: spec_drafted
 - category: feature
 - auto_approve: false
-- spec: ""
+- spec: "docs/superpowers/specs/2026-05-22-T017-global-search.md"
 - acceptance:
   - 后端 pytest 全过
   - 前端 npm run build 通过
