@@ -1,0 +1,1 @@
+- 2026-05-22 09:08 | pm-proposal | tick | 新增 P-001（Top 10 高价值客户卡片）、P-002（流失预警列表加联系方式），均锚定 vision §2.3 / §2.4，size=small，与现有 todo/done 无重叠
