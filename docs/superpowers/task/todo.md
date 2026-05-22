@@ -47,7 +47,7 @@ approved → (实施) → in_progress → done
 ## 进行中 / 待审
 
 ## T-019: 404 页面 — 通配路由 + 友好提示
-- status: approved
+- status: in_progress
 - category: feature
 - auto_approve: false
 - spec: "docs/superpowers/specs/2026-05-22-T019-404-page.md"
@@ -58,8 +58,8 @@ approved → (实施) → in_progress → done
   - 侧边栏 / 顶部导航保持正常显示
 - blocked_reason: ""
 - created_at: 2026-05-22
-- last_run: ""
-- attempt: 0
+- last_run: "2026-05-22T23:26:00+08:00"
+- attempt: 1
 
 ## T-020: 侧边栏移动端响应式折叠
 - status: approved
