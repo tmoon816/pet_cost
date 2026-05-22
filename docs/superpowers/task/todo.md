@@ -50,13 +50,13 @@ approved → (实施) → in_progress → done
 
 ---
 
-## Backlog
+## spec_drafted（等人审）
 
 ## T-018: 宠物详情页补消费记录表格
-- status: backlog
+- status: spec_drafted
 - category: feature
 - auto_approve: false
-- spec: ""
+- spec: "docs/superpowers/specs/2026-05-22-T018-pet-detail-cost-table.md"
 - acceptance:
   - 后端 pytest 全过
   - 前端 npm run build 通过
@@ -68,10 +68,10 @@ approved → (实施) → in_progress → done
 - attempt: 0
 
 ## T-019: 404 页面 — 通配路由 + 友好提示
-- status: backlog
+- status: spec_drafted
 - category: feature
 - auto_approve: false
-- spec: ""
+- spec: "docs/superpowers/specs/2026-05-22-T019-404-page.md"
 - acceptance:
   - 前端 npm run build 通过
   - 访问 /abc /xyz/123 等不存在路径时展示设计统一的 404 页面
@@ -83,10 +83,10 @@ approved → (实施) → in_progress → done
 - attempt: 0
 
 ## T-020: 侧边栏移动端响应式折叠
-- status: backlog
+- status: spec_drafted
 - category: feature
 - auto_approve: false
-- spec: ""
+- spec: "docs/superpowers/specs/2026-05-22-T020-mobile-sidebar.md"
 - acceptance:
   - 前端 npm run build 通过
   - 视口宽度 < 768px 时侧边栏默认折叠为图标模式或隐藏
@@ -98,10 +98,10 @@ approved → (实施) → in_progress → done
 - attempt: 0
 
 ## T-021: Dashboard 日期范围选择器
-- status: backlog
+- status: spec_drafted
 - category: feature
 - auto_approve: false
-- spec: ""
+- spec: "docs/superpowers/specs/2026-05-22-T021-dashboard-date-range.md"
 - acceptance:
   - 后端 pytest 全过
   - 前端 npm run build 通过
@@ -114,10 +114,10 @@ approved → (实施) → in_progress → done
 - attempt: 0
 
 ## T-022: 数据导出 — 客户 & 账单 CSV 导出
-- status: backlog
+- status: spec_drafted
 - category: feature
 - auto_approve: false
-- spec: ""
+- spec: "docs/superpowers/specs/2026-05-22-T022-csv-export.md"
 - acceptance:
   - 后端 pytest 全过
   - 前端 npm run build 通过
@@ -128,4 +128,3 @@ approved → (实施) → in_progress → done
 - created_at: 2026-05-22
 - last_run: ""
 - attempt: 0
-
