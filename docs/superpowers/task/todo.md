@@ -67,10 +67,10 @@ approved → (实施) → in_progress → done
 - attempt: 0
 
 ## T-005: 前端 vue-router 依赖 major 升级 4.6.4 → 5.0.7
-- status: backlog
+- status: spec_drafted
 - category: feature
 - auto_approve: false
-- spec: ""
+- spec: "docs/superpowers/specs/2026-05-22-T005-vue-router-major.md"
 - acceptance:
   - npm run build 通过
   - 所有现有路由打开无报错
