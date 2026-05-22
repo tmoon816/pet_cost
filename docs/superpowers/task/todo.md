@@ -66,6 +66,46 @@ approved → (实施) → in_progress → done
 - last_run: ""
 - attempt: 0
 
+## T-002: 后端 starlette 依赖 patch 升级 1.0.0 → 1.0.1
+- status: backlog
+- category: dep-patch
+- auto_approve: true
+- spec: ""
+- acceptance:
+  - 后端 pytest 全过（67 条全绿）
+- blocked_reason: ""
+- created_at: 2026-05-22
+- last_run: ""
+- attempt: 0
+- signal_source: "cd backend && uv tree --outdated 显示 starlette 1.0.0 → 1.0.1（patch）"
+
+## T-003: 前端 sass 依赖升级 1.99.0 → 1.100.0
+- status: backlog
+- category: feature
+- auto_approve: false
+- spec: ""
+- acceptance:
+  - npm run build 通过
+  - 样式无回归
+- blocked_reason: ""
+- created_at: 2026-05-22
+- last_run: ""
+- attempt: 0
+- signal_source: "cd frontend && npm outdated 显示 sass 1.99.0 → 1.100.0（非 patch，需评估）"
+
+## T-004: 后端 idna 依赖 minor 升级 3.15 → 3.16
+- status: backlog
+- category: feature
+- auto_approve: false
+- spec: ""
+- acceptance:
+  - 后端 pytest 全过
+- blocked_reason: ""
+- created_at: 2026-05-22
+- last_run: ""
+- attempt: 0
+- signal_source: "cd backend && uv tree --outdated 显示 idna 3.15 → 3.16（minor）"
+
 ## T-005: 前端 vue-router 依赖 major 升级 4.6.4 → 5.0.7
 - status: spec_drafted
 - category: feature
