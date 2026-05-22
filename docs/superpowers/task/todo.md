@@ -53,7 +53,7 @@ approved → (实施) → in_progress → done
 ## Backlog
 
 ## T-013: 消费记录列表加按客户名筛选
-- status: approved
+- status: in_progress
 - category: feature
 - auto_approve: false
 - merge_to_main_after: true
@@ -63,8 +63,8 @@ approved → (实施) → in_progress → done
   - 选中客户后列表只显示该客户消费
   - npm run build 通过
 - created_at: 2026-05-22
-- last_run: ""
-- attempt: 0
+- last_run: "2026-05-22T08:43:00+08:00"
+- attempt: 1
 
 ## T-014: 消费记录新增支持「最近 5 个客户」快选
 - status: approved
