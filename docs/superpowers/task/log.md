@@ -34,3 +34,4 @@
 | 2026-05-22T13:42+08:00 | T-016 | implement | done | ae3b474 (main: 66322a4) | auto-approve test 生效：新增 tests/test_database.py（2 个用例），覆盖 SQLite FK PRAGMA 与 get_db()；database.py 覆盖率 69%→100%，pytest 67→69 全过；npm run build 通过；auto-merge main FF 成功。 |
 | 2026-05-22T13:42+08:00 | - | tick_end | chain=1 | - | 本 tick 实施 T-016（done + main FF 66322a4）。巡检：frontend npm outdated 仅 sass（T-003 backlog）一项，backend uv tree --outdated 无直接依赖，grep TODO/FIXME/XXX 为空。无新任务追加。 |
 | 2026-05-22T14:32+08:00 | T-003 | implement | done | (本提交) | sass 1.99→1.100，npm build 通过，pytest 69 全过。人审任务 merge_to_main_after → 将 auto FF 合 main |
+| 2026-05-22T14:42+08:00 | - | tick_idle | nothing_to_do | - | 队列空，无可实施/待审/backlog 任务。巡检：frontend npm outdated 无过期依赖，backend uv tree --outdated 无直接依赖需升（仅 idna 3.15→3.16、click 8.4.0→8.4.1 两个传递依赖，按惯例不追），grep TODO/FIXME/XXX 为空，pytest 69 全过覆盖率 93%（所有 app 模块≥89%），npm run build 通过（仅 vendor @vueuse/core INVALID_ANNOTATION 警告，非项目源码）。无新任务追加。
