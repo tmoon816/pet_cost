@@ -92,18 +92,4 @@ approved → (实施) → in_progress → done
 - attempt: 0
 - signal_source: "cd backend && uv tree --outdated 显示 idna 3.15 → 3.16（minor）"
 
-## T-005: 前端 vue-router 依赖 major 升级 4.6.4 → 5.0.7
-- status: in_progress
-- category: feature
-- auto_approve: false
-- spec: "docs/superpowers/specs/2026-05-22-T005-vue-router-major.md"
-- merge_to_main_after: true
-- acceptance:
-  - npm run build 通过
-  - 所有现有路由打开无报错
-  - breaking change 需在 spec 中逐项评估
-- blocked_reason: ""
-- created_at: 2026-05-22
-- last_run: "2026-05-22T11:42:00+08:00"
-- attempt: 1
-- signal_source: "cd frontend && npm outdated 显示 vue-router 4.6.4 → 5.0.7（major）"
+

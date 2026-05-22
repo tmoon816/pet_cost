@@ -4,6 +4,17 @@
 
 ---
 
+## T-005: 前端 vue-router 依赖 major 升级 4.6.4 → 5.0.7
+- completed_at: 2026-05-22T11:42:00+08:00
+- commit: ffbb41f
+- category: feature
+- auto_approve: false
+- merge_to_main_after: true
+- attempt: 1
+- result: done — npm install vue-router@5.0.7，createRouter/createWebHashHistory/beforeEach 全部兼容，router/index.js 无需修改。npm run build 通过，backend pytest 67 全过。package.json diff 仅 vue-router 一行变动。
+
+---
+
 ## T-001: Dashboard 主 chunk 体积超 500KB，做路由级 code-split
 - completed_at: 2026-05-22T11:20:00+08:00
 - commit: (本提交)
