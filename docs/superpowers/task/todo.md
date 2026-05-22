@@ -53,7 +53,7 @@ approved → (实施) → in_progress → done
 ## Backlog
 
 ## T-017: 全局搜索 — 顶部搜索框接线
-- status: spec_drafted
+- status: in_progress
 - category: feature
 - auto_approve: false
 - spec: "docs/superpowers/specs/2026-05-22-T017-global-search.md"
@@ -65,8 +65,8 @@ approved → (实施) → in_progress → done
   - 回车打开第一个结果
 - blocked_reason: ""
 - created_at: 2026-05-22
-- last_run: ""
-- attempt: 0
+- last_run: "2026-05-22 16:47:35"
+- attempt: 1
 
 ## T-018: 宠物详情页补消费记录表格
 - status: backlog
