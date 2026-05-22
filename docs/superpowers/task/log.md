@@ -8,6 +8,7 @@
 |-----------|---------|--------|--------|--------|------|
 | 2026-05-22T02:18+08:00 | T-002 | implement | done | 88d56a1 | 覆盖率 89%→91%，pytest 37→56；巡检追加 T-004(vite patch, auto)/T-005(vue-router major, 需审) |
 | 2026-05-22T02:26+08:00 | T-003 | implement | done (no-op) | 8f62eb9 | grep 核验 frontend/src 本就未包含 console.log；build × pytest 均绿；修复 todo.md 中 T-001 重复条目 |
+| 2026-05-22T21:42+08:00 | T-024 | implement | done | 1995093 | idna v3.15→v3.16（uv.lock 3行）；pytest 100/102 pass（2 fail 预存 dirty）；auto-merge main ✓；巡检追加 T-026(pydantic-core minor) T-027(seed.py test) |
 | 2026-05-22T02:45+08:00 | T-001 | draft_spec | spec_drafted | 本 commit | 查实际代码后发现路由级 code-split 已实现，真正问题是 vendor 未拆（echarts/antd-charts/element-plus）；spec 提出 A/B/C 三案，建议 A；acceptance 200KB 阈值不现实需调 |
 | 2026-05-22T03:40+08:00 | T-006 | implement | done | e6bfb6a (main: e6bfb6a) | 后端增 1 个 phone 模糊搜索用例（pytest 56→57）；前端 CustomerList 接入 watch+300ms debounce，去掉「搜索」按钮，清空即恢复全量；npm run build 通过；auto-merge main FF 成功 |
 | 2026-05-22T03:45+08:00 | T-007 | implement | done | efe585d (main: efe585d) | 后端新增 GET /customers/{id}/summary、CustomerSummary schema、补 2 用例（pytest 57→59）；前端 CustomerDetail 加 3 个聚合卡片，空数据“—”；auto-merge main FF 成功 |
