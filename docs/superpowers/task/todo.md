@@ -47,7 +47,7 @@ approved → (实施) → in_progress → done
 ## 进行中 / 待审
 
 ## T-018: 宠物详情页补消费记录表格
-- status: approved
+- status: in_progress
 - category: feature
 - auto_approve: false
 - spec: "docs/superpowers/specs/2026-05-22-T018-pet-detail-cost-table.md"
@@ -58,8 +58,8 @@ approved → (实施) → in_progress → done
   - 支持分页，与客户详情页消费时间线功能对称
 - blocked_reason: ""
 - created_at: 2026-05-22
-- last_run: ""
-- attempt: 0
+- last_run: "2026-05-22T23:25:00+08:00"
+- attempt: 1
 
 ## T-019: 404 页面 — 通配路由 + 友好提示
 - status: approved
