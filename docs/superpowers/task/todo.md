@@ -92,4 +92,18 @@ approved → (实施) → in_progress → done
 - attempt: 0
 - signal_source: "cd backend && uv tree --outdated 显示 idna 3.15 → 3.16（minor）"
 
+## T-016: 后端 database.py 模块覆盖率补测试（69% → ≥70%）
+- status: backlog
+- category: test
+- auto_approve: true
+- spec: ""
+- acceptance:
+  - 后端 pytest 全过
+  - app/core/database.py 覆盖率 ≥ 70%
+  - 不修改业务源码
+- blocked_reason: ""
+- created_at: 2026-05-22
+- last_run: ""
+- attempt: 0
+- signal_source: "cd backend && uv run pytest --cov=app --cov-report=term-missing 显示 app/core/database.py 69%（miss 行 15, 22-26）"
 
