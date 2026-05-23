@@ -52,18 +52,7 @@ approved → (实施) → in_progress → done
 
 ## blocked（阻塞中）
 
-## T-026: 后端 pydantic-core 依赖 minor 升级 v2.46.4 → v2.47.0
-- status: blocked
-- category: dep-patch
-- auto_approve: false
-- spec: "docs/superpowers/specs/2026-05-22-T026-pydantic-core-minor-upgrade.md"
-- acceptance:
-  - 后端 pytest 全过
-  - `uv lock` 后 pydantic-core 版本升至 2.47.0
-- blocked_reason: "PyPI 上 pydantic-core v2.47.0 尚未发布，当前最新 2.46.4"
-- created_at: 2026-05-22
-- last_run: "2026-05-22"
-- attempt: 0
+(空)
 
 ---
 
