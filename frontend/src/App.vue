@@ -40,7 +40,68 @@ const searchQuery = ref('')
 const searchResults = ref([])
 const searchPopoverVisible = ref(false)
 const searchLoading = ref(false)
+const searchHistory = ref([])
 let debounceTimer = null
+
+const SEARCH_HISTORY_KEY = 'petcost.searchHistory'
+const SEARCH_HISTORY_MAX = 8
+
+function loadSearchHistory() {
+  try {
+    const raw = localStorage.getItem(SEARCH_HISTORY_KEY)
+    const arr = raw ? JSON.parse(raw) : []
+    searchHistory.value = Array.isArray(arr) ? arr.slice(0, SEARCH_HISTORY_MAX) : []
+  } catch {
+    searchHistory.value = []
+  }
+}
+function pushSearchHistory(q) {
+  const term = q.trim()
+  if (!term) return
+  const next = [term, ...searchHistory.value.filter((t) => t !== term)].slice(0, SEARCH_HISTORY_MAX)
+  searchHistory.value = next
+  try {
+    localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(next))
+  } catch {
+    /* quota / disabled */
+  }
+}
+function removeSearchHistory(term) {
+  const next = searchHistory.value.filter((t) => t !== term)
+  searchHistory.value = next
+  try {
+    localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(next))
+  } catch {
+    /* ignore */
+  }
+}
+function clearSearchHistory() {
+  searchHistory.value = []
+  try {
+    localStorage.removeItem(SEARCH_HISTORY_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
+function escapeHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+function escapeRegExp(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+function highlightMatch(text, q) {
+  const safe = escapeHtml(text)
+  const term = (q || '').trim()
+  if (!term) return safe
+  const re = new RegExp(escapeRegExp(term), 'gi')
+  return safe.replace(re, (m) => `<mark class="search-hit">${m}</mark>`)
+}
 
 const menuItems = [
   { path: '/dashboard',  title: '营业概览',     icon: HomeFilled },
@@ -75,7 +136,8 @@ const doSearch = async () => {
   const q = searchQuery.value.trim()
   if (!q) {
     searchResults.value = []
-    searchPopoverVisible.value = false
+    // 空输入时仍展示历史面板
+    searchPopoverVisible.value = searchHistory.value.length > 0
     return
   }
   searchLoading.value = true
@@ -83,6 +145,7 @@ const doSearch = async () => {
     const res = await searchApi(q)
     searchResults.value = res.results || []
     searchPopoverVisible.value = true
+    if ((res.results || []).length > 0) pushSearchHistory(q)
   } catch {
     searchResults.value = []
   } finally {
@@ -93,6 +156,17 @@ const doSearch = async () => {
 const onSearchInput = () => {
   if (debounceTimer) clearTimeout(debounceTimer)
   debounceTimer = setTimeout(doSearch, 300)
+}
+
+const onSearchFocus = () => {
+  if (!searchQuery.value.trim() && searchHistory.value.length > 0) {
+    searchPopoverVisible.value = true
+  }
+}
+
+const onHistoryClick = (term) => {
+  searchQuery.value = term
+  doSearch()
 }
 
 const onSearchKeyup = (e) => {
@@ -123,6 +197,8 @@ onMounted(() => {
   activeMenu.value = route.path
   // 预加载分类数据（兼容旧名会在 store 里别名为 fetchCategories）
   categoryStore.fetch?.(true) ?? categoryStore.fetchCategories?.(true)
+  // 加载搜索历史
+  loadSearchHistory()
 
   // 监听路由变化更新活跃菜单
   router.afterEach((to) => {
@@ -196,10 +272,33 @@ onUnmounted(() => {
                 :loading="searchLoading"
                 @input="onSearchInput"
                 @keyup="onSearchKeyup"
+                @focus="onSearchFocus"
                 @blur="closeSearch"
               />
               <div v-if="searchPopoverVisible" class="search-dropdown">
-                <template v-if="searchResults.length === 0">
+                <template v-if="!searchQuery.trim() && searchHistory.length > 0">
+                  <div class="search-history-header">
+                    <span>搜索历史</span>
+                    <span class="search-history-clear" @mousedown.prevent="clearSearchHistory">清空</span>
+                  </div>
+                  <div
+                    v-for="term in searchHistory"
+                    :key="term"
+                    class="search-item history"
+                    @mousedown.prevent="onHistoryClick(term)"
+                  >
+                    <span class="search-item-icon">🕐</span>
+                    <div class="search-item-body">
+                      <div class="search-item-title">{{ term }}</div>
+                    </div>
+                    <span
+                      class="search-history-remove"
+                      title="移除"
+                      @mousedown.prevent.stop="removeSearchHistory(term)"
+                    >×</span>
+                  </div>
+                </template>
+                <template v-else-if="searchResults.length === 0">
                   <div class="search-empty">无匹配结果</div>
                 </template>
                 <template v-else>
@@ -213,8 +312,8 @@ onUnmounted(() => {
                     >
                       <span class="search-item-icon">{{ item.type === 'customer' ? '👤' : item.type === 'pet' ? '🐾' : '💰' }}</span>
                       <div class="search-item-body">
-                        <div class="search-item-title">{{ item.title }}</div>
-                        <div class="search-item-subtitle">{{ item.subtitle }}</div>
+                        <div class="search-item-title" v-html="highlightMatch(item.title, searchQuery)"></div>
+                        <div class="search-item-subtitle" v-html="highlightMatch(item.subtitle, searchQuery)"></div>
                       </div>
                     </div>
                   </div>
@@ -336,6 +435,58 @@ onUnmounted(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.search-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.search-history-clear {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+.search-history-clear:hover {
+  color: var(--primary);
+}
+.search-item.history .search-history-remove {
+  margin-left: auto;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--text-secondary);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.search-item.history:hover .search-history-remove {
+  opacity: 1;
+}
+.search-item.history .search-history-remove:hover {
+  background: var(--bg);
+  color: var(--text-primary);
+}
+.search-hit {
+  background: rgba(245, 108, 108, 0.18);
+  color: var(--el-color-danger, #f56c6c);
+  padding: 0 2px;
+  border-radius: 2px;
+  font-weight: 600;
 }
 
 @media (max-width: 1440px) {

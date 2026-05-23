@@ -251,6 +251,15 @@ const costCountDisplay = computed(() => {
   return String(c)
 })
 
+// P-006: 客户类型徽章
+const customerTypeBadge = computed(() => {
+  const t = summary.value?.customer_type
+  if (t === 'vip') return { label: 'VIP', type: 'warning' }
+  if (t === 'returning') return { label: '回头客', type: 'success' }
+  if (t === 'first_visit') return { label: '新客', type: 'info' }
+  return null
+})
+
 // T-011: 时间线展示助手
 function categoryLabel(code) {
   if (!code) return '-'
@@ -285,6 +294,21 @@ async function onCostSaved() {
     </div>
 
     <div v-if="detail" class="summary-row">
+      <el-card class="summary-card" shadow="never">
+        <div class="summary-label">
+          客户类型
+          <el-tag
+            v-if="customerTypeBadge"
+            :type="customerTypeBadge.type"
+            size="small"
+            effect="dark"
+            style="margin-left: 6px;"
+          >
+            {{ customerTypeBadge.label }}
+          </el-tag>
+        </div>
+        <div class="summary-value">{{ detail.name }}</div>
+      </el-card>
       <el-card class="summary-card" shadow="never">
         <div class="summary-label">累计消费</div>
         <div class="summary-value">{{ totalAmountDisplay }}</div>
@@ -464,7 +488,7 @@ async function onCostSaved() {
 }
 .summary-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
 }
 .summary-card {

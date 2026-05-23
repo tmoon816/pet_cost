@@ -5,9 +5,19 @@ from typing import List, Tuple
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
+from ..core.config import settings
 from ..core.exceptions import ConflictError
 from ..models import CostRecord, Customer, Pet
 from ..schemas.customer import CustomerCreate, CustomerUpdate
+
+
+def classify_customer(visit_count: int) -> str:
+    """P-006: 0 单=first_visit，1~VIP_THRESHOLD-1=returning，>=VIP_THRESHOLD=vip。"""
+    if visit_count <= 0:
+        return "first_visit"
+    if visit_count >= settings.VIP_THRESHOLD:
+        return "vip"
+    return "returning"
 
 
 def _check_phone_conflict(db: Session, phone: str | None, exclude_id: int | None = None) -> None:
@@ -63,11 +73,20 @@ def list_paginated(
         .correlate(Customer)
         .scalar_subquery()
     )
+    # P-006：消费记录数 → 客户分层
+    visit_count_subq = (
+        select(func.count(CostRecord.id))
+        .join(Pet, CostRecord.pet_id == Pet.id)
+        .where(Pet.customer_id == Customer.id)
+        .correlate(Customer)
+        .scalar_subquery()
+    )
 
     stmt = select(
         Customer,
         has_cost_subq.label("has_cost"),
         total_amount_subq.label("total_amount"),
+        visit_count_subq.label("visit_count"),
     )
     count_stmt = select(func.count(Customer.id))
     if q:
@@ -91,6 +110,7 @@ def list_paginated(
     items: List[dict] = []
     for row in rows:
         customer: Customer = row[0]
+        visit_count = int(row[3] or 0)
         items.append(
             {
                 "id": customer.id,
@@ -101,6 +121,8 @@ def list_paginated(
                 "updated_at": customer.updated_at,
                 "has_cost": bool(row[1]),
                 "total_amount": Decimal(row[2] or 0),
+                "visit_count": visit_count,
+                "customer_type": classify_customer(visit_count),
             }
         )
     total = int(db.scalar(count_stmt) or 0)
@@ -169,6 +191,7 @@ def get_summary(db: Session, customer_id: int) -> dict | None:
         "total_amount": Decimal(total_amount or 0),
         "last_visit_at": last_visit_at,
         "cost_count": int(cost_count or 0),
+        "customer_type": classify_customer(int(cost_count or 0)),
     }
 
 

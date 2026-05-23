@@ -32,10 +32,13 @@ class CustomerOut(CustomerBase):
 class CustomerListItem(CustomerOut):
     """T-008: 列表项额外携带 has_cost（首次有消费即老客）。
     T-015: 额外返回 total_amount（名下所有宠物累计消费，无消费为 0）。
+    P-006: 额外返回 visit_count（消费记录数）和 customer_type（first_visit/returning/vip）。
     """
 
     has_cost: bool = False
     total_amount: Decimal = Decimal(0)
+    visit_count: int = 0
+    customer_type: str = "first_visit"
 
 
 class CustomerWithPets(CustomerOut):
@@ -43,7 +46,9 @@ class CustomerWithPets(CustomerOut):
 
 
 class CustomerSummary(BaseModel):
-    """T-007：客户详情页聚合卡片。无消费时 last_visit_at 为 None、金额 0、计数 0。"""
+    """T-007：客户详情页聚合卡片。无消费时 last_visit_at 为 None、金额 0、计数 0。
+    P-006: 额外返回 customer_type 三档枚举。
+    """
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -51,6 +56,7 @@ class CustomerSummary(BaseModel):
     total_amount: Decimal
     last_visit_at: Optional[datetime] = None
     cost_count: int
+    customer_type: str = "first_visit"
 
 
 from .pet import PetOut  # noqa: E402  resolve forward ref

@@ -9,6 +9,7 @@ class SearchResult(BaseModel):
     title: str
     subtitle: str
     url: str
+    score: int = 0
 
 
 class SearchResponse(BaseModel):
