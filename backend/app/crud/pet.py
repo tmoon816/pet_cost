@@ -14,7 +14,8 @@ def get(db: Session, pet_id: int) -> Pet | None:
 def list_paginated(
     db: Session, customer_id: int | None, page: int, page_size: int
 ) -> Tuple[List[dict], int]:
-    """列出宠物，并以 dict 形式返回，额外包含 last_visit_at（MAX(cost_records.occurred_on)）。
+    """列出宠物，并以 dict 形式返回，额外包含 last_visit_at（MAX(cost_records.occurred_on)）
+    和 customer_name（前端列表只展示 ID 太抽象，要主人姓名直观一些）。
 
     返回 dict 而非 ORM 实例是为了后接 PetListItem 这个非 from_attributes 映射也能顺利序列化。
     """
@@ -25,7 +26,9 @@ def list_paginated(
         .scalar_subquery()
     )
 
-    stmt = select(Pet, last_visit_subq.label("last_visit_at"))
+    stmt = select(Pet, last_visit_subq.label("last_visit_at"), Customer.name.label("customer_name")).join(
+        Customer, Customer.id == Pet.customer_id
+    )
     count_stmt = select(func.count(Pet.id))
     if customer_id is not None:
         stmt = stmt.where(Pet.customer_id == customer_id)
@@ -34,10 +37,11 @@ def list_paginated(
 
     rows = db.execute(stmt).all()
     items: List[dict] = []
-    for pet, last_visit_at in rows:
+    for pet, last_visit_at, customer_name in rows:
         item = {
             "id": pet.id,
             "customer_id": pet.customer_id,
+            "customer_name": customer_name,
             "name": pet.name,
             "species": pet.species,
             "breed": pet.breed,

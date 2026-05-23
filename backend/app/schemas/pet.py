@@ -37,9 +37,11 @@ class PetOut(PetBase):
 
 
 class PetListItem(PetOut):
-    """列表项：在 PetOut 基础上附加最近一次到店时间（按 cost_records.occurred_on 取 MAX）。
+    """列表项：在 PetOut 基础上附加最近一次到店时间（按 cost_records.occurred_on 取 MAX）
+    和主人姓名（避免前端只显示客户 ID）。
 
-    无任何消费记录时为 None，前端展示"—"。
+    无任何消费记录时 last_visit_at 为 None，前端展示"—"。
     """
 
     last_visit_at: Optional[date] = None
+    customer_name: Optional[str] = None

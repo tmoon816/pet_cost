@@ -16,7 +16,6 @@ const loading = ref(false)
 const dialogVisible = ref(false)
 const editId = ref(null)
 
-// 物种 code → 中文 label / emoji（前端 derived，不入库）
 const SPECIES_MAP = {
   dog:     { label: '犬',   emoji: '🐶' },
   cat:     { label: '猫',   emoji: '🐱' },
@@ -25,40 +24,34 @@ const SPECIES_MAP = {
   bird:    { label: '鹦鹉', emoji: '🦜' },
   other:   { label: '其他', emoji: '🐾' }
 }
-const GENDER_MAP = {
-  male:    '公',
-  female:  '母',
-  unknown: '未知'
-}
+const GENDER_MAP = { male: '公', female: '母', unknown: '未知' }
 
 const speciesLabel = (code) => SPECIES_MAP[code]?.label || code || '-'
 const speciesEmoji = (code) => SPECIES_MAP[code]?.emoji || '🐾'
-const genderLabel  = (code) => GENDER_MAP[code] || '-'
+const genderLabel  = (code) => GENDER_MAP[code]
 
-// 年龄计算：空生日返回 '-'，避免 NaN
+// 年龄计算：空生日返回 ''（让上层决定不显示），避免 NaN
 const computeAge = (birthday) => {
-  if (!birthday) return '-'
+  if (!birthday) return ''
   const ms = new Date() - new Date(birthday)
-  if (isNaN(ms)) return '-'
+  if (isNaN(ms)) return ''
   const years = Math.floor(ms / (1000 * 60 * 60 * 24 * 365))
-  return years >= 0 ? `${years} 岁` : '-'
+  return years >= 0 ? `${years} 岁` : ''
 }
 
-// 最近到店显示：后端返 last_visit_at (YYYY-MM-DD)，未会过消费为 null
-// 返回例："2026-05-10（3 天前）" / "2026-05-13（今天）" / "—"
+// 最近到店：返回 { date, label } 或 null。null = 没消费记录
 const formatLastVisit = (lastVisitAt) => {
-  if (!lastVisitAt) return '—'
-  // 以本地 00:00 算差值，避免时区偏导致“1 天前”跳字
+  if (!lastVisitAt) return null
   const todayMid = new Date()
   todayMid.setHours(0, 0, 0, 0)
   const visit = new Date(`${lastVisitAt}T00:00:00`)
-  if (isNaN(visit.getTime())) return lastVisitAt
+  if (isNaN(visit.getTime())) return { date: lastVisitAt, label: '' }
   const diffDays = Math.floor((todayMid - visit) / (1000 * 60 * 60 * 24))
   let label
   if (diffDays <= 0) label = '今天'
   else if (diffDays === 1) label = '昨天'
   else label = `${diffDays} 天前`
-  return `${lastVisitAt}（${label}）`
+  return { date: lastVisitAt, label }
 }
 
 const fetchList = async () => {
@@ -67,11 +60,9 @@ const fetchList = async () => {
     const params = { page: page.value, page_size: pageSize.value }
     if (customerFilter.value) params.customer_id = customerFilter.value
     const res = await listPets(params)
-    // 后端返 Page{items,total}，必须取 items
     list.value = res.items || []
     total.value = res.total || 0
   } catch (e) {
-    // http 拦截器已 ElMessage.error 兜底
     list.value = []
     total.value = 0
   } finally {
@@ -100,14 +91,14 @@ const handleDelete = async (row) => {
   try {
     await deletePet(row.id)
     ElMessage.success('已删除')
-    // 删完当前页若空则回退一页
     if (list.value.length === 1 && page.value > 1) page.value -= 1
     await fetchList()
   } catch (e) {
-    // 拦截器兜底
+    /* 拦截器兜底 */
   }
 }
 const handleViewDetail = (row) => router.push(`/pets/${row.id}`)
+const handleViewOwner = (row) => router.push(`/customers/${row.customer_id}`)
 const handleFormSuccess = () => {
   dialogVisible.value = false
   fetchList()
@@ -127,9 +118,9 @@ onMounted(() => fetchList())
 
 <template>
   <div class="pet-list-page">
-    <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 16px; flex-wrap: wrap;">
-      <h2 style="margin: 0; font-size: 24px;">客户宠物档案</h2>
-      <div style="display: flex; gap: 12px; align-items: center;">
+    <div class="page-header">
+      <h2>客户宠物档案</h2>
+      <div class="page-actions">
         <el-input-number
           v-model="customerFilter"
           placeholder="按客户ID筛选"
@@ -148,10 +139,10 @@ onMounted(() => fetchList())
 
     <div class="pet-grid" v-loading="loading">
       <div v-if="list.length === 0 && !loading" class="empty-state">
-        <div style="font-size: 80px; margin-bottom: 20px;">🐾</div>
+        <div class="empty-emoji">🐾</div>
         <p class="empty-title">暂无宠物档案</p>
         <p class="empty-desc">点击右上角「新增宠物」按钮添加第一只宠物</p>
-        <el-button type="primary" @click="handleAdd" style="margin-top: 20px;">
+        <el-button type="primary" @click="handleAdd">
           <el-icon><Plus /></el-icon>
           立即新增
         </el-button>
@@ -162,47 +153,53 @@ onMounted(() => fetchList())
         :key="pet.id"
         shadow="hover"
         class="pet-card"
+        @click="handleViewDetail(pet)"
       >
-        <div class="pet-header">
-          <div class="pet-avatar">{{ speciesEmoji(pet.species) }}</div>
-          <div class="pet-basic">
-            <h3>{{ pet.name }}</h3>
-            <div class="pet-tag">
-              <el-tag size="small" type="info">
+        <div class="card-top">
+          <div class="avatar">{{ speciesEmoji(pet.species) }}</div>
+          <div class="ident">
+            <div class="name-row">
+              <span class="name">{{ pet.name }}</span>
+              <el-tag size="small" effect="plain" type="info">
                 {{ speciesLabel(pet.species) }}<span v-if="pet.breed"> · {{ pet.breed }}</span>
               </el-tag>
             </div>
+            <div class="meta-row">
+              <span v-if="genderLabel(pet.gender)" class="meta">{{ genderLabel(pet.gender) }}</span>
+              <span v-if="computeAge(pet.birthday)" class="meta">{{ computeAge(pet.birthday) }}</span>
+              <span v-if="pet.birthday" class="meta dim">生日 {{ pet.birthday }}</span>
+            </div>
           </div>
         </div>
-        <div class="pet-info-grid">
-          <div class="info-item">
-            <label>客户ID</label>
-            <span>#{{ pet.customer_id }}</span>
-          </div>
-          <div class="info-item">
-            <label>性别</label>
-            <span>{{ genderLabel(pet.gender) }}</span>
-          </div>
-          <div class="info-item">
-            <label>年龄</label>
-            <span>{{ computeAge(pet.birthday) }}</span>
-          </div>
-          <div class="info-item">
-            <label>生日</label>
-            <span>{{ pet.birthday || '-' }}</span>
-          </div>
-          <div class="info-item full-width">
-            <label>备注</label>
-            <span>{{ pet.note || '-' }}</span>
-          </div>
+
+        <div class="owner-row">
+          <span class="owner-label">主人</span>
+          <el-link
+            v-if="pet.customer_name"
+            type="primary"
+            :underline="false"
+            @click.stop="handleViewOwner(pet)"
+          >
+            {{ pet.customer_name }}
+          </el-link>
+          <span v-else class="dim">#{{ pet.customer_id }}</span>
         </div>
-        <div class="pet-footer">
+
+        <div v-if="pet.note" class="note-row">
+          <span class="note-label">备注</span>
+          <span class="note-text">{{ pet.note }}</span>
+        </div>
+
+        <div class="card-bottom">
           <div class="last-visit">
-            <span class="last-visit-label">最近到店：</span>
-            <span class="last-visit-value">{{ formatLastVisit(pet.last_visit_at) }}</span>
+            <template v-if="formatLastVisit(pet.last_visit_at)">
+              <span class="lv-dot" />
+              <span class="lv-date">{{ formatLastVisit(pet.last_visit_at).date }}</span>
+              <span class="lv-rel">{{ formatLastVisit(pet.last_visit_at).label }}</span>
+            </template>
+            <span v-else class="lv-empty">暂无到店记录</span>
           </div>
-          <div class="actions">
-            <el-button size="small" @click="handleViewDetail(pet)">查看详情</el-button>
+          <div class="actions" @click.stop>
             <el-button size="small" type="primary" @click="handleEdit(pet)">编辑</el-button>
             <el-button size="small" type="danger" @click="handleDelete(pet)">删除</el-button>
           </div>
@@ -230,89 +227,154 @@ onMounted(() => fetchList())
 </template>
 
 <style scoped>
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.page-header h2 {
+  margin: 0;
+  font-size: 24px;
+}
+.page-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
 .pet-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
 }
 .pet-card {
-  transition: all 0.2s ease;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  border-radius: 12px;
 }
 .pet-card:hover {
   transform: translateY(-2px);
 }
-.pet-header {
+.pet-card :deep(.el-card__body) {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card-top {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 20px;
+  gap: 12px;
 }
-.pet-avatar {
-  width: 80px;
-  height: 80px;
+.avatar {
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--primary, #5a8dee), var(--primary-hover, #4a7ad4));
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 40px;
-  color: white;
+  font-size: 26px;
+  flex-shrink: 0;
 }
-.pet-basic h3 {
-  margin: 0 0 8px 0;
-  font-size: 20px;
+.ident {
+  flex: 1;
+  min-width: 0;
+}
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.name {
+  font-size: 18px;
+  font-weight: 600;
   color: var(--text-primary, #303133);
 }
-.pet-info-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px 24px;
-  margin-bottom: 20px;
-}
-.info-item {
+.meta-row {
+  margin-top: 4px;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.info-item.full-width {
-  grid-column: 1 / -1;
-}
-.info-item label {
+  gap: 8px;
+  flex-wrap: wrap;
   font-size: 12px;
+  color: var(--text-secondary, #606266);
+}
+.meta.dim {
   color: var(--text-muted, #909399);
 }
-.info-item span {
-  font-size: 14px;
-  color: var(--text-primary, #303133);
+
+.owner-row,
+.note-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
 }
-.pet-footer {
+.owner-label,
+.note-label {
+  color: var(--text-muted, #909399);
+  flex-shrink: 0;
+}
+.note-text {
+  color: var(--text-secondary, #606266);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.dim {
+  color: var(--text-muted, #909399);
+}
+
+.card-bottom {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-top: 12px;
   border-top: 1px solid var(--border, #ebeef5);
-  padding-top: 16px;
   gap: 8px;
   flex-wrap: wrap;
 }
 .last-visit {
-  font-size: 13px;
-  color: var(--text-secondary, #606266);
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary, #606266);
 }
-.last-visit-label {
-  color: var(--text-muted, #909399);
+.lv-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success, #67c23a);
+  display: inline-block;
 }
-.last-visit-value {
+.lv-date {
   font-weight: 500;
   color: var(--text-primary, #303133);
 }
+.lv-rel {
+  color: var(--text-muted, #909399);
+}
+.lv-empty {
+  color: var(--text-muted, #909399);
+  font-size: 12px;
+}
+
 .empty-state {
   grid-column: 1 / -1;
   text-align: center;
   padding: 80px 20px;
   color: var(--text-muted, #909399);
+}
+.empty-emoji {
+  font-size: 80px;
+  margin-bottom: 20px;
 }
 .empty-title {
   font-size: 18px;
