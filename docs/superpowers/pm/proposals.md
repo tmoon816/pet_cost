@@ -59,6 +59,22 @@ deferred       ← 暂时不做，PM 知道这事被你看过了
 
 ## 已处理（accepted / rejected / deferred 的提案搬到这里）
 
+## P-007: 打烊前 5 分钟录入提速三件套
+- status: accepted
+- created_at: 2026-05-24
+- accepted_at: 2026-05-24
+- vision_anchor: "vision.md §2.2「打烊前：老板花 5 分钟而不是 30 分钟把今天的消费录入系统」"
+- user_scenario: "晚上 9 点关门，老板要把当天 10~30 笔服务订单录完。最痛三件事：固定价服务每次手输金额、一个客户带多只宠物洗澡得逐条录、Dashboard 默认本月范围要切到「今天」才能核对今日营收"
+- problem: "1) 录单每次手输金额，洗澡/美容这种固定价服务也要重复敲；2) 多宠物家庭批量服务时，同金额同分类要录 N 次；3) 打烊对账时 Dashboard 默认本月范围，没有快速看「今日」的视图"
+- mvp: |
+  三个独立但互补的小动作（可分别落地）：
+  A. 服务项目支持 default_amount，选完分类自动填金额（手动改过则不覆盖）
+  B. CostFormDialog 宠物字段支持多选，提交时拆 N 条同金额记录（后端加 batch 接口，事务原子）
+  C. Dashboard 顶部加固定的「今日营业」小卡（金额/订单数/明细入口），与日期筛选解耦
+- why_now: "打烊场景是当前录入摩擦最重的环节，每天都被触发一次、每条订单都被触发；改完直接每天省时间，复合收益高。vision §2.2 是 v1 的核心目标场景之一"
+- size: medium
+- linked_task: "T-028, T-029, T-030"
+
 ## P-001: Dashboard 新增「Top 10 高价值客户」卡片
 - status: implemented
 - created_at: 2026-05-22
