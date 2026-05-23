@@ -164,7 +164,17 @@ const fetchAllData = () => {
   fetchTopCustomers()
 }
 
-function onDateChange() {
+function defaultMonthRange() {
+  // 当月 1 号 ~ 今天，作为日期清空后的兜底
+  const t = new Date()
+  return [new Date(t.getFullYear(), t.getMonth(), 1), t]
+}
+
+function onDateChange(val) {
+  // el-date-picker 清空时 val 为 null，会让后续 getRange() 返回空字符串触发 422
+  if (!val || !val[0] || !val[1]) {
+    dateRange.value = defaultMonthRange()
+  }
   dateRangeKey.value++
   fetchSummary()
   fetchCategoryStats()
