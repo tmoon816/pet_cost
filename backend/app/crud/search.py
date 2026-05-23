@@ -1,4 +1,8 @@
-"""全局搜索：按 q 扫 customer name/phone、pet name、cost note 返回混合结果。"""
+"""全局搜索：按 q 扫 customer name/phone、pet name、cost note 返回混合结果。
+
+支持中文姓名拼音首字母 / 全拼输入（依赖 customers.name_pinyin/name_initials 和
+pets.name_pinyin/name_initials 由 ORM 写入时自动生成 + alembic 历史回填）。
+"""
 
 from __future__ import annotations
 
@@ -30,24 +34,51 @@ def search(db: Session, q: str, per_group: int = 5) -> list[dict]:
     qs = q.strip()
     like = f"%{qs}%"
 
-    # 客户
+    # 客户：name / phone / name_pinyin / name_initials 都纳入 OR
     cust_rows = db.execute(
-        select(Customer.id, Customer.name, Customer.phone)
-        .where(or_(Customer.name.like(like), Customer.phone.like(like)))
+        select(
+            Customer.id,
+            Customer.name,
+            Customer.phone,
+            Customer.name_pinyin,
+            Customer.name_initials,
+        )
+        .where(
+            or_(
+                Customer.name.like(like),
+                Customer.phone.like(like),
+                Customer.name_pinyin.like(like),
+                Customer.name_initials.like(like),
+            )
+        )
         .order_by(Customer.name)
-        .limit(per_group * 4),  # 取多一点供打分后再截
+        .limit(per_group * 4),
     ).all()
 
-    # 宠物
+    # 宠物：name / name_pinyin / name_initials
     pet_rows = db.execute(
-        select(Pet.id, Pet.name, Pet.species, Pet.breed, Customer.name.label("owner_name"))
+        select(
+            Pet.id,
+            Pet.name,
+            Pet.species,
+            Pet.breed,
+            Pet.name_pinyin,
+            Pet.name_initials,
+            Customer.name.label("owner_name"),
+        )
         .join(Pet.customer)
-        .where(Pet.name.like(like))
+        .where(
+            or_(
+                Pet.name.like(like),
+                Pet.name_pinyin.like(like),
+                Pet.name_initials.like(like),
+            )
+        )
         .order_by(Pet.name)
         .limit(per_group * 4),
     ).all()
 
-    # 消费记录
+    # 消费记录（note 不做拼音化，意义不大）
     cost_rows = db.execute(
         select(
             CostRecord.id,
@@ -64,7 +95,12 @@ def search(db: Session, q: str, per_group: int = 5) -> list[dict]:
 
     customers: list[dict] = []
     for row in cust_rows:
-        score = max(_score(row.name, qs), _score(row.phone, qs))
+        score = max(
+            _score(row.name, qs),
+            _score(row.phone, qs),
+            _score(row.name_pinyin, qs),
+            _score(row.name_initials, qs),
+        )
         customers.append({
             "type": "customer",
             "id": row.id,
@@ -84,7 +120,11 @@ def search(db: Session, q: str, per_group: int = 5) -> list[dict]:
             "title": f"{species} {row.name}",
             "subtitle": f"{row.breed or row.species}{breed_tag} · 主人: {row.owner_name}" if row.owner_name else (row.breed or row.species),
             "url": f"/pets/{row.id}",
-            "score": _score(row.name, qs),
+            "score": max(
+                _score(row.name, qs),
+                _score(row.name_pinyin, qs),
+                _score(row.name_initials, qs),
+            ),
         })
 
     costs: list[dict] = []
@@ -100,7 +140,7 @@ def search(db: Session, q: str, per_group: int = 5) -> list[dict]:
             "score": _score(row.note, qs),
         })
 
-    # 组内按 score desc 排序，分数相同保持原顺序（name asc / occurred_on desc）；按 type 顺序拼接
+    # 组内按 score desc 排序；按 type 顺序拼接
     customers.sort(key=lambda r: r["score"], reverse=True)
     pets.sort(key=lambda r: r["score"], reverse=True)
     costs.sort(key=lambda r: r["score"], reverse=True)
