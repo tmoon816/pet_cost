@@ -18,7 +18,23 @@ const form = reactive({ name: '', phone: '', note: '' })
 const formRef = ref(null)
 
 const rules = {
-  name: [{ required: true, message: '请输入客户姓名', trigger: 'blur' }],
+  name: [
+    { required: true, message: '请输入客户姓名', trigger: 'blur' },
+    { max: 50, message: '姓名不超过 50 字符', trigger: 'blur' },
+  ],
+  phone: [
+    {
+      validator: (_rule, value, callback) => {
+        const v = (value || '').trim()
+        if (!v) return callback()
+        if (!/^1\d{10}$/.test(v)) {
+          return callback(new Error('请输入 11 位手机号（以 1 开头）'))
+        }
+        callback()
+      },
+      trigger: 'blur',
+    },
+  ],
 }
 
 // debounce 300ms实时搜索：输入变动 300ms 后触发查询；清空后恢复全部
@@ -280,8 +296,8 @@ function customerTagType(type, hasCost) {
         <el-form-item label="姓名" prop="name">
           <el-input v-model="form.name" maxlength="50" />
         </el-form-item>
-        <el-form-item label="手机号">
-          <el-input v-model="form.phone" maxlength="20" placeholder="选填，应用层校验唯一" />
+        <el-form-item label="手机号" prop="phone">
+          <el-input v-model="form.phone" maxlength="11" placeholder="选填，11 位手机号" />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="form.note" type="textarea" :rows="3" />

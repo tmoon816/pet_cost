@@ -21,6 +21,26 @@ const loading = ref(false)
 const editingInfo = ref(false)
 const submitting = ref(false)
 const customerForm = reactive({ name: '', phone: '', note: '' })
+const customerFormRef = ref(null)
+const customerRules = {
+  name: [
+    { required: true, message: '请输入客户姓名', trigger: 'blur' },
+    { max: 50, message: '姓名不超过 50 字符', trigger: 'blur' },
+  ],
+  phone: [
+    {
+      validator: (_rule, value, callback) => {
+        const v = (value || '').trim()
+        if (!v) return callback()
+        if (!/^1\d{10}$/.test(v)) {
+          return callback(new Error('请输入 11 位手机号（以 1 开头）'))
+        }
+        callback()
+      },
+      trigger: 'blur',
+    },
+  ],
+}
 
 // T-011: 消费时间线（分页加载）
 const TIMELINE_PAGE_SIZE = 20
@@ -116,6 +136,9 @@ async function loadMoreTimeline() {
 onMounted(load)
 
 async function saveCustomer() {
+  if (!customerFormRef.value) return
+  const valid = await customerFormRef.value.validate().catch(() => false)
+  if (!valid) return
   submitting.value = true
   const payload = {
     name: customerForm.name.trim(),
@@ -302,12 +325,12 @@ async function onCostSaved() {
         <el-descriptions-item label="更新时间">{{ detail.updated_at?.replace('T', ' ').slice(0, 19) }}</el-descriptions-item>
       </el-descriptions>
 
-      <el-form v-else :model="customerForm" label-width="80px">
-        <el-form-item label="姓名">
-          <el-input v-model="customerForm.name" />
+      <el-form v-else ref="customerFormRef" :model="customerForm" :rules="customerRules" label-width="80px">
+        <el-form-item label="姓名" prop="name">
+          <el-input v-model="customerForm.name" maxlength="50" />
         </el-form-item>
-        <el-form-item label="手机号">
-          <el-input v-model="customerForm.phone" />
+        <el-form-item label="手机号" prop="phone">
+          <el-input v-model="customerForm.phone" maxlength="11" placeholder="选填，11 位手机号" />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="customerForm.note" type="textarea" :rows="2" />
