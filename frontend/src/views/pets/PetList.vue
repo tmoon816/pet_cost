@@ -199,12 +199,13 @@ onMounted(() => fetchList())
 
         <div class="card-bottom">
           <div class="last-visit">
+            <span class="lv-label">最近到店</span>
             <template v-if="formatLastVisit(pet.last_visit_at)">
               <span class="lv-dot" />
               <span class="lv-date">{{ formatLastVisit(pet.last_visit_at).date }}</span>
               <span class="lv-rel">{{ formatLastVisit(pet.last_visit_at).label }}</span>
             </template>
-            <span v-else class="lv-empty">暂无到店记录</span>
+            <span v-else class="lv-empty">暂无记录</span>
           </div>
           <div class="actions" @click.stop>
             <el-button size="small" type="primary" @click="handleEdit(pet)">编辑</el-button>
@@ -353,6 +354,9 @@ onMounted(() => fetchList())
   gap: 6px;
   font-size: 13px;
   color: var(--text-secondary, #606266);
+}
+.lv-label {
+  color: var(--text-muted, #909399);
 }
 .lv-dot {
   width: 6px;
