@@ -12,11 +12,14 @@ router = APIRouter(prefix="/pets", tags=["pets"])
 @router.get("", response_model=Page[PetListItem])
 def list_pets(
     customer_id: int | None = None,
+    q: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    items, total = crud_pet.list_paginated(db, customer_id=customer_id, page=page, page_size=page_size)
+    items, total = crud_pet.list_paginated(
+        db, customer_id=customer_id, page=page, page_size=page_size, q=q
+    )
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 

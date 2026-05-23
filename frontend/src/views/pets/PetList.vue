@@ -1,8 +1,8 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Search } from '@element-plus/icons-vue'
 import { listPets, deletePet } from '@/api/pets'
 import PetForm from '@/components/PetForm.vue'
 
@@ -11,7 +11,7 @@ const list = ref([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
-const customerFilter = ref(null)
+const searchInput = ref('')
 const loading = ref(false)
 const dialogVisible = ref(false)
 const editId = ref(null)
@@ -58,7 +58,8 @@ const fetchList = async () => {
   loading.value = true
   try {
     const params = { page: page.value, page_size: pageSize.value }
-    if (customerFilter.value) params.customer_id = customerFilter.value
+    const q = searchInput.value.trim()
+    if (q) params.q = q
     const res = await listPets(params)
     list.value = res.items || []
     total.value = res.total || 0
@@ -69,6 +70,19 @@ const fetchList = async () => {
     loading.value = false
   }
 }
+
+// 实时搜索：300ms debounce，与客户列表保持一致
+let searchTimer = null
+watch(searchInput, () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    page.value = 1
+    fetchList()
+  }, 300)
+})
+onUnmounted(() => {
+  if (searchTimer) clearTimeout(searchTimer)
+})
 
 const handleAdd = () => {
   editId.value = null
@@ -107,11 +121,6 @@ const onPageChange = (p) => {
   page.value = p
   fetchList()
 }
-const resetFilter = () => {
-  customerFilter.value = null
-  page.value = 1
-  fetchList()
-}
 
 onMounted(() => fetchList())
 </script>
@@ -121,15 +130,13 @@ onMounted(() => fetchList())
     <div class="page-header">
       <h2>客户宠物档案</h2>
       <div class="page-actions">
-        <el-input-number
-          v-model="customerFilter"
-          placeholder="按客户ID筛选"
-          :min="1"
-          :controls="false"
-          style="width: 160px;"
-          @change="() => { page = 1; fetchList() }"
+        <el-input
+          v-model="searchInput"
+          placeholder="搜宠物名 / 主人 / 手机号（实时）"
+          clearable
+          :prefix-icon="Search"
+          style="width: 280px;"
         />
-        <el-button @click="resetFilter">重置</el-button>
         <el-button type="primary" @click="handleAdd">
           <el-icon><Plus /></el-icon>
           新增宠物

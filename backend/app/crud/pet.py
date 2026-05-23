@@ -1,6 +1,6 @@
 from typing import List, Tuple
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from ..models import Customer, CostRecord, Pet
@@ -12,10 +12,16 @@ def get(db: Session, pet_id: int) -> Pet | None:
 
 
 def list_paginated(
-    db: Session, customer_id: int | None, page: int, page_size: int
+    db: Session,
+    customer_id: int | None,
+    page: int,
+    page_size: int,
+    q: str | None = None,
 ) -> Tuple[List[dict], int]:
     """列出宠物，并以 dict 形式返回，额外包含 last_visit_at（MAX(cost_records.occurred_on)）
     和 customer_name（前端列表只展示 ID 太抽象，要主人姓名直观一些）。
+
+    支持 q 跨字段搜索：宠物名 / 宠物拼音 / 主人名 / 主人拼音 / 主人手机号。
 
     返回 dict 而非 ORM 实例是为了后接 PetListItem 这个非 from_attributes 映射也能顺利序列化。
     """
@@ -29,10 +35,23 @@ def list_paginated(
     stmt = select(Pet, last_visit_subq.label("last_visit_at"), Customer.name.label("customer_name")).join(
         Customer, Customer.id == Pet.customer_id
     )
-    count_stmt = select(func.count(Pet.id))
+    count_stmt = select(func.count(Pet.id)).join(Customer, Customer.id == Pet.customer_id)
     if customer_id is not None:
         stmt = stmt.where(Pet.customer_id == customer_id)
         count_stmt = count_stmt.where(Pet.customer_id == customer_id)
+    if q and q.strip():
+        like = f"%{q.strip()}%"
+        cond = or_(
+            Pet.name.like(like),
+            Pet.name_pinyin.like(like),
+            Pet.name_initials.like(like),
+            Customer.name.like(like),
+            Customer.name_pinyin.like(like),
+            Customer.name_initials.like(like),
+            Customer.phone.like(like),
+        )
+        stmt = stmt.where(cond)
+        count_stmt = count_stmt.where(cond)
     stmt = stmt.order_by(Pet.id.desc()).offset((page - 1) * page_size).limit(page_size)
 
     rows = db.execute(stmt).all()

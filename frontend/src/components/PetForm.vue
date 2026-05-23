@@ -2,6 +2,7 @@
 import { ref, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { createPet, updatePet, getPet } from '@/api/pets'
+import { listCustomers, getCustomer } from '@/api/customers'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -23,8 +24,8 @@ const form = ref({
 
 const rules = {
   customer_id: [
-    { required: true, message: '请输入所属客户ID', trigger: 'blur' },
-    { type: 'number', min: 1, message: '请输入有效的客户ID', trigger: 'blur' }
+    { required: true, message: '请选择主人', trigger: 'change' },
+    { type: 'number', min: 1, message: '请选择有效的主人', trigger: 'change' }
   ],
   name: [
     { required: true, message: '请输入宠物名称', trigger: 'blur' },
@@ -32,7 +33,6 @@ const rules = {
   ]
 }
 
-// 物种/性别选项：value 用英文 code，与 CustomerDetail/PetDetail 已有约定一致
 const speciesOptions = [
   { label: '犬', value: 'dog' },
   { label: '猫', value: 'cat' },
@@ -53,6 +53,38 @@ const visible = computed({
   set: (val) => emit('update:modelValue', val)
 })
 
+// 主人远程搜索：el-select remote。结果带姓名 + 手机号便于识别。
+// editId / defaultCustomerId 场景下需要预先把当前主人塞进去，否则 select 显示空白。
+const customerOptions = ref([])
+const customerSearchLoading = ref(false)
+
+async function searchCustomers(q) {
+  customerSearchLoading.value = true
+  try {
+    const res = await listCustomers({ q: q || undefined, page: 1, page_size: 20 })
+    customerOptions.value = res.items.map((c) => ({
+      id: c.id,
+      label: c.phone ? `${c.name} · ${c.phone}` : c.name,
+    }))
+  } catch {
+    customerOptions.value = []
+  } finally {
+    customerSearchLoading.value = false
+  }
+}
+
+async function ensureCustomerOption(id) {
+  if (!id) return
+  if (customerOptions.value.some((o) => o.id === id)) return
+  try {
+    const c = await getCustomer(id)
+    customerOptions.value.unshift({
+      id: c.id,
+      label: c.phone ? `${c.name} · ${c.phone}` : c.name,
+    })
+  } catch { /* ignore */ }
+}
+
 const resetForm = () => {
   form.value = {
     customer_id: props.defaultCustomerId || null,
@@ -63,14 +95,21 @@ const resetForm = () => {
     birthday: null,
     note: ''
   }
+  customerOptions.value = []
   formRef.value?.resetFields()
 }
 
-watch(() => visible.value, (val) => {
+watch(() => visible.value, async (val) => {
   if (!val) {
     resetForm()
-  } else if (props.editId) {
-    fetchPet()
+    return
+  }
+  // 打开时预热一份初始客户列表，方便点开就能看到
+  await searchCustomers('')
+  if (props.editId) {
+    await fetchPet()
+  } else if (props.defaultCustomerId) {
+    await ensureCustomerOption(props.defaultCustomerId)
   }
 })
 
@@ -90,6 +129,7 @@ const fetchPet = async () => {
       birthday: data.birthday || null,
       note: data.note || ''
     }
+    await ensureCustomerOption(data.customer_id)
   } catch (e) {
     ElMessage.error('获取宠物信息失败')
     visible.value = false
@@ -105,7 +145,6 @@ const handleSubmit = async () => {
     }
     loading.value = true
     try {
-      // payload 与后端 PetCreate / PetUpdate schema 完全一致（snake_case）
       const payload = {
         customer_id: form.value.customer_id,
         name: form.value.name.trim(),
@@ -126,7 +165,7 @@ const handleSubmit = async () => {
       emit('success')
       visible.value = false
     } catch (e) {
-      // http 拦截器已弹 ElMessage.error，这里不再重复
+      // http 拦截器已弹 ElMessage.error
     } finally {
       loading.value = false
     }
@@ -148,14 +187,25 @@ const handleSubmit = async () => {
       label-width="100px"
       style="padding-right: 24px;"
     >
-      <el-form-item label="所属客户ID" prop="customer_id">
-        <el-input-number
-          v-model.number="form.customer_id"
-          placeholder="请输入客户ID"
-          :min="1"
+      <el-form-item label="主人" prop="customer_id">
+        <el-select
+          v-model="form.customer_id"
+          filterable
+          remote
+          :remote-method="searchCustomers"
+          :loading="customerSearchLoading"
+          placeholder="按姓名或手机号搜索"
+          clearable
           style="width: 100%;"
           :disabled="!!defaultCustomerId"
-        />
+        >
+          <el-option
+            v-for="c in customerOptions"
+            :key="c.id"
+            :label="c.label"
+            :value="c.id"
+          />
+        </el-select>
       </el-form-item>
       <el-form-item label="宠物名称" prop="name">
         <el-input v-model="form.name" placeholder="请输入宠物名称" />
