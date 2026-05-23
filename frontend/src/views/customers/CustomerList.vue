@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useCustomerStore } from '@/stores/customerStore'
+import * as customersApi from '@/api/customers'
 
 const router = useRouter()
 const store = useCustomerStore()

@@ -2,7 +2,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
-import { Pie, Bar } from '@ant-design/charts'
+import EChart from '@/components/EChart.vue'
 import { getSummary, getByCategory, getByMonth, getByPet, getCustomerAcquisition, getDormantCustomers, getTopCustomers } from '@/api/stats'
 import { listCosts } from '@/api/costs'
 import { useCategoryStore } from '@/stores/categoryStore'
@@ -233,34 +233,54 @@ const acquisitionDisplay = computed(() => {
 })
 
 const pieConfig = computed(() => ({
-  data: categoryStats.value,
-  angleField: 'value',
-  colorField: 'type',
-  radius: 0.8,
-  label: { type: 'outer', content: '{name}: {percentage:.1%}' },
-  legend: true
+  tooltip: { trigger: 'item', formatter: '{b}: ¥{c} ({d}%)' },
+  legend: { bottom: 0, type: 'scroll' },
+  series: [{
+    type: 'pie',
+    radius: ['38%', '68%'],
+    avoidLabelOverlap: true,
+    label: { formatter: '{b}: {d}%' },
+    data: categoryStats.value.map((d) => ({ name: d.type, value: d.value })),
+  }],
 }))
 
 const monthBarConfig = computed(() => ({
-  data: monthStats.value,
-  xField: 'month',
-  yField: '营业额',
-  color: '#FFA62B',
   tooltip: {
-    formatter: (datum) => ({ name: datum.month, value: `¥${datum.营业额.toFixed(2)}` })
-  }
+    trigger: 'axis',
+    formatter: (params) => `${params[0].name}<br/>营业额: ¥${Number(params[0].value).toFixed(2)}`,
+  },
+  grid: { left: 60, right: 20, top: 20, bottom: 40 },
+  xAxis: { type: 'category', data: monthStats.value.map((d) => d.month) },
+  yAxis: { type: 'value' },
+  series: [{
+    type: 'bar',
+    itemStyle: { color: '#FFA62B' },
+    data: monthStats.value.map((d) => d['营业额']),
+  }],
 }))
 
 const petBarConfig = computed(() => ({
-  data: petStats.value,
-  xField: '消费',
-  yField: 'pet',
-  color: '#82C91E',
-  legend: false,
-  label: {
-    position: 'right',
-    formatter: (datum) => `¥${datum.消费.toFixed(2)}`
-  }
+  tooltip: {
+    trigger: 'axis',
+    axisPointer: { type: 'shadow' },
+    formatter: (params) => `${params[0].name}<br/>消费: ¥${Number(params[0].value).toFixed(2)}`,
+  },
+  grid: { left: 100, right: 70, top: 20, bottom: 30 },
+  xAxis: { type: 'value' },
+  yAxis: {
+    type: 'category',
+    data: [...petStats.value].reverse().map((d) => d.pet),
+  },
+  series: [{
+    type: 'bar',
+    itemStyle: { color: '#82C91E' },
+    label: {
+      show: true,
+      position: 'right',
+      formatter: (p) => `¥${Number(p.value).toFixed(2)}`,
+    },
+    data: [...petStats.value].reverse().map((d) => d['消费']),
+  }],
 }))
 
 onMounted(async () => {
@@ -495,7 +515,7 @@ const dateShortcuts = [
         <el-card shadow="hover" v-loading="loading.category">
           <template #header><strong>服务项目营收占比（本月）</strong></template>
           <div style="height: 320px;" v-if="categoryStats.length > 0">
-            <Pie v-bind="pieConfig" />
+            <EChart :option="pieConfig" />
           </div>
           <div class="empty-chart" v-else><p>暂无消费数据</p></div>
         </el-card>
@@ -504,7 +524,7 @@ const dateShortcuts = [
         <el-card shadow="hover" v-loading="loading.pet">
           <template #header><strong>本月消费宠物 TOP 8</strong></template>
           <div style="height: 320px;" v-if="petStats.length > 0">
-            <Bar v-bind="petBarConfig" />
+            <EChart :option="petBarConfig" />
           </div>
           <div class="empty-chart" v-else><p>暂无宠物消费数据</p></div>
         </el-card>
@@ -516,7 +536,7 @@ const dateShortcuts = [
         <el-card shadow="hover" v-loading="loading.month">
           <template #header><strong>月度营业额趋势（全量）</strong></template>
           <div style="height: 320px;" v-if="monthStats.length > 0">
-            <Bar v-bind="monthBarConfig" />
+            <EChart :option="monthBarConfig" />
           </div>
           <div class="empty-chart" v-else><p>暂无月度数据</p></div>
         </el-card>

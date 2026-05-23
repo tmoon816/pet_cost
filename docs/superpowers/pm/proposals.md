@@ -14,6 +14,7 @@ PM cron agent 每次 tick 会读取本文件，往 Backlog 段追加新提案。
 ```
 proposed       ← PM cron 新写的，等你看
 accepted       ← 你认可，准备转化为开发任务
+implemented    ← 已落地到代码（手动或随其他任务一起做掉）
 rejected       ← 你不要，留作记录避免 PM 反复提同一个
 deferred       ← 暂时不做，PM 知道这事被你看过了
 ```
@@ -52,30 +53,6 @@ deferred       ← 暂时不做，PM 知道这事被你看过了
 
 ## Backlog（PM cron 写在这里）
 
-## P-001: Dashboard 新增「Top 10 高价值客户」卡片
-- status: accepted
-- created_at: 2026-05-22
-- vision_anchor: "vision.md §2.3「月底，老板想看……Top 10 高价值客户」"
-- user_scenario: "月底，小店老板想在 Dashboard 一眼看出本店最值钱的 10 个客户是谁，决定是否专门维护（送个小礼/发条问候），而不用自己去客户列表按金额排序再翻页"
-- problem: "vision §2.3 明确列出『Top 10 高价值客户』是月底关键决策场景，但 Dashboard 目前只有新客 vs 回头客（T-009）和久未到店（T-010）两张运营卡片，缺少『谁最值得维护』的正向视角；客户列表虽支持按累计消费排序（T-015）但需要主动点进去翻，不在打开系统的第一屏"
-- mvp: "Dashboard 增加一张『高价值客户 Top 10』卡片，后端复用现有客户聚合接口加 order_by=total_spent desc&limit=10，前端列出：排名、客户名、累计消费、订单数；点击行跳转客户详情页。不做时间窗口筛选（v1 直接全周期累计）"
-- why_now: "T-007 客户聚合卡片、T-015 按金额排序已经把数据基础铺好了，Dashboard 的『回头客视角』三张卡（新客回头/久未到店/高价值）刚好补齐 vision §2.3 的月底场景，是上一轮 done 的自然延伸"
-- size: small
-- linked_task: "T-027"
-- reject_reason: ""
-
-## P-002: 「久未到店」预警列表直接显示联系方式，让流失预警可行动
-- status: accepted
-- created_at: 2026-05-22
-- vision_anchor: "vision.md §2.4「维护客情：老板能从客户档案点开看完整的消费历史……不用脑子记」+ §4「流失预警卡片」"
-- user_scenario: "老板早上打开 Dashboard 看到『3 个月未到店老客』列表里有 8 个名字，想立刻挑 2 个发微信问候『最近来洗澡吗？』。现在他要逐个点进客户详情页才能看到手机号，操作链路 3 步，实际放弃率高"
-- problem: "T-010 已经做了流失预警列表，但只显示客户名和距今天数，老板看到名字之后『下一步要联系』的动作没接上；vision §2.4 的核心是『不用脑子记就能维护客情』，少这一步信息就让预警卡变成纯展示"
-- mvp: "在已有的『久未到店老客』列表每行追加：手机号（脱敏后 4 位）+ 一个『复制手机号』按钮 / 或显示上次消费的项目名（提示『上次做的是 XX，可以问问要不要再约一次』）。后端接口已经有 customer 表全字段，前端只需要在已有列表组件里加 1-2 列"
-- why_now: "T-010 上轮刚 done，列表骨架已存在，加列比新做一张卡成本低 10 倍；同时这是 vision §4 明确点名的『流失预警』功能链路收尾，不补上这一步 T-010 的价值发挥不出来"
-- size: small
-- linked_task: "T-028"
-- reject_reason: ""
-
 ## P-003: 消费新增「保存并继续」——打烊前连续录入提速
 - status: accepted
 - created_at: 2026-05-22
@@ -85,18 +62,6 @@ deferred       ← 暂时不做，PM 知道这事被你看过了
 - mvp: "CostFormDialog 提交按钮右加一个「保存并继续」按钮：点击后提交 API，成功则 toast 提示『已保存』，表单不关闭、客户/宠物保持选中、金额清空并 focus，老板只需改金额再点一下即可连续录入同一客户的多个服务项。最后一个记录点原来的「确定」按钮关闭弹窗。后端零改动，纯前端 Dialog 交互逻辑（handleSubmit 加一个 stayOpen 参数）。"
 - why_now: "T-014（最近 5 个客户快选）上周 done，已经把『找到客户』的效率提升了，但只解决了录入链路的前半段。现在补『连续录入』的后半段，vision §2.2 的 5 分钟目标才能真正落地——这是 T-014 的自然延伸和收尾。"
 - size: small
-- linked_task: "T-029"
-- reject_reason: ""
-
-## P-005: 客户 & 宠物档案增加自由备注字段，承接「不用脑子记」的软信息
-- status: proposed
-- created_at: 2026-05-23
-- vision_anchor: "vision.md §2.4「老板能从客户档案点开看完整的消费历史和宠物名下的所有记录，不用脑子记」+ §4「客户消费历史聚合」"
-- user_scenario: "接待时，老板想起『这只猫上次美容叫得特别凶，下次得让助手帮忙保定』、『张姐喜欢早上 10 点来，下午来都没耐心等』、『这只柯基对玉米过敏，零食不能给』。这些信息现在全靠脑子记，下次接待经常忘；写在 Excel 备注里又割裂。"
-- problem: "Customer / Pet 模型只有结构化字段（姓名、电话、品种、生日等），没有任何自由文本承接『软信息』（脾气、喜好、约定、过敏）。vision §2.4 的『不用脑子记』在结构化数据上做到了，但小店老板真正赖以维护熟客关系的『脑子里那点经验』没接住——这恰恰是个人小店区别于连锁的核心服务能力。"
-- mvp: "Customer 和 Pet 模型各加一个 notes TEXT 可空字段，alembic 迁移加字段；后端 schema/CRUD 透传，零新增端点；前端 CustomerForm / PetForm 增加多行输入（textarea，限 500 字），详情页（CustomerDetail / PetDetail）增加『备注』卡片直接渲染（保留换行）。"
-- why_now: "T-018 已把宠物详情页消费表格补齐，T-007 + T-011 把客户档案做得相对完整，结构化信息已经够用；下一步自然该补『结构化抓不住的信息』。改动面小（DB 加可空字段、前端各加 1 个输入 + 1 个展示块），风险低，是 vision §2.4 的天然延伸。"
-- size: small
 - linked_task: ""
 - reject_reason: ""
 
@@ -105,21 +70,9 @@ deferred       ← 暂时不做，PM 知道这事被你看过了
 - created_at: 2026-05-23
 - vision_anchor: "vision.md §4「围绕『客户回头率不清晰』这个核心痛点，做小增量：客户消费历史聚合、回头客标签、流失预警卡片」——『回头客标签』直接点名"
 - user_scenario: "接待时，张三推门进来，老板在系统里搜到档案，当前页面显示电话 / 累计消费 / 上次到店，但老板要扫一眼数字心算『这是不是回头客』。在客户列表浏览时同样希望一眼分辨——尤其在月底想从列表里挑一批 VIP 发问候，目前只能靠累计消费排序倒推。"
-- problem: "T-009 已经在 Dashboard 做了『本月新客 vs 回头客数量』统计卡，T-015 也支持按累计消费排序，但**客户级别**的『回头客 / 新客 / VIP』标签从未下沉到客户列表行和详情页头部。vision §4 把『回头客标签』和『流失预警卡片』并列点名，后者已落地（T-010），前者只完成了数字层，没完成行级层——老板每次看到客户名时还要自己心算分类。"
-- mvp: "后端 customer 列表和详情接口的响应里追加 visit_count（消费记录数）和 customer_type 枚举字段（first_visit=0 单 / returning=2-4 单 / vip=≥5 单；阈值在 core/config 里设常量便于以后调）。前端 CustomerList 表格加一列 el-tag（三色：灰/蓝/金），CustomerDetail 顶部聚合卡区加一枚徽章。零新增接口，仅扩展现有响应字段。"
-- why_now: "T-007（客户聚合卡片）和 T-009（Dashboard 新老客统计）已把消费记录数的聚合逻辑铺好，复用即可；vision §4 当前阶段重点列表（聚合 / 标签 / 预警）里，唯独『回头客标签』在 done 列表中没有对应行级实现，是 v1 focus 里最后一块未补的拼图。size=small，前后端各 1-2 个文件。"
-- size: small
-- linked_task: ""
-- reject_reason: ""
-
-## P-004: 客户详情页直达新增消费——信息到行动闭环
-- status: accepted
-- created_at: 2026-05-22
-- vision_anchor: "vision.md §2.4「老板能从客户档案点开看完整的消费历史和宠物名下的所有记录，不用脑子记」+ §2.1「5 秒内查到上次什么时候来 / 都消费过什么 / 累计花了多少，决定要不要给老客优惠或主动推荐」"
-- user_scenario: "老板在客户详情页看到该客户上次做美容是 3 周前、累计花了 4800 元，决定这次给他打 9 折并立刻加一条今天的精洗服务。当前流程：记住客户名 → 点侧边栏「服务订单流水」→ 点「新增消费」→ 在客户下拉里重新搜索找到这个客户（没有预填）→ 选宠物 → 选分类 → 填金额。从『看到信息』到『行动』跨了页面，还要靠脑子记客户名。"
-- problem: "客户详情页（CustomerDetail.vue）已有消费时间线（T-011）和聚合卡片（T-007），老板看完消费历史想立刻给该客户加一条新纪录时，需要跨页面导航并在新页面重新定位该客户。vision §2.4 的『不用脑子记』在『看』这个环节做到了，但在『行动』环节断了——看完了还得记住『我要给张三加一条美容』再切页面找张三。"
-- mvp: "客户详情页顶部（聚合卡片和消费时间线之间）加一个「新增服务」el-button。点击唤起已有的 CostFormDialog 组件，通过 props 自动预填 customer_id（客户详情页已知）和默认选中该客户名下第一只宠物。老板只需选分类、填金额、点确定，流程从 6 步缩到 2 步。后端零改动，前端复用已有 Dialog 组件。"
-- why_now: "T-011 消费时间线刚 done，客户详情页现在是老板高频使用的页面；T-014 已证明 CostFormDialog 支持外部预填参数的模式可行。vision §2.4 强调『不用脑子记就能维护客情』，现在客户详情页看完历史想行动还需要跨页记忆，补上这一步就把客户详情页从『查看』升级为『查看+操作』，客情维护真正闭环。"
+- problem: "T-009 已经在 Dashboard 做了『本月新客 vs 回头客数量』统计卡，T-015 也支持按累计消费排序，但**客户级别**的『回头客 / 新客 / VIP』标签从未下沉到客户列表行和详情页头部。vision §4 把『回头客标签』和『流失预警卡片』并列点名，后者已落地（T-010），前者只完成了数字层，没完成行级层——老板每次看到客户名时还要自己心算分类。注：T-008 已实现『新客/老客』二分（基于 has_cost），本提案是把它扩展为『新客/回头客/VIP』三分。"
+- mvp: "后端 customer 列表和详情接口的响应里追加 visit_count（消费记录数）和 customer_type 枚举字段（first_visit=0 单 / returning=2-4 单 / vip=≥5 单；阈值在 core/config 里设常量便于以后调）。前端 CustomerList 表格把现有的『新客/老客』tag 列扩展为三色（灰/蓝/金），CustomerDetail 顶部聚合卡区加一枚徽章。零新增接口，仅扩展现有响应字段。"
+- why_now: "T-007（客户聚合卡片）和 T-009（Dashboard 新老客统计）已把消费记录数的聚合逻辑铺好，复用即可；vision §4 当前阶段重点列表（聚合 / 标签 / 预警）里，『回头客标签』在 T-008 只做了二分，VIP 这层未做，是 v1 focus 里最后一块未补的拼图。size=small，前后端各 1-2 个文件。"
 - size: small
 - linked_task: ""
 - reject_reason: ""
@@ -128,4 +81,34 @@ deferred       ← 暂时不做，PM 知道这事被你看过了
 
 ## 已处理（accepted / rejected / deferred 的提案搬到这里）
 
-(暂无)
+## P-001: Dashboard 新增「Top 10 高价值客户」卡片
+- status: implemented
+- created_at: 2026-05-22
+- implemented_at: 2026-05-22
+- implemented_in: "commit 0164c3b ✨ feat(P-001~P-004): product proposals implementation；后端 /api/v1/stats/top-customers + 前端 Dashboard.vue Top 10 卡片"
+- vision_anchor: "vision.md §2.3「月底，老板想看……Top 10 高价值客户」"
+- size: small
+
+## P-002: 「久未到店」预警列表直接显示联系方式
+- status: implemented
+- created_at: 2026-05-22
+- implemented_at: 2026-05-22
+- implemented_in: "commit 0164c3b；Dashboard.vue 久未到店表格已加 phone-masked 列 + 复制按钮（Dashboard.vue:411-426）"
+- vision_anchor: "vision.md §2.4 + §4 流失预警卡片"
+- size: small
+
+## P-004: 客户详情页直达新增消费
+- status: implemented
+- created_at: 2026-05-22
+- implemented_at: 2026-05-22
+- implemented_in: "CustomerDetail.vue:376 已加「新增服务」按钮，复用 CostFormDialog + 预填 customer_id"
+- vision_anchor: "vision.md §2.4 + §2.1"
+- size: small
+
+## P-005: 客户 & 宠物档案增加自由备注字段（已 rejected）
+- status: rejected
+- created_at: 2026-05-23
+- rejected_at: 2026-05-24
+- reject_reason: "提案前置调研有误。复核后 Customer 模型已有 note TEXT 字段（models/customer.py:18，CustomerList 编辑弹窗已是 textarea），Pet 模型同样已有 note 字段（models/pet.py:25，PetDetail.vue:196/219-220 + PetList.vue:195-196 已展示和编辑）。两端「自由备注」均已落地，本提案无新功能可做，归入误提。"
+- vision_anchor: "vision.md §2.4「不用脑子记」——已被现有 note 字段满足"
+- size: small
