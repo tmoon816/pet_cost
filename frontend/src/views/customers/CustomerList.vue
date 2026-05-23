@@ -4,12 +4,14 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useCustomerStore } from '@/stores/customerStore'
 import * as customersApi from '@/api/customers'
+import CustomerImportDialog from '@/views/customers/CustomerImportDialog.vue'
 
 const router = useRouter()
 const store = useCustomerStore()
 
 const searchInput = ref('')
 const dialogVisible = ref(false)
+const importDialogVisible = ref(false)
 const editingId = ref(null)
 const submitting = ref(false)
 const form = reactive({ name: '', phone: '', note: '' })
@@ -187,6 +189,10 @@ function customerTagType(type, hasCost) {
         :prefix-icon="'Search'"
       />
       <el-button @click="toggleSortByAmount">{{ amountSortLabel }}</el-button>
+      <el-button @click="importDialogVisible = true">
+        <el-icon><Upload /></el-icon>
+        批量导入
+      </el-button>
       <el-button @click="handleExport">
         <el-icon><Download /></el-icon>
         导出 CSV
@@ -205,7 +211,21 @@ function customerTagType(type, hasCost) {
     >
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column prop="name" label="姓名" min-width="120" />
-      <el-table-column label="类型" width="100" align="center">
+      <el-table-column label="类型" width="110" align="center">
+        <template #header>
+          <span class="header-with-tip">
+            类型
+            <el-tooltip placement="top">
+              <template #content>
+                按消费记录条数划分：<br />
+                · 新客 = 0 条<br />
+                · 回头客 = 1 ~ 4 条<br />
+                · VIP = ≥ 5 条
+              </template>
+              <el-icon class="tip-icon"><InfoFilled /></el-icon>
+            </el-tooltip>
+          </span>
+        </template>
         <template #default="{ row }">
           <el-tag
             :type="customerTagType(row.customer_type, row.has_cost)"
@@ -272,6 +292,11 @@ function customerTagType(type, hasCost) {
         <el-button type="primary" :loading="submitting" @click="submit">保存</el-button>
       </template>
     </el-dialog>
+
+    <CustomerImportDialog
+      v-model="importDialogVisible"
+      @imported="store.fetchList()"
+    />
   </div>
 </template>
 
@@ -298,5 +323,18 @@ function customerTagType(type, hasCost) {
 .pagination {
   display: flex;
   justify-content: flex-end;
+}
+.header-with-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.tip-icon {
+  color: var(--text-muted, #909399);
+  cursor: help;
+  font-size: 14px;
+}
+.tip-icon:hover {
+  color: var(--primary, #5a8dee);
 }
 </style>

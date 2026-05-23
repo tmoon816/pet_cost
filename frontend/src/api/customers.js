@@ -12,3 +12,23 @@ export const exportCustomers = (params) => http.get('/customers/export', {
   params,
   responseType: 'blob',
 })
+
+export const downloadImportTemplate = () => http.get('/customers/import/template', {
+  responseType: 'blob',
+})
+
+export const previewImport = (file) => {
+  const fd = new FormData()
+  fd.append('file', file)
+  return http.post('/customers/import/preview', fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+}
+
+export const commitImport = (file) => {
+  const fd = new FormData()
+  fd.append('file', file)
+  return http.post('/customers/import/commit', fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+}
