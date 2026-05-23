@@ -8,6 +8,7 @@ import * as petsApi from '@/api/pets'
 import * as customersApi from '@/api/customers'
 import { listCosts } from '@/api/costs'
 import CostFormDialog from '@/views/costs/CostFormDialog.vue'
+import PetForm from '@/components/PetForm.vue'
 
 const props = defineProps({ id: { type: [String, Number], required: true } })
 const router = useRouter()
@@ -34,9 +35,6 @@ const timelineHasMore = computed(
 
 const petDialog = ref(false)
 const editingPetId = ref(null)
-const petForm = reactive({ name: '', species: '', breed: '', gender: '', birthday: null, note: '' })
-const petFormRef = ref(null)
-const petSubmitting = ref(false)
 // P-004: 客户详情页直达新增消费
 const costDialogVisible = ref(false)
 
@@ -50,10 +48,6 @@ const genderOptions = [
   { value: 'female', label: '母' },
   { value: 'unknown', label: '未知' },
 ]
-
-const petRules = {
-  name: [{ required: true, message: '请输入宠物名', trigger: 'blur' }],
-}
 
 async function load() {
   loading.value = true
@@ -151,57 +145,19 @@ function cancelEdit() {
   })
 }
 
-function resetPetForm() {
-  Object.assign(petForm, { name: '', species: '', breed: '', gender: '', birthday: null, note: '' })
-  editingPetId.value = null
-}
-
 function openCreatePet() {
-  resetPetForm()
+  editingPetId.value = null
   petDialog.value = true
 }
 
 function openEditPet(pet) {
   editingPetId.value = pet.id
-  Object.assign(petForm, {
-    name: pet.name,
-    species: pet.species || '',
-    breed: pet.breed || '',
-    gender: pet.gender || '',
-    birthday: pet.birthday || null,
-    note: pet.note || '',
-  })
   petDialog.value = true
 }
 
-async function submitPet() {
-  if (!petFormRef.value) return
-  await petFormRef.value.validate(async (valid) => {
-    if (!valid) return
-    petSubmitting.value = true
-    const payload = {
-      name: petForm.name.trim(),
-      species: petForm.species || null,
-      breed: petForm.breed?.trim() || null,
-      gender: petForm.gender || null,
-      birthday: petForm.birthday || null,
-      note: petForm.note || null,
-    }
-    try {
-      if (editingPetId.value) {
-        await petsApi.updatePet(editingPetId.value, payload)
-        ElMessage.success('已更新')
-      } else {
-        await petsApi.createPet({ ...payload, customer_id: Number(props.id) })
-        ElMessage.success('已新增')
-      }
-      petDialog.value = false
-      resetPetForm()
-      await load()
-    } finally {
-      petSubmitting.value = false
-    }
-  })
+async function onPetSaved() {
+  petDialog.value = false
+  await load()
 }
 
 async function deletePet(pet) {
@@ -427,46 +383,12 @@ async function onCostSaved() {
       </div>
     </el-card>
 
-    <el-dialog
+    <PetForm
       v-model="petDialog"
-      :title="editingPetId ? '编辑宠物' : '新增宠物'"
-      width="480px"
-      @closed="resetPetForm"
-    >
-      <el-form ref="petFormRef" :model="petForm" :rules="petRules" label-width="80px">
-        <el-form-item label="名字" prop="name">
-          <el-input v-model="petForm.name" maxlength="50" />
-        </el-form-item>
-        <el-form-item label="种类">
-          <el-select v-model="petForm.species" placeholder="可选" style="width: 100%" clearable>
-            <el-option v-for="s in speciesOptions" :key="s.value" :label="s.label" :value="s.value" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="品种">
-          <el-input v-model="petForm.breed" maxlength="50" />
-        </el-form-item>
-        <el-form-item label="性别">
-          <el-select v-model="petForm.gender" placeholder="可选" style="width: 100%" clearable>
-            <el-option v-for="g in genderOptions" :key="g.value" :label="g.label" :value="g.value" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="生日">
-          <el-date-picker
-            v-model="petForm.birthday"
-            type="date"
-            value-format="YYYY-MM-DD"
-            style="width: 100%"
-          />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="petForm.note" type="textarea" :rows="2" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="petDialog = false">取消</el-button>
-        <el-button type="primary" :loading="petSubmitting" @click="submitPet">保存</el-button>
-      </template>
-    </el-dialog>
+      :edit-id="editingPetId"
+      :default-customer-id="Number(id)"
+      @success="onPetSaved"
+    />
 
     <!-- P-004: 客户详情页直达新增消费 -->
     <CostFormDialog
