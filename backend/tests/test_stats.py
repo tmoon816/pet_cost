@@ -203,29 +203,30 @@ def test_dormant_customers_api_default_params(client, fixture_data):
 
 # ── T-026: top-customers ──
 
-def test_top_customers_ranking(client, fixture_data):
-    db = fixture_data["db"]
-    db = fixture_data["db"]
+def test_top_customers_ranking(client, db_session):
     from datetime import date as dt_date
-    from app.models import Customer, CostRecord, CostCategory, Pet
+    from app.models import Customer, CostRecord, Pet
 
-    c1 = Customer(name="高价值A", phone="13900000001")
-    c2 = Customer(name="高价值B", phone="13900000002")
-    db.add_all([c1, c2])
-    db.flush()
+    db = db_session()
+    try:
+        c1 = Customer(name="高价值A", phone="13900000001")
+        c2 = Customer(name="高价值B", phone="13900000002")
+        db.add_all([c1, c2])
+        db.flush()
 
-    p1 = Pet(name="p1", species="dog", customer=c1)
-    p2 = Pet(name="p2", species="cat", customer=c2)
-    db.add_all([p1, p2])
-    db.flush()
+        p1 = Pet(name="p1", species="dog", customer_id=c1.id)
+        p2 = Pet(name="p2", species="cat", customer_id=c2.id)
+        db.add_all([p1, p2])
+        db.flush()
 
-    cat = db.query(CostCategory).filter_by(code="food").first()
-    db.add_all([
-        CostRecord(pet=p1, category_code=cat.code, amount=500, occurred_on=dt_date(2026, 5, 1)),
-        CostRecord(pet=p1, category_code=cat.code, amount=300, occurred_on=dt_date(2026, 5, 2)),
-        CostRecord(pet=p2, category_code=cat.code, amount=100, occurred_on=dt_date(2026, 5, 3)),
-    ])
-    db.flush()
+        db.add_all([
+            CostRecord(pet_id=p1.id, category_code="food", amount=500, occurred_on=dt_date(2026, 5, 1)),
+            CostRecord(pet_id=p1.id, category_code="food", amount=300, occurred_on=dt_date(2026, 5, 2)),
+            CostRecord(pet_id=p2.id, category_code="food", amount=100, occurred_on=dt_date(2026, 5, 3)),
+        ])
+        db.commit()
+    finally:
+        db.close()
 
     resp = client.get("/api/v1/stats/top-customers", params={"limit": 10})
     assert resp.status_code == 200
@@ -233,23 +234,26 @@ def test_top_customers_ranking(client, fixture_data):
     assert len(data) == 2
     assert data[0]["rank"] == 1
     assert data[0]["customer_name"] == "高价值A"
-    assert data[0]["total_amount"] == "800"
+    assert data[0]["total_amount"] == "800.00"
     assert data[0]["order_count"] == 2
     assert data[1]["rank"] == 2
     assert data[1]["customer_name"] == "高价值B"
 
 
-def test_top_customers_limit(client, fixture_data):
-    db = fixture_data["db"]
+def test_top_customers_limit(client, db_session):
     from app.models import Customer
 
-    for i in range(5):
-        db.add(Customer(name=f"限流客户{i}", phone=f"1300000000{i}"))
-    db.flush()
+    db = db_session()
+    try:
+        for i in range(5):
+            db.add(Customer(name=f"限流客户{i}", phone=f"1300000000{i}"))
+        db.commit()
+    finally:
+        db.close()
 
     resp = client.get("/api/v1/stats/top-customers", params={"limit": 3})
     assert resp.status_code == 200
-    assert len(resp.json()) == 0  # no costs → empty
+    assert len(resp.json()) == 0  # 没有 cost 记录 → 空列表
 
 
 def test_top_customers_no_costs(client, db_session):

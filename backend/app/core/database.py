@@ -5,7 +5,10 @@ from .config import settings
 SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
 
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in SQLALCHEMY_DATABASE_URL else {}
+    SQLALCHEMY_DATABASE_URL,
+    connect_args={"check_same_thread": False} if "sqlite" in SQLALCHEMY_DATABASE_URL else {},
+    pool_pre_ping=True,
+    pool_recycle=3600,
 )
 
 # 对SQLite开启外键约束
