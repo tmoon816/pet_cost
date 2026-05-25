@@ -11,4 +11,11 @@ class Settings(BaseSettings):
     # P-006: 客户分层阈值（消费记录数）。0 单=first_visit，1~VIP_THRESHOLD-1=returning，>=VIP_THRESHOLD=vip
     VIP_THRESHOLD: int = 5
 
+    # 单管理员鉴权（环境变量驱动，不建 users 表）
+    ADMIN_USERNAME: str = "admin"
+    ADMIN_PASSWORD_HASH: str = ""        # bcrypt 哈希；空表示未配置
+    JWT_SECRET_KEY: str = ""             # >=32 字节随机串；空表示未配置
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 720   # 12h
+
 settings = Settings()

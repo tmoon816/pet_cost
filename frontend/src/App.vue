@@ -1,6 +1,7 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { ElMessageBox } from 'element-plus'
 import {
   HomeFilled,
   Money,
@@ -11,15 +12,23 @@ import {
   Search,
   UserFilled,
   Expand,
-  Fold
+  Fold,
+  Bell,
+  SwitchButton,
+  ArrowDown
 } from '@element-plus/icons-vue'
 import { useCategoryStore } from './stores/categoryStore'
+import { useAuthStore } from './stores/authStore'
 import { search as searchApi } from './api/search'
 
 const router = useRouter()
 const route = useRoute()
 const categoryStore = useCategoryStore()
+const authStore = useAuthStore()
 const activeMenu = ref('')
+
+const isPublicRoute = computed(() => !!route.meta.public)
+const userInitial = computed(() => (authStore.username || '?').charAt(0).toUpperCase())
 
 // 响应式侧边栏
 const MOBILE_BP = 768
@@ -212,11 +221,28 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
 })
+
+async function onLogout() {
+  try {
+    await ElMessageBox.confirm('确定要退出登录吗？', '提示', {
+      confirmButtonText: '退出',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+  } catch {
+    return
+  }
+  authStore.logout()
+  router.replace({ path: '/login' })
+}
 </script>
 
 <template>
   <div class="app-container">
-    <el-container style="height: 100vh;">
+    <!-- 登录等公共路由：仅渲染内容 -->
+    <router-view v-if="isPublicRoute" />
+
+    <el-container v-else style="height: 100vh;">
       <!-- 移动端侧边栏遮罩 -->
       <div v-if="!isSidebarCollapsed" class="sidebar-overlay" @click="closeSidebar"></div>
       <!-- 侧边导航 -->
@@ -252,22 +278,22 @@ onUnmounted(() => {
 
       <el-container direction="vertical">
         <!-- 顶部导航栏 -->
-        <el-header style="height: 64px; background: var(--card); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between;">
-          <div class="header-left" style="display: flex; align-items: center; gap: 12px;">
+        <el-header class="topbar">
+          <div class="header-left">
             <el-button
               class="hamburger-btn"
               :icon="isSidebarCollapsed ? Expand : Fold"
               text
               @click="toggleSidebar"
             />
-            <h1 style="font-size: 18px; font-weight: 600; margin: 0;">{{ menuItems.find(item => item.path === activeMenu)?.title || '宠物店管理系统' }}</h1>
+            <h1 class="topbar-title">{{ menuItems.find(item => item.path === activeMenu)?.title || '宠物店管理系统' }}</h1>
           </div>
-          <div class="header-right" style="display: flex; align-items: center; gap: 16px;">
+          <div class="header-right">
             <div class="search-wrapper">
               <el-input
                 v-model="searchQuery"
                 placeholder="搜索账单、宠物、客户..."
-                style="width: 300px;"
+                class="topbar-search"
                 :prefix-icon="Search"
                 :loading="searchLoading"
                 @input="onSearchInput"
@@ -320,9 +346,41 @@ onUnmounted(() => {
                 </template>
               </div>
             </div>
-            <div class="user-avatar" style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; cursor: pointer;">
-              贾
-            </div>
+            <el-popover
+              placement="bottom-end"
+              :width="300"
+              trigger="click"
+              popper-class="notify-popover"
+            >
+              <template #reference>
+                <button class="icon-btn" aria-label="通知">
+                  <el-icon :size="18"><Bell /></el-icon>
+                </button>
+              </template>
+              <div class="notify-empty">
+                <div class="notify-empty-emoji">🔕</div>
+                <p class="notify-empty-title">暂无新通知</p>
+                <p class="notify-empty-hint">店铺有重要事件时会出现在这里</p>
+              </div>
+            </el-popover>
+            <el-dropdown trigger="click" @command="(c) => c === 'logout' && onLogout()">
+              <div class="user-chip" tabindex="0">
+                <span class="user-avatar">{{ userInitial }}</span>
+                <div class="user-meta">
+                  <span class="user-name">{{ authStore.username || '管理员' }}</span>
+                  <span class="user-role">店长</span>
+                </div>
+                <el-icon class="user-chip-arrow"><ArrowDown /></el-icon>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="logout">
+                    <el-icon><SwitchButton /></el-icon>
+                    <span style="margin-left: 6px;">退出登录</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
         </el-header>
 
@@ -361,8 +419,161 @@ onUnmounted(() => {
   font-weight: 700;
   color: var(--text-primary);
 }
-.header-left h1 {
+
+/* ---- 顶栏 ---- */
+.topbar {
+  height: 64px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.topbar-title {
+  font-size: 18px;
+  font-weight: 600;
   color: var(--text-primary);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 搜索胶囊 */
+.topbar-search {
+  width: 320px;
+}
+.topbar-search :deep(.el-input__wrapper) {
+  background: var(--bg) !important;
+  border: 1px solid transparent !important;
+  border-radius: 999px !important;
+  height: 38px;
+  padding: 0 14px;
+  transition: all 0.2s ease;
+}
+.topbar-search :deep(.el-input__wrapper:hover) {
+  background: var(--bg-secondary) !important;
+  border-color: var(--border) !important;
+}
+.topbar-search :deep(.el-input__wrapper.is-focus) {
+  background: var(--card) !important;
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 14%, transparent) !important;
+}
+.topbar-search :deep(.el-input__prefix) {
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+
+/* 通用图标按钮（铃铛） */
+.icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+.icon-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+}
+
+/* 用户胶囊 */
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 12px 0 4px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+.user-chip:hover,
+.user-chip:focus-visible {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent);
+}
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--orange));
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--primary) 35%, transparent);
+}
+.user-meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+.user-chip-arrow {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-left: 2px;
+}
+.user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.user-role {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* 通知面板空状态（在 .notify-popover 全局规则里复用） */
+.notify-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 16px 8px;
+  gap: 6px;
+}
+.notify-empty-emoji {
+  font-size: 38px;
+  line-height: 1;
+}
+.notify-empty-title {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.notify-empty-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 /* 搜索下拉面板 */
@@ -374,11 +585,11 @@ onUnmounted(() => {
   top: 100%;
   left: 0;
   right: 0;
-  margin-top: 4px;
+  margin-top: 6px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.10);
   max-height: 420px;
   overflow-y: auto;
   z-index: 1000;
@@ -392,7 +603,7 @@ onUnmounted(() => {
 .search-group-title {
   padding: 8px 16px 4px;
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -412,7 +623,7 @@ onUnmounted(() => {
   background: var(--bg);
 }
 .search-item:last-child {
-  border-radius: 0 0 8px 8px;
+  border-radius: 0 0 12px 12px;
 }
 .search-item-icon {
   font-size: 18px;
@@ -442,7 +653,7 @@ onUnmounted(() => {
   align-items: center;
   padding: 10px 16px 4px;
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -482,8 +693,8 @@ onUnmounted(() => {
   color: var(--text-primary);
 }
 .search-hit {
-  background: rgba(245, 108, 108, 0.18);
-  color: var(--el-color-danger, #f56c6c);
+  background: color-mix(in srgb, var(--primary) 22%, transparent);
+  color: var(--primary);
   padding: 0 2px;
   border-radius: 2px;
   font-weight: 600;
@@ -493,6 +704,12 @@ onUnmounted(() => {
   .el-main {
     padding: 16px;
   }
+  .topbar-search { width: 240px; }
+  .user-meta { display: none; }
+  .user-chip { padding: 0 4px; }
+}
+@media (max-width: 1024px) {
+  .topbar-title { display: none; }
 }
 
 /* 响应式侧边栏 */

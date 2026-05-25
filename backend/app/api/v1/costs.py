@@ -8,7 +8,7 @@ from ...crud import cost as crud_cost
 from ...crud.export_csv import costs_csv
 from ...models import CostCategory, Pet
 from ...schemas.common import Page
-from ...schemas.cost import CostCreate, CostOut, CostUpdate
+from ...schemas.cost import CostBatchCreate, CostCreate, CostOut, CostUpdate
 
 router = APIRouter(prefix="/costs", tags=["costs"])
 
@@ -102,6 +102,20 @@ def create_cost(data: CostCreate, db: Session = Depends(get_db)):
     if obj is None:
         raise HTTPException(status_code=404, detail="reference_not_found")
     return obj
+
+
+@router.post("/batch", response_model=list[CostOut], status_code=201)
+def create_costs_batch(data: CostBatchCreate, db: Session = Depends(get_db)):
+    """T-029: 同金额同分类同日期，给多只宠物批量开单。事务原子，任一引用错全部回滚。"""
+    if db.get(CostCategory, data.category_code) is None:
+        raise HTTPException(status_code=404, detail="category_not_found")
+    # 去重避免同一只宠物被插两条
+    unique_pet_ids = list(dict.fromkeys(data.pet_ids))
+    for pid in unique_pet_ids:
+        if db.get(Pet, pid) is None:
+            raise HTTPException(status_code=404, detail="pet_not_found")
+    data.pet_ids = unique_pet_ids
+    return crud_cost.create_batch(db, data)
 
 
 @router.patch("/{cost_id}", response_model=CostOut)

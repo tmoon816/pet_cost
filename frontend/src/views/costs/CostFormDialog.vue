@@ -32,18 +32,35 @@ const pets = ref([])
 const submitting = ref(false)
 const formRef = ref(null)
 
+// T-029: 新增态用 pet_ids 多选；编辑态固定 1 元素
 const form = reactive({
   customer_id: null,
-  pet_id: null,
+  pet_ids: [],
   category_code: '',
   amount: '',
   occurred_on: null,
   note: '',
 })
 
+// 编辑态下 el-select 单选绑定的桥接
+const editPetId = computed({
+  get: () => form.pet_ids[0] ?? null,
+  set: (v) => {
+    form.pet_ids = v == null ? [] : [v]
+  },
+})
+
 const rules = {
   customer_id: [{ required: true, message: '请选择客户', trigger: 'change' }],
-  pet_id: [{ required: true, message: '请选择宠物', trigger: 'change' }],
+  pet_ids: [
+    {
+      validator: (_, value, cb) => {
+        if (Array.isArray(value) && value.length > 0) cb()
+        else cb(new Error('请选择宠物'))
+      },
+      trigger: 'change',
+    },
+  ],
   category_code: [{ required: true, message: '请选择分类', trigger: 'change' }],
   amount: [
     { required: true, message: '请输入金额', trigger: 'blur' },
@@ -117,10 +134,24 @@ watch(
   async (newId, oldId) => {
     if (newId !== oldId) {
       await loadPets(newId)
-      if (!pets.value.some((p) => p.id === form.pet_id)) {
-        form.pet_id = null
-      }
+      // 切换客户后，剔除不属于新客户的 pet_id
+      const validIds = new Set(pets.value.map((p) => p.id))
+      form.pet_ids = form.pet_ids.filter((id) => validIds.has(id))
     }
+  }
+)
+
+// T-028: 选完分类自动填默认价；amount 已有值时不覆盖（保护手动输入和编辑态）
+watch(
+  () => form.category_code,
+  (code) => {
+    if (!code) return
+    const current = String(form.amount ?? '').trim()
+    if (current !== '') return
+    const cat = categoryStore.list.find((c) => c.code === code)
+    const def = cat?.default_amount
+    if (def == null || def === '') return
+    form.amount = String(def)
   }
 )
 
@@ -141,7 +172,7 @@ async function init() {
   if (props.editing) {
     const e = props.editing
     Object.assign(form, {
-      pet_id: e.pet_id,
+      pet_ids: [e.pet_id],
       category_code: e.category_code,
       amount: String(e.amount),
       occurred_on: e.occurred_on,
@@ -160,7 +191,7 @@ async function init() {
     try {
       const pet = await petsApi.getPet(props.initialPetId)
       form.customer_id = pet.customer_id
-      form.pet_id = pet.id
+      form.pet_ids = [pet.id]
       await ensureCustomerInList(pet.customer_id)
       await loadPets(pet.customer_id)
     } catch {
@@ -191,7 +222,7 @@ watch(visible, (v) => {
 function reset() {
   Object.assign(form, {
     customer_id: null,
-    pet_id: null,
+    pet_ids: [],
     category_code: '',
     amount: '',
     occurred_on: null,
@@ -202,30 +233,44 @@ function reset() {
   pets.value = []
 }
 
+function buildPayloadCommon() {
+  return {
+    category_code: form.category_code,
+    amount: String(form.amount),
+    occurred_on: form.occurred_on,
+    note: form.note?.trim() ? form.note : null,
+  }
+}
+
+async function persistCreate() {
+  // T-029: 多选时走 batch，单选走原 createCost
+  const common = buildPayloadCommon()
+  if (form.pet_ids.length > 1) {
+    await costsApi.createCostsBatch({ ...common, pet_ids: form.pet_ids })
+    ElMessage.success(`已为 ${form.pet_ids.length} 只宠物各创建 1 条记录`)
+  } else {
+    await costsApi.createCost({ ...common, pet_id: form.pet_ids[0] })
+    ElMessage.success('已新增')
+  }
+}
+
 async function submit() {
   if (!formRef.value) return
   await formRef.value.validate(async (valid) => {
     if (!valid) return
     submitting.value = true
-    const payload = {
-      pet_id: form.pet_id,
-      category_code: form.category_code,
-      amount: String(form.amount),
-      occurred_on: form.occurred_on,
-      note: form.note?.trim() ? form.note : null,
-    }
     try {
       if (props.editing) {
-        await costsApi.updateCost(props.editing.id, payload)
+        await costsApi.updateCost(props.editing.id, {
+          ...buildPayloadCommon(),
+          pet_id: form.pet_ids[0],
+        })
         ElMessage.success('已更新')
-        visible.value = false
-        emit('saved')
       } else {
-        await costsApi.createCost(payload)
-        ElMessage.success('已新增')
-        visible.value = false
-        emit('saved')
+        await persistCreate()
       }
+      visible.value = false
+      emit('saved')
     } finally {
       submitting.value = false
     }
@@ -237,16 +282,8 @@ async function saveAndContinue() {
   await formRef.value.validate(async (valid) => {
     if (!valid) return
     submitting.value = true
-    const payload = {
-      pet_id: form.pet_id,
-      category_code: form.category_code,
-      amount: String(form.amount),
-      occurred_on: form.occurred_on,
-      note: form.note?.trim() ? form.note : null,
-    }
     try {
-      await costsApi.createCost(payload)
-      ElMessage.success('已保存，可继续录入')
+      await persistCreate()
       // 保留客户/宠物/分类/日期，清空金额和备注
       form.amount = ''
       form.note = ''
@@ -302,10 +339,25 @@ async function saveAndContinue() {
         </el-select>
       </el-form-item>
 
-      <el-form-item label="宠物" prop="pet_id">
+      <el-form-item :label="editing ? '宠物' : '宠物（可多选）'" prop="pet_ids">
+        <!-- 编辑态：单选，只能改成另一只宠物 -->
         <el-select
-          v-model="form.pet_id"
+          v-if="editing"
+          v-model="editPetId"
           placeholder="先选客户"
+          style="width: 100%"
+          :disabled="lockPet || !form.customer_id"
+        >
+          <el-option v-for="p in pets" :key="p.id" :label="p.name" :value="p.id" />
+        </el-select>
+        <!-- 新增态：多选，多只宠物相同金额一键开 N 条 -->
+        <el-select
+          v-else
+          v-model="form.pet_ids"
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
+          placeholder="先选客户，可一次勾多只宠物"
           style="width: 100%"
           :disabled="lockPet || !form.customer_id"
         >
@@ -318,13 +370,19 @@ async function saveAndContinue() {
           <el-option
             v-for="c in categoryStore.list"
             :key="c.code"
-            :label="c.label"
+            :label="c.default_amount != null ? `${c.label} · ¥${Number(c.default_amount).toFixed(2)}` : c.label"
             :value="c.code"
-          />
+          >
+            <span>{{ c.label }}</span>
+            <span
+              v-if="c.default_amount != null"
+              class="category-default-price"
+            >¥{{ Number(c.default_amount).toFixed(2) }}</span>
+          </el-option>
         </el-select>
       </el-form-item>
 
-      <el-form-item label="金额" prop="amount">
+      <el-form-item :label="!editing && form.pet_ids.length > 1 ? '单只金额' : '金额'" prop="amount">
         <el-input v-model="form.amount" placeholder="单位：元，最多两位小数">
           <template #prefix>¥</template>
         </el-input>
@@ -342,6 +400,10 @@ async function saveAndContinue() {
       <el-form-item label="备注">
         <el-input v-model="form.note" type="textarea" :rows="2" />
       </el-form-item>
+
+      <div v-if="!editing && form.pet_ids.length > 1" class="batch-hint">
+        将为已选 {{ form.pet_ids.length }} 只宠物各创建 1 条相同金额的记录。
+      </div>
     </el-form>
 
     <template #footer>
@@ -375,5 +437,19 @@ async function saveAndContinue() {
 .dialog-footer-right {
   display: flex;
   gap: 8px;
+}
+.category-default-price {
+  float: right;
+  color: var(--el-color-danger, #f56c6c);
+  font-size: 13px;
+  font-weight: 600;
+  margin-left: 12px;
+}
+.batch-hint {
+  margin-left: 80px;
+  margin-top: -8px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--el-color-success, #67c23a);
 }
 </style>

@@ -33,3 +33,12 @@ backend/dev.db
 backend/*.db-journal
 backend/*.egg-info/
 frontend/node_modules
+
+# 本地工具/工作目录
+.claude/
+backend/test.db
+downloads/
+*.DS_Store
+
+# 杂项截图
+ChatGPT Image*.png

@@ -20,7 +20,12 @@ def list_all(db: Session) -> List[CostCategory]:
 def create(db: Session, data: CategoryCreate) -> CostCategory:
     if db.get(CostCategory, data.code) is not None:
         raise ConflictError({"detail": "category_code_exists", "code": data.code})
-    obj = CostCategory(code=data.code, label=data.label, sort_order=data.sort_order)
+    obj = CostCategory(
+        code=data.code,
+        label=data.label,
+        sort_order=data.sort_order,
+        default_amount=data.default_amount,
+    )
     db.add(obj)
     db.commit()
     db.refresh(obj)

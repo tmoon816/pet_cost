@@ -4,6 +4,27 @@
 
 ---
 
+## T-030: Dashboard 顶部固定「今日营业」小卡 + CostList today 过滤
+- completed_at: 2026-05-25
+- category: feature
+- attempt: 1
+- parent_proposal: P-007
+- result: Dashboard 顶部加独立 today-card（今日营业额 / 订单数 / 跳明细），数据走 getSummary({start: today, end: today})，与下方日期选择器解耦；CostList 解析 route.query.start/end 自动应用筛选 + 加「今天」快捷按钮。前端 npm run build 通过。
+
+## T-029: CostFormDialog 多宠物一键批量开单
+- completed_at: 2026-05-25
+- category: feature
+- attempt: 1
+- parent_proposal: P-007
+- result: 后端新增 POST /api/v1/costs/batch（事务原子，pet_ids 去重，未知 pet/category 全回滚）；schemas/cost.py 加 CostBatchCreate；前端 CostFormDialog 新增态宠物字段改 multiple，pet_ids.length>1 时走 batch、==1 时走原 createCost；编辑态保持单选。pytest 128/128 全过（新增 5 个 batch 用例），前端 build 通过。
+
+## T-028: 服务项目预设价格 → 录单自动填金额
+- completed_at: 2026-05-25
+- category: feature
+- attempt: 1
+- parent_proposal: P-007
+- result: cost_categories 表加 default_amount NUMERIC(10,2) NULL（迁移 9b2e1f3a5c10，down_revision 接 2d09493ee593 解决多 head）；CategoryBase/CategoryUpdate 加 default_amount 字段（ge=0）；Settings.vue 表格 + 编辑表单加默认价；CostFormDialog watch category_code 自动填 amount（已有值不覆盖），下拉显示「label · ¥amount」。pytest 全过，前端 build 通过。
+
 ## T-022: 数据导出 — 客户 & 账单 CSV 导出
 - completed_at: 2026-05-22T23:27:00+08:00
 - commit: 576ef21

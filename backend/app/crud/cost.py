@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..models import CostCategory, CostRecord, Pet
-from ..schemas.cost import CostCreate, CostUpdate
+from ..schemas.cost import CostBatchCreate, CostCreate, CostUpdate
 
 
 def get(db: Session, cost_id: int) -> CostRecord | None:
@@ -77,6 +77,28 @@ def create(db: Session, data: CostCreate) -> CostRecord | None:
     db.commit()
     db.refresh(obj)
     return obj
+
+
+def create_batch(db: Session, data: CostBatchCreate) -> List[CostRecord]:
+    """T-029: 多只宠物同金额同分类批量开单。
+    引用合法性已由路由层 _validate_refs 校验过；这里只做事务内 N 条 insert。
+    任一插入失败 SQLAlchemy 自动回滚（commit 抛错时整批不会落库）。
+    """
+    objs: List[CostRecord] = []
+    for pid in data.pet_ids:
+        obj = CostRecord(
+            pet_id=pid,
+            category_code=data.category_code,
+            amount=data.amount,
+            occurred_on=data.occurred_on,
+            note=data.note,
+        )
+        db.add(obj)
+        objs.append(obj)
+    db.commit()
+    for obj in objs:
+        db.refresh(obj)
+    return objs
 
 
 def update(db: Session, cost_id: int, data: CostUpdate) -> CostRecord | None:

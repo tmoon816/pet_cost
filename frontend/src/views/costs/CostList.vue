@@ -1,5 +1,6 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useCostStore } from '@/stores/costStore'
 import { useCategoryStore } from '@/stores/categoryStore'
@@ -7,6 +8,8 @@ import * as customersApi from '@/api/customers'
 import * as petsApi from '@/api/pets'
 import CostFormDialog from '@/views/costs/CostFormDialog.vue'
 
+const route = useRoute()
+const router = useRouter()
 const store = useCostStore()
 const categoryStore = useCategoryStore()
 
@@ -20,6 +23,29 @@ const filterCategory = ref(null)
 
 const dialogVisible = ref(false)
 const editing = ref(null)
+
+function todayStr() {
+  const d = new Date()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${m}-${day}`
+}
+
+const dateShortcuts = [
+  { text: '今天', value: () => { const t = todayStr(); return [t, t] } },
+  { text: '本周', value: () => {
+    const d = new Date()
+    const start = new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay() + 1)
+    const fmt = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
+    return [fmt(start), todayStr()]
+  }},
+  { text: '本月', value: () => {
+    const d = new Date()
+    const start = new Date(d.getFullYear(), d.getMonth(), 1)
+    const fmt = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
+    return [fmt(start), todayStr()]
+  }},
+]
 
 async function loadCustomers(query) {
   customerLoading.value = true
@@ -69,6 +95,16 @@ function resetFilters() {
 
 onMounted(async () => {
   await Promise.all([categoryStore.fetch().catch(() => {}), loadCustomers('')])
+  // T-030: 支持从 route query 解析 start/end，例如 Dashboard 今日卡片跳转
+  const qStart = route.query.start
+  const qEnd = route.query.end
+  if (qStart && qEnd) {
+    dateRange.value = [String(qStart), String(qEnd)]
+    await applyFilters()
+    // 用过 query 后清掉，避免下次刷新还带着
+    router.replace({ query: {} })
+    return
+  }
   await store.fetchList()
 })
 
@@ -146,6 +182,7 @@ function onSaved() {
           value-format="YYYY-MM-DD"
           start-placeholder="起始日期"
           end-placeholder="截止日期"
+          :shortcuts="dateShortcuts"
           style="width: 280px"
         />
 

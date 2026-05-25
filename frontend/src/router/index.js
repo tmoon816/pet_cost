@@ -1,6 +1,13 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
 
 const routes = [
+  {
+    path: '/login',
+    name: 'login',
+    component: () => import('@/views/Login.vue'),
+    meta: { title: '登录', public: true }
+  },
   {
     path: '/',
     redirect: '/dashboard'
@@ -77,6 +84,15 @@ const router = createRouter({
 router.beforeEach((to) => {
   if (to.meta.title) {
     document.title = `${to.meta.title} - 宠物店管理系统`
+  }
+  const authStore = useAuthStore()
+  // 已登录用户去 /login，自动回首页
+  if (to.meta.public && to.name === 'login' && authStore.isAuthenticated) {
+    return { path: '/' }
+  }
+  // 未登录访问受保护路由
+  if (!to.meta.public && !authStore.isAuthenticated) {
+    return { path: '/login', query: { redirect: to.fullPath } }
   }
 })
 

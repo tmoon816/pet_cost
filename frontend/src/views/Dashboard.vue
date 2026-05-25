@@ -1,21 +1,41 @@
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import EChart from '@/components/EChart.vue'
-import { getSummary, getByCategory, getByMonth, getByPet, getCustomerAcquisition, getDormantCustomers, getTopCustomers } from '@/api/stats'
+import {
+  getSummary,
+  getByCategory,
+  getByMonth,
+  getByPet,
+  getCustomerAcquisition,
+  getDormantCustomers,
+  getTopCustomers,
+} from '@/api/stats'
 import { listCosts } from '@/api/costs'
 import { useCategoryStore } from '@/stores/categoryStore'
 
 const router = useRouter()
 const categoryStore = useCategoryStore()
 
-// 日期范围选择器
+// ECharts 调色板。值与 style.css :root 中 --primary/--success/--info/--purple/
+// --orange/--warning/--danger/--text-muted 保持一致。
+const chartPalette = [
+  '#FFA62B', // primary
+  '#82C91E', // success
+  '#4DABF7', // info
+  '#9775FA', // purple
+  '#FF922B', // orange
+  '#AE886A', // warning
+  '#FF6B6B', // danger
+  '#ADB5BD', // muted
+]
+
 const now = new Date()
 const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1)
 const defaultEnd = new Date()
 const dateRange = ref([defaultStart, defaultEnd])
-const dateRangeKey = ref(0) // 强制刷新 key
+const dateRangeKey = ref(0)
 
 function formatDate(d) {
   if (!d) return ''
@@ -31,39 +51,125 @@ function getRange() {
 const monthStart = computed(() => getRange().start)
 const monthEnd = computed(() => getRange().end)
 
-// 卡片 - 全部用后端 stats/summary 实有字段
-const summary = ref({
-  total_amount: 0,
-  record_count: 0,
-  customer_count: 0,
-  pet_count: 0
+// 上一周期：按当前区间天数往前对齐一段
+const prevRange = computed(() => {
+  const [s, e] = dateRange.value || []
+  if (!s || !e) return { start: '', end: '' }
+  const days = Math.floor((e - s) / 86400000) + 1
+  const prevEnd = new Date(s.getTime() - 86400000)
+  const prevStart = new Date(prevEnd.getTime() - (days - 1) * 86400000)
+  return { start: formatDate(prevStart), end: formatDate(prevEnd) }
 })
 
+const rangeLabel = computed(() => {
+  const [s, e] = dateRange.value || []
+  if (!s || !e) return '本月'
+  const sStr = formatDate(s)
+  const eStr = formatDate(e)
+  const today = new Date()
+  const todayStr = formatDate(today)
+  const thisMonthStart = formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
+  const lastMonthStart = formatDate(new Date(today.getFullYear(), today.getMonth() - 1, 1))
+  const lastMonthEnd = formatDate(new Date(today.getFullYear(), today.getMonth(), 0))
+  if (sStr === thisMonthStart && eStr === todayStr) return '本月'
+  if (sStr === lastMonthStart && eStr === lastMonthEnd) return '上月'
+  if (sStr === eStr) return sStr
+  return `${sStr} ~ ${eStr}`
+})
+
+const greetingHour = now.getHours()
+const greeting = computed(() => {
+  if (greetingHour < 6) return '深夜好'
+  if (greetingHour < 11) return '早上好'
+  if (greetingHour < 13) return '中午好'
+  if (greetingHour < 18) return '下午好'
+  return '晚上好'
+})
+const todayLabel = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+
+const summary = ref({ total_amount: 0, record_count: 0, customer_count: 0, pet_count: 0 })
+const prevSummary = ref({ total_amount: 0, record_count: 0, customer_count: 0, pet_count: 0 })
+// T-030: 今日营业固定卡片，与日期选择器解耦
+const todayStats = ref({ total_amount: 0, record_count: 0 })
+const todayDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 const categoryStats = ref([])
 const monthStats = ref([])
 const petStats = ref([])
 const recentBills = ref([])
-// T-009: 本月新客 vs 回头客
 const acquisition = ref({ new_customers: 0, returning_customers: 0, total: 0 })
-// T-010: 久未到店老客预警
 const dormantList = ref([])
 const dormantDays = ref(90)
-// P-001: Top 10 高价值客户
 const topCustomers = ref([])
-const loading = ref({ summary: false, category: false, month: false, pet: false, bills: false, acquisition: false, dormant: false, topCustomers: false })
+const customerInsightTab = ref('dormant')
+
+const loading = ref({
+  summary: false,
+  category: false,
+  month: false,
+  pet: false,
+  bills: false,
+  acquisition: false,
+  dormant: false,
+  topCustomers: false,
+  today: false,
+})
+
+const moneyFmt = new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const intFmt = new Intl.NumberFormat('zh-CN')
+function formatMoney(n) { return `¥${moneyFmt.format(Number(n) || 0)}` }
+function formatInt(n) { return intFmt.format(Number(n) || 0) }
+function rankMedal(rank) {
+  if (rank === 1) return '🥇'
+  if (rank === 2) return '🥈'
+  if (rank === 3) return '🥉'
+  return `${rank}`
+}
+
+// 环比：上期 0 时显示「新增」/「—」
+function computeDelta(curr, prev) {
+  const c = Number(curr) || 0
+  const p = Number(prev) || 0
+  if (p === 0) {
+    if (c === 0) return { sign: 'flat', text: '持平' }
+    return { sign: 'up', text: '新增' }
+  }
+  const pct = ((c - p) / p) * 100
+  if (Math.abs(pct) < 0.1) return { sign: 'flat', text: '持平' }
+  return {
+    sign: pct >= 0 ? 'up' : 'down',
+    text: `${pct >= 0 ? '↑' : '↓'} ${Math.abs(pct).toFixed(1)}%`,
+  }
+}
+
+const deltaTotal = computed(() => computeDelta(summary.value.total_amount, prevSummary.value.total_amount))
+const deltaRecord = computed(() => computeDelta(summary.value.record_count, prevSummary.value.record_count))
+const deltaCustomer = computed(() => computeDelta(summary.value.customer_count, prevSummary.value.customer_count))
+const deltaPet = computed(() => computeDelta(summary.value.pet_count, prevSummary.value.pet_count))
 
 const fetchSummary = async () => {
   loading.value.summary = true
   try {
-    const res = await getSummary({ start: monthStart.value, end: monthEnd.value })
+    const [curr, prev] = await Promise.all([
+      getSummary({ start: monthStart.value, end: monthEnd.value }),
+      prevRange.value.start
+        ? getSummary({ start: prevRange.value.start, end: prevRange.value.end })
+        : Promise.resolve({ total_amount: 0, record_count: 0, customer_count: 0, pet_count: 0 }),
+    ])
     summary.value = {
-      total_amount: Number(res.total_amount || 0),
-      record_count: Number(res.record_count || 0),
-      customer_count: Number(res.customer_count || 0),
-      pet_count: Number(res.pet_count || 0)
+      total_amount: Number(curr.total_amount || 0),
+      record_count: Number(curr.record_count || 0),
+      customer_count: Number(curr.customer_count || 0),
+      pet_count: Number(curr.pet_count || 0),
+    }
+    prevSummary.value = {
+      total_amount: Number(prev.total_amount || 0),
+      record_count: Number(prev.record_count || 0),
+      customer_count: Number(prev.customer_count || 0),
+      pet_count: Number(prev.pet_count || 0),
     }
   } catch (e) {
     summary.value = { total_amount: 0, record_count: 0, customer_count: 0, pet_count: 0 }
+    prevSummary.value = { total_amount: 0, record_count: 0, customer_count: 0, pet_count: 0 }
   } finally {
     loading.value.summary = false
   }
@@ -73,11 +179,9 @@ const fetchCategoryStats = async () => {
   loading.value.category = true
   try {
     const res = await getByCategory({ start: monthStart.value, end: monthEnd.value })
-    categoryStats.value = (res || []).map((item) => ({
-      type: item.label || item.category,
-      value: Number(item.total || 0),
-      count: Number(item.count || 0)
-    })).filter((d) => d.value > 0)
+    categoryStats.value = (res || [])
+      .map((item) => ({ type: item.label || item.category, value: Number(item.total || 0), count: Number(item.count || 0) }))
+      .filter((d) => d.value > 0)
   } catch (e) {
     categoryStats.value = []
   } finally {
@@ -88,12 +192,10 @@ const fetchCategoryStats = async () => {
 const fetchMonthStats = async () => {
   loading.value.month = true
   try {
-    // 不传 start/end，拿全量月份趋势
     const res = await getByMonth()
-    monthStats.value = (res || []).map((item) => ({
-      month: item.month,
-      营业额: Number(item.total || 0)
-    })).sort((a, b) => a.month.localeCompare(b.month))
+    monthStats.value = (res || [])
+      .map((item) => ({ month: item.month, 营业额: Number(item.total || 0) }))
+      .sort((a, b) => a.month.localeCompare(b.month))
   } catch (e) {
     monthStats.value = []
   } finally {
@@ -105,10 +207,9 @@ const fetchPetStats = async () => {
   loading.value.pet = true
   try {
     const res = await getByPet({ start: monthStart.value, end: monthEnd.value, limit: 8 })
-    petStats.value = (res || []).map((item) => ({
-      pet: item.pet_name || `宠物 #${item.pet_id}`,
-      消费: Number(item.total || 0)
-    })).sort((a, b) => b.消费 - a.消费)
+    petStats.value = (res || [])
+      .map((item) => ({ pet: item.pet_name || `宠物 #${item.pet_id}`, 消费: Number(item.total || 0) }))
+      .sort((a, b) => b.消费 - a.消费)
   } catch (e) {
     petStats.value = []
   } finally {
@@ -126,12 +227,46 @@ const fetchRecentBills = async () => {
       category: categoryStore.list.find((c) => c.code === item.category_code)?.label || item.category_code,
       pet: item.pet_name || `宠物 #${item.pet_id}`,
       amount: Number(item.amount || 0),
-      note: item.note || ''
+      note: item.note || '',
     }))
   } catch (e) {
     recentBills.value = []
   } finally {
     loading.value.bills = false
+  }
+}
+
+const fetchAcquisition = async () => {
+  loading.value.acquisition = true
+  try {
+    const res = await getCustomerAcquisition({ year: now.getFullYear(), month: now.getMonth() + 1 })
+    acquisition.value = {
+      new_customers: Number(res.new_customers || 0),
+      returning_customers: Number(res.returning_customers || 0),
+      total: Number(res.total || 0),
+    }
+  } catch (e) {
+    acquisition.value = { new_customers: 0, returning_customers: 0, total: 0 }
+  } finally {
+    loading.value.acquisition = false
+  }
+}
+
+const fetchDormantCustomers = async () => {
+  loading.value.dormant = true
+  try {
+    const res = await getDormantCustomers({ days: dormantDays.value, limit: 10 })
+    dormantList.value = (res || []).map((item) => ({
+      customer_id: Number(item.customer_id),
+      customer_name: item.customer_name,
+      phone: item.phone || '',
+      last_visit_at: item.last_visit_at,
+      days_since: Number(item.days_since || 0),
+    }))
+  } catch (e) {
+    dormantList.value = []
+  } finally {
+    loading.value.dormant = false
   }
 }
 
@@ -153,6 +288,26 @@ const fetchTopCustomers = async () => {
   }
 }
 
+// T-030: 今日营业额，与下方日期选择器完全解耦，仅在 mount 时拉一次
+const fetchToday = async () => {
+  loading.value.today = true
+  try {
+    const res = await getSummary({ start: todayDate, end: todayDate })
+    todayStats.value = {
+      total_amount: Number(res.total_amount || 0),
+      record_count: Number(res.record_count || 0),
+    }
+  } catch (e) {
+    todayStats.value = { total_amount: 0, record_count: 0 }
+  } finally {
+    loading.value.today = false
+  }
+}
+
+const goToTodayBills = () => {
+  router.push({ path: '/bills', query: { start: todayDate, end: todayDate } })
+}
+
 const fetchAllData = () => {
   fetchSummary()
   fetchCategoryStats()
@@ -162,16 +317,15 @@ const fetchAllData = () => {
   fetchAcquisition()
   fetchDormantCustomers()
   fetchTopCustomers()
+  fetchToday()
 }
 
 function defaultMonthRange() {
-  // 当月 1 号 ~ 今天，作为日期清空后的兜底
   const t = new Date()
   return [new Date(t.getFullYear(), t.getMonth(), 1), t]
 }
 
 function onDateChange(val) {
-  // el-date-picker 清空时 val 为 null，会让后续 getRange() 返回空字符串触发 422
   if (!val || !val[0] || !val[1]) {
     dateRange.value = defaultMonthRange()
   }
@@ -180,23 +334,6 @@ function onDateChange(val) {
   fetchCategoryStats()
   fetchPetStats()
   fetchRecentBills()
-}
-
-const fetchDormantCustomers = async () => {
-  loading.value.dormant = true
-  try {
-    const res = await getDormantCustomers({ days: dormantDays.value, limit: 10 })
-    dormantList.value = (res || []).map((item) => ({
-      customer_id: Number(item.customer_id),
-      customer_name: item.customer_name,
-      last_visit_at: item.last_visit_at,
-      days_since: Number(item.days_since || 0),
-    }))
-  } catch (e) {
-    dormantList.value = []
-  } finally {
-    loading.value.dormant = false
-  }
 }
 
 const goToCustomer = (id) => {
@@ -212,44 +349,55 @@ async function copyPhone(phone) {
   }
 }
 
-const fetchAcquisition = async () => {
-  loading.value.acquisition = true
-  try {
-    const res = await getCustomerAcquisition({
-      year: now.getFullYear(),
-      month: now.getMonth() + 1,
-    })
-    acquisition.value = {
-      new_customers: Number(res.new_customers || 0),
-      returning_customers: Number(res.returning_customers || 0),
-      total: Number(res.total || 0),
-    }
-  } catch (e) {
-    acquisition.value = { new_customers: 0, returning_customers: 0, total: 0 }
-  } finally {
-    loading.value.acquisition = false
-  }
-}
-
 const acquisitionDisplay = computed(() => {
   const { new_customers, returning_customers, total } = acquisition.value
-  if (!total) {
-    return { newPct: '—', returnPct: '—' }
-  }
+  if (!total) return { newPct: '—', returnPct: '—', newRatio: 0, returnRatio: 0 }
   return {
     newPct: `${Math.round((new_customers / total) * 100)}%`,
     returnPct: `${Math.round((returning_customers / total) * 100)}%`,
+    newRatio: (new_customers / total) * 100,
+    returnRatio: (returning_customers / total) * 100,
+  }
+})
+
+// 营业额迷你 sparkline（只此一处用到了月度趋势）
+const revenueSparkConfig = computed(() => {
+  const data = monthStats.value.slice(-8).map((d) => d['营业额'])
+  return {
+    grid: { left: 0, right: 0, top: 4, bottom: 0 },
+    xAxis: { type: 'category', show: false, boundaryGap: false, data: data.map((_, i) => i) },
+    yAxis: { type: 'value', show: false, scale: true },
+    tooltip: { show: false },
+    series: [{
+      type: 'line',
+      smooth: true,
+      showSymbol: false,
+      lineStyle: { color: chartPalette[0], width: 2 },
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: 'rgba(255, 166, 43, 0.32)' },
+            { offset: 1, color: 'rgba(255, 166, 43, 0)' },
+          ],
+        },
+      },
+      data,
+    }],
   }
 })
 
 const pieConfig = computed(() => ({
-  tooltip: { trigger: 'item', formatter: '{b}: ¥{c} ({d}%)' },
-  legend: { bottom: 0, type: 'scroll' },
+  color: chartPalette,
+  tooltip: { trigger: 'item', formatter: (p) => `${p.name}: ${formatMoney(p.value)} (${p.percent}%)` },
+  legend: { bottom: 0, type: 'scroll', icon: 'circle', textStyle: { color: '#6C757D', fontSize: 12 } },
   series: [{
     type: 'pie',
-    radius: ['38%', '68%'],
+    radius: ['54%', '74%'],
     avoidLabelOverlap: true,
-    label: { formatter: '{b}: {d}%' },
+    itemStyle: { borderColor: '#fff', borderWidth: 2 },
+    label: { formatter: '{b}\n{d}%', color: '#6C757D', fontSize: 12 },
     data: categoryStats.value.map((d) => ({ name: d.type, value: d.value })),
   }],
 }))
@@ -257,14 +405,35 @@ const pieConfig = computed(() => ({
 const monthBarConfig = computed(() => ({
   tooltip: {
     trigger: 'axis',
-    formatter: (params) => `${params[0].name}<br/>营业额: ¥${Number(params[0].value).toFixed(2)}`,
+    formatter: (params) => `${params[0].name}<br/>营业额: ${formatMoney(params[0].value)}`,
   },
-  grid: { left: 60, right: 20, top: 20, bottom: 40 },
-  xAxis: { type: 'category', data: monthStats.value.map((d) => d.month) },
-  yAxis: { type: 'value' },
+  grid: { left: 56, right: 16, top: 12, bottom: 36 },
+  xAxis: {
+    type: 'category',
+    data: monthStats.value.map((d) => d.month),
+    axisLine: { lineStyle: { color: '#E9ECEF' } },
+    axisTick: { show: false },
+    axisLabel: { color: '#6C757D', fontSize: 12 },
+  },
+  yAxis: {
+    type: 'value',
+    axisLine: { show: false },
+    splitLine: { lineStyle: { color: '#F1F3F5' } },
+    axisLabel: { color: '#ADB5BD', fontSize: 12 },
+  },
   series: [{
     type: 'bar',
-    itemStyle: { color: '#FFA62B' },
+    barMaxWidth: 28,
+    itemStyle: {
+      borderRadius: [6, 6, 0, 0],
+      color: {
+        type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+        colorStops: [
+          { offset: 0, color: '#FFA62B' },
+          { offset: 1, color: '#FFD085' },
+        ],
+      },
+    },
     data: monthStats.value.map((d) => d['营业额']),
   }],
 }))
@@ -273,22 +442,16 @@ const petBarConfig = computed(() => ({
   tooltip: {
     trigger: 'axis',
     axisPointer: { type: 'shadow' },
-    formatter: (params) => `${params[0].name}<br/>消费: ¥${Number(params[0].value).toFixed(2)}`,
+    formatter: (params) => `${params[0].name}<br/>消费: ${formatMoney(params[0].value)}`,
   },
-  grid: { left: 100, right: 70, top: 20, bottom: 30 },
-  xAxis: { type: 'value' },
-  yAxis: {
-    type: 'category',
-    data: [...petStats.value].reverse().map((d) => d.pet),
-  },
+  grid: { left: 90, right: 80, top: 12, bottom: 24 },
+  xAxis: { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { color: '#F1F3F5' } }, axisLabel: { color: '#ADB5BD', fontSize: 12 } },
+  yAxis: { type: 'category', data: [...petStats.value].reverse().map((d) => d.pet), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#6C757D', fontSize: 12 } },
   series: [{
     type: 'bar',
-    itemStyle: { color: '#82C91E' },
-    label: {
-      show: true,
-      position: 'right',
-      formatter: (p) => `¥${Number(p.value).toFixed(2)}`,
-    },
+    barMaxWidth: 14,
+    itemStyle: { color: chartPalette[1], borderRadius: [0, 6, 6, 0] },
+    label: { show: true, position: 'right', formatter: (p) => formatMoney(p.value), color: '#6C757D', fontSize: 12 },
     data: [...petStats.value].reverse().map((d) => d['消费']),
   }],
 }))
@@ -318,101 +481,173 @@ const dateShortcuts = [
 
 <template>
   <div class="dashboard-page" :key="dateRangeKey">
-    <!-- 日期范围选择器 -->
-    <div class="date-range-bar">
-      <el-date-picker
-        v-model="dateRange"
-        type="daterange"
-        range-separator="至"
-        start-placeholder="开始日期"
-        end-placeholder="结束日期"
-        :shortcuts="dateShortcuts"
-        :default-value="[defaultStart, defaultEnd]"
-        @change="onDateChange"
-        style="width: 320px;"
-      />
+    <!-- 页面头：标题 + 欢迎语 + chip + 日期条 + 爪印水印 -->
+    <div class="page-header">
+      <div class="page-title-block">
+        <div class="page-title-row">
+          <h2>营业概览</h2>
+          <span class="page-chip">{{ rangeLabel }}</span>
+        </div>
+        <p class="page-subtitle">{{ greeting }}，老板。今天是 {{ todayLabel }}，看看店铺的状况吧 ✨</p>
+      </div>
+      <div class="page-header-right">
+        <el-date-picker
+          v-model="dateRange"
+          type="daterange"
+          range-separator="~"
+          start-placeholder="开始"
+          end-placeholder="结束"
+          :shortcuts="dateShortcuts"
+          :default-value="[defaultStart, defaultEnd]"
+          @change="onDateChange"
+          size="default"
+          class="header-datepicker"
+        />
+      </div>
+      <svg class="paw-watermark" viewBox="0 0 64 64" aria-hidden="true">
+        <ellipse cx="20" cy="20" rx="5" ry="7" />
+        <ellipse cx="32" cy="14" rx="5" ry="7" />
+        <ellipse cx="44" cy="20" rx="5" ry="7" />
+        <ellipse cx="13" cy="34" rx="4" ry="5.5" />
+        <ellipse cx="51" cy="34" rx="4" ry="5.5" />
+        <path d="M22 38c-3.5 0-7 4-7 9.5 0 6 5 9 10 9s10-3 10-9c0-5.5-3.5-9.5-7-9.5-2 0-3 1-3 1s-1-1-3-1z" />
+      </svg>
     </div>
-    <!-- 顶部统计卡片 - 全部用后端 stats/summary 真字段 -->
-    <el-row :gutter="20">
-      <el-col :xs="24" :sm="12" :md="6">
-        <el-card shadow="hover" class="stat-card" v-loading="loading.summary">
-          <div class="stat-icon" style="background: rgba(74, 222, 128, 0.12); color: #67c23a;">💰</div>
-          <div class="stat-content">
-            <p class="stat-label">本月营业额</p>
-            <p class="stat-value">¥ {{ summary.total_amount.toFixed(2) }}</p>
-            <p class="stat-change text-muted">店铺本月客户消费累计</p>
+
+    <!-- T-030: 今日营业固定小卡（与下方日期选择器解耦，专给打烊对账用） -->
+    <el-card shadow="hover" class="today-card" v-loading="loading.today">
+      <div class="today-row">
+        <div class="today-cell">
+          <div class="today-label">今日营业额</div>
+          <div class="today-value">{{ formatMoney(todayStats.total_amount) }}</div>
+        </div>
+        <div class="today-divider"></div>
+        <div class="today-cell">
+          <div class="today-label">今日订单数</div>
+          <div class="today-value">{{ formatInt(todayStats.record_count) }}</div>
+        </div>
+        <div class="today-cell today-meta">
+          <span class="today-tag">{{ todayDate }}</span>
+          <el-button type="primary" plain size="small" @click="goToTodayBills">查看明细 →</el-button>
+        </div>
+      </div>
+    </el-card>
+
+    <!-- KPI 卡片：图标容器 + label + 大数字 + 环比 chip + (营业额) sparkline -->
+    <el-row :gutter="16">
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card shadow="hover" class="kpi-card kpi-revenue" v-loading="loading.summary">
+          <div class="kpi-head">
+            <div class="kpi-icon tint-primary">💰</div>
+            <span class="kpi-label">营业额</span>
           </div>
+          <div class="kpi-value">{{ formatMoney(summary.total_amount) }}</div>
+          <div class="kpi-foot">
+            <span class="delta" :class="`delta-${deltaTotal.sign}`">{{ deltaTotal.text }}</span>
+            <span class="delta-hint">vs 上一周期</span>
+          </div>
+          <div class="kpi-spark" v-if="monthStats.length > 1">
+            <EChart :option="revenueSparkConfig" />
+          </div>
+          <div class="kpi-spark-placeholder" v-else></div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
-        <el-card shadow="hover" class="stat-card" v-loading="loading.summary">
-          <div class="stat-icon" style="background: rgba(253, 186, 116, 0.12); color: #e6a23c;">📋</div>
-          <div class="stat-content">
-            <p class="stat-label">本月订单数</p>
-            <p class="stat-value">{{ summary.record_count }}</p>
-            <p class="stat-change text-muted">本月成交服务订单</p>
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card shadow="hover" class="kpi-card" v-loading="loading.summary">
+          <div class="kpi-head">
+            <div class="kpi-icon tint-orange">📋</div>
+            <span class="kpi-label">订单数</span>
           </div>
+          <div class="kpi-value">{{ formatInt(summary.record_count) }}</div>
+          <div class="kpi-foot">
+            <span class="delta" :class="`delta-${deltaRecord.sign}`">{{ deltaRecord.text }}</span>
+            <span class="delta-hint">vs 上一周期</span>
+          </div>
+          <div class="kpi-spark-placeholder"></div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
-        <el-card shadow="hover" class="stat-card" v-loading="loading.summary">
-          <div class="stat-icon" style="background: rgba(59, 130, 246, 0.12); color: #409eff;">👥</div>
-          <div class="stat-content">
-            <p class="stat-label">本月活跃会员</p>
-            <p class="stat-value">{{ summary.customer_count }}</p>
-            <p class="stat-change text-muted">本月有消费的会员</p>
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card shadow="hover" class="kpi-card" v-loading="loading.summary">
+          <div class="kpi-head">
+            <div class="kpi-icon tint-info">👥</div>
+            <span class="kpi-label">活跃会员</span>
           </div>
+          <div class="kpi-value">{{ formatInt(summary.customer_count) }}</div>
+          <div class="kpi-foot">
+            <span class="delta" :class="`delta-${deltaCustomer.sign}`">{{ deltaCustomer.text }}</span>
+            <span class="delta-hint">vs 上一周期</span>
+          </div>
+          <div class="kpi-spark-placeholder"></div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
-        <el-card shadow="hover" class="stat-card" v-loading="loading.summary">
-          <div class="stat-icon" style="background: rgba(167, 139, 250, 0.12); color: #a78bfa;">🐾</div>
-          <div class="stat-content">
-            <p class="stat-label">服务宠物数</p>
-            <p class="stat-value">{{ summary.pet_count }}</p>
-            <p class="stat-change text-muted">本月被服务过的宠物</p>
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card shadow="hover" class="kpi-card" v-loading="loading.summary">
+          <div class="kpi-head">
+            <div class="kpi-icon tint-purple">🐾</div>
+            <span class="kpi-label">服务宠物</span>
           </div>
+          <div class="kpi-value">{{ formatInt(summary.pet_count) }}</div>
+          <div class="kpi-foot">
+            <span class="delta" :class="`delta-${deltaPet.sign}`">{{ deltaPet.text }}</span>
+            <span class="delta-hint">vs 上一周期</span>
+          </div>
+          <div class="kpi-spark-placeholder"></div>
         </el-card>
       </el-col>
     </el-row>
 
-    <!-- T-009: 本月新客 vs 回头客 -->
-    <el-row :gutter="20" style="margin-top: 20px;">
-      <el-col :span="24">
-        <el-card shadow="hover" v-loading="loading.acquisition">
-          <template #header><strong>本月新客 vs 回头客</strong></template>
-          <div class="acquisition-row">
-            <div class="acquisition-cell new">
-              <div class="acquisition-label">新客</div>
-              <div class="acquisition-value">{{ acquisition.new_customers }}</div>
-              <div class="acquisition-pct">{{ acquisitionDisplay.newPct }}</div>
-            </div>
-            <div class="acquisition-cell returning">
-              <div class="acquisition-label">回头客</div>
-              <div class="acquisition-value">{{ acquisition.returning_customers }}</div>
-              <div class="acquisition-pct">{{ acquisitionDisplay.returnPct }}</div>
-            </div>
-            <div class="acquisition-cell total">
-              <div class="acquisition-label">本月活跃总数</div>
-              <div class="acquisition-value">{{ acquisition.total }}</div>
-              <div class="acquisition-pct text-muted">去重客户数</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- T-010: 3 个月未到店老客预警列表 -->
-    <el-row :gutter="20" style="margin-top: 20px;">
-      <el-col :span="24">
-        <el-card shadow="hover" v-loading="loading.dormant">
+    <!-- 客户洞察行 -->
+    <el-row :gutter="16" style="margin-top: 16px;">
+      <el-col :xs="24" :lg="8">
+        <el-card shadow="hover" v-loading="loading.acquisition" class="full-h-card">
           <template #header>
-            <div class="dormant-header">
-              <strong>久未到店老客预警（≥ {{ dormantDays }} 天）</strong>
+            <div class="card-head">
+              <strong>新客 vs 回头客</strong>
+              <span class="card-head-hint">本月</span>
+            </div>
+          </template>
+          <div class="acq-block">
+            <!-- 比例条 -->
+            <div class="ratio-bar">
+              <div class="ratio-seg ratio-new" :style="{ width: `${acquisitionDisplay.newRatio}%` }"></div>
+              <div class="ratio-seg ratio-return" :style="{ width: `${acquisitionDisplay.returnRatio}%` }"></div>
+            </div>
+            <div class="ratio-legend">
+              <span class="legend-item"><span class="legend-dot dot-info"></span>新客 {{ acquisitionDisplay.newPct }}</span>
+              <span class="legend-item"><span class="legend-dot dot-success"></span>回头 {{ acquisitionDisplay.returnPct }}</span>
+            </div>
+            <!-- 三段数字 -->
+            <div class="kv-list">
+              <div class="kv-row">
+                <span class="kv-key">新客</span>
+                <span class="kv-val">{{ acquisition.new_customers }}</span>
+              </div>
+              <div class="kv-row">
+                <span class="kv-key">回头客</span>
+                <span class="kv-val">{{ acquisition.returning_customers }}</span>
+              </div>
+              <div class="kv-row">
+                <span class="kv-key">活跃总数（去重）</span>
+                <span class="kv-val">{{ acquisition.total }}</span>
+              </div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+
+      <el-col :xs="24" :lg="16">
+        <el-card shadow="hover" class="full-h-card">
+          <template #header>
+            <div class="insight-tabs-header">
+              <el-tabs v-model="customerInsightTab" class="insight-tabs">
+                <el-tab-pane label="久未到店预警" name="dormant" />
+                <el-tab-pane label="高价值客户 TOP 10" name="top" />
+              </el-tabs>
               <el-select
+                v-if="customerInsightTab === 'dormant'"
                 v-model="dormantDays"
                 size="small"
-                style="width: 130px;"
+                style="width: 120px;"
                 @change="fetchDormantCustomers"
               >
                 <el-option :value="30" label="≥ 30 天" />
@@ -422,154 +657,142 @@ const dateShortcuts = [
               </el-select>
             </div>
           </template>
-          <el-table
-            v-if="dormantList.length > 0"
-            :data="dormantList"
-            size="small"
-            stripe
-            style="width: 100%;"
-          >
-            <el-table-column prop="customer_name" label="客户名" min-width="160" />
-            <el-table-column prop="last_visit_at" label="最后到店日期" width="160" />
-            <el-table-column label="距今天数" width="120">
-              <template #default="{ row }">
-                <el-tag :type="row.days_since >= 180 ? 'danger' : 'warning'" effect="plain">
-                  {{ row.days_since }} 天
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="联系方式" width="180">
-              <template #default="{ row }">
-                <template v-if="row.phone">
-                  <span class="phone-masked">{{ row.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') }}</span>
-                  <el-button
-                    type="primary"
-                    link
-                    size="small"
-                    style="margin-left: 6px;"
-                    @click="copyPhone(row.phone)"
-                  >
-                    复制
-                  </el-button>
+
+          <!-- 久未到店 -->
+          <div v-show="customerInsightTab === 'dormant'" v-loading="loading.dormant">
+            <el-table v-if="dormantList.length > 0" :data="dormantList" size="small" style="width: 100%;">
+              <el-table-column prop="customer_name" label="客户" min-width="140" />
+              <el-table-column prop="last_visit_at" label="最后到店" width="120" />
+              <el-table-column label="距今" width="100">
+                <template #default="{ row }">
+                  <el-tag :type="row.days_since >= 180 ? 'danger' : 'warning'" effect="plain" size="small">
+                    {{ row.days_since }} 天
+                  </el-tag>
                 </template>
-                <span v-else class="text-muted">—</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="100" align="right">
-              <template #default="{ row }">
-                <el-button type="primary" link size="small" @click="goToCustomer(row.customer_id)">
-                  查看
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-          <div class="empty-chart" style="height: 120px;" v-else>
-            <p>暂无久未到店老客 🎉</p>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- P-001: Top 10 高价值客户排名 -->
-    <el-row :gutter="20" style="margin-top: 20px;">
-      <el-col :span="24">
-        <el-card shadow="hover" v-loading="loading.topCustomers">
-          <template #header>
-            <div class="dormant-header">
-              <strong>🏆 高价值客户 TOP 10（累计消费）</strong>
+              </el-table-column>
+              <el-table-column label="联系" min-width="170">
+                <template #default="{ row }">
+                  <template v-if="row.phone">
+                    <span class="phone-masked">{{ row.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') }}</span>
+                    <el-button type="primary" link size="small" style="margin-left: 6px;" @click="copyPhone(row.phone)">复制</el-button>
+                  </template>
+                  <span v-else class="text-muted">—</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="" width="60" align="right">
+                <template #default="{ row }">
+                  <el-button type="primary" link size="small" @click="goToCustomer(row.customer_id)">查看</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <div class="empty-state" v-else>
+              <div class="empty-emoji">🐱</div>
+              <p class="empty-title">所有老客都最近回来过</p>
+              <p class="empty-hint">没有需要召回的客户，店铺关系维护得不错</p>
             </div>
-          </template>
-          <el-table
-            v-if="topCustomers.length > 0"
-            :data="topCustomers"
-            size="small"
-            stripe
-            style="width: 100%;"
-          >
-            <el-table-column label="排名" width="80">
-              <template #default="{ row }">
-                <el-tag
-                  :type="row.rank <= 3 ? 'danger' : row.rank <= 5 ? 'warning' : 'info'"
-                  effect="plain"
-                  size="small"
-                >
-                  #{{ row.rank }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="customer_name" label="客户名" min-width="160" />
-            <el-table-column label="累计消费" width="140">
-              <template #default="{ row }">
-                <span class="top-amount">¥{{ row.total_amount.toFixed(2) }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="order_count" label="订单数" width="100" align="center" />
-            <el-table-column label="操作" width="100" align="right">
-              <template #default="{ row }">
-                <el-button type="primary" link size="small" @click="goToCustomer(row.customer_id)">
-                  查看
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-          <div class="empty-chart" style="height: 120px;" v-else>
-            <p>暂无消费数据 📊</p>
+          </div>
+
+          <!-- Top10 -->
+          <div v-show="customerInsightTab === 'top'" v-loading="loading.topCustomers">
+            <el-table v-if="topCustomers.length > 0" :data="topCustomers" size="small" style="width: 100%;">
+              <el-table-column label="" width="60" align="center">
+                <template #default="{ row }">
+                  <span class="rank-medal" :class="{ top3: row.rank <= 3 }">{{ rankMedal(row.rank) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="customer_name" label="客户" min-width="140" />
+              <el-table-column label="累计消费" width="140">
+                <template #default="{ row }">
+                  <span class="top-amount">{{ formatMoney(row.total_amount) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="order_count" label="订单" width="80" align="center" />
+              <el-table-column label="" width="60" align="right">
+                <template #default="{ row }">
+                  <el-button type="primary" link size="small" @click="goToCustomer(row.customer_id)">查看</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <div class="empty-state" v-else>
+              <div class="empty-emoji">📊</div>
+              <p class="empty-title">暂无消费数据</p>
+              <p class="empty-hint">客户消费产生后会自动排名</p>
+            </div>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
-    <!-- 图表 -->
-    <el-row :gutter="20" style="margin-top: 20px;">
+    <!-- 图表行 1 -->
+    <el-row :gutter="16" style="margin-top: 16px;">
       <el-col :xs="24" :lg="12">
         <el-card shadow="hover" v-loading="loading.category">
-          <template #header><strong>服务项目营收占比（本月）</strong></template>
-          <div style="height: 320px;" v-if="categoryStats.length > 0">
-            <EChart :option="pieConfig" />
+          <template #header>
+            <div class="card-head"><strong>服务项目营收占比</strong><span class="card-head-hint">{{ rangeLabel }}</span></div>
+          </template>
+          <div style="height: 300px;" v-if="categoryStats.length > 0"><EChart :option="pieConfig" /></div>
+          <div class="empty-state" v-else>
+            <div class="empty-emoji">🍰</div>
+            <p class="empty-title">暂无消费数据</p>
+            <p class="empty-hint">本期没有产生服务订单</p>
           </div>
-          <div class="empty-chart" v-else><p>暂无消费数据</p></div>
         </el-card>
       </el-col>
       <el-col :xs="24" :lg="12">
         <el-card shadow="hover" v-loading="loading.pet">
-          <template #header><strong>本月消费宠物 TOP 8</strong></template>
-          <div style="height: 320px;" v-if="petStats.length > 0">
-            <EChart :option="petBarConfig" />
+          <template #header>
+            <div class="card-head"><strong>消费宠物 TOP 8</strong><span class="card-head-hint">{{ rangeLabel }}</span></div>
+          </template>
+          <div style="height: 300px;" v-if="petStats.length > 0"><EChart :option="petBarConfig" /></div>
+          <div class="empty-state" v-else>
+            <div class="empty-emoji">🐶</div>
+            <p class="empty-title">暂无宠物消费数据</p>
+            <p class="empty-hint">本期没有宠物到店服务</p>
           </div>
-          <div class="empty-chart" v-else><p>暂无宠物消费数据</p></div>
         </el-card>
       </el-col>
     </el-row>
 
-    <el-row :gutter="20" style="margin-top: 20px;">
+    <!-- 图表行 2 -->
+    <el-row :gutter="16" style="margin-top: 16px; margin-bottom: 8px;">
       <el-col :xs="24" :lg="14">
         <el-card shadow="hover" v-loading="loading.month">
-          <template #header><strong>月度营业额趋势（全量）</strong></template>
-          <div style="height: 320px;" v-if="monthStats.length > 0">
-            <EChart :option="monthBarConfig" />
+          <template #header>
+            <div class="card-head"><strong>月度营业额趋势</strong><span class="card-head-hint">全量历史</span></div>
+          </template>
+          <div style="height: 300px;" v-if="monthStats.length > 0"><EChart :option="monthBarConfig" /></div>
+          <div class="empty-state" v-else>
+            <div class="empty-emoji">📈</div>
+            <p class="empty-title">暂无月度数据</p>
+            <p class="empty-hint">至少积累一个月数据后展示</p>
           </div>
-          <div class="empty-chart" v-else><p>暂无月度数据</p></div>
         </el-card>
       </el-col>
       <el-col :xs="24" :lg="10">
         <el-card shadow="hover" v-loading="loading.bills">
-          <template #header><strong>最近订单</strong></template>
+          <template #header>
+            <div class="card-head"><strong>最近订单</strong><span class="card-head-hint">最新 5 笔</span></div>
+          </template>
           <div v-if="recentBills.length > 0" class="recent-bills">
             <div v-for="bill in recentBills" :key="bill.id" class="bill-item">
               <div class="bill-left">
-                <div class="bill-date">{{ bill.date }}</div>
                 <div class="bill-info">
-                  <el-tag size="small">{{ bill.category }}</el-tag>
+                  <el-tag size="small" effect="plain">{{ bill.category }}</el-tag>
                   <span class="bill-pet">{{ bill.pet }}</span>
-                  <span v-if="bill.note" class="bill-note">{{ bill.note }}</span>
+                </div>
+                <div class="bill-meta">
+                  <span>{{ bill.date }}</span>
+                  <span v-if="bill.note" class="bill-note">· {{ bill.note }}</span>
                 </div>
               </div>
-              <div class="bill-right">
-                <div class="bill-amount">¥{{ bill.amount.toFixed(2) }}</div>
-              </div>
+              <div class="bill-amount">{{ formatMoney(bill.amount) }}</div>
             </div>
           </div>
-          <div class="empty-chart" v-else><p>暂无订单</p></div>
+          <div class="empty-state" v-else>
+            <div class="empty-emoji">🧾</div>
+            <p class="empty-title">暂无订单</p>
+            <p class="empty-hint">第一笔订单还在路上</p>
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -577,86 +800,384 @@ const dateShortcuts = [
 </template>
 
 <style scoped>
-.stat-card {
+/* ---- 页面头 ---- */
+.page-header {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 16px;
+  overflow: hidden;
+}
+.page-title-block {
+  min-width: 0;
+}
+.page-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.page-title-row h2 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.3px;
+}
+.page-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.page-subtitle {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.page-header-right {
+  flex-shrink: 0;
+  z-index: 1;
+}
+.header-datepicker { width: 280px; }
+
+/* 爪印水印：跟随页面头放右侧，作为品牌点缀 */
+.paw-watermark {
+  position: absolute;
+  top: -10px;
+  right: 320px;
+  width: 88px;
+  height: 88px;
+  fill: var(--primary);
+  opacity: 0.06;
+  transform: rotate(-12deg);
+  pointer-events: none;
+}
+
+/* ---- 卡片公共头 ---- */
+.card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.card-head strong { font-size: 14px; color: var(--text-primary); }
+.card-head-hint { color: var(--text-muted); font-size: 12px; font-weight: 400; }
+
+/* ---- KPI 卡片 ---- */
+.kpi-card :deep(.el-card__body) {
+  padding: 18px 20px 14px;
+}
+.kpi-head {
   display: flex;
   align-items: center;
-  gap: 20px;
-  min-height: 120px;
+  gap: 10px;
+  margin-bottom: 10px;
 }
-.stat-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
+.kpi-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 18px;
+  flex-shrink: 0;
 }
-.stat-content .stat-label { margin: 0 0 6px 0; color: #909399; font-size: 13px; }
-.stat-content .stat-value { margin: 0; font-size: 26px; font-weight: 700; color: #303133; }
-.stat-content .stat-change { margin: 6px 0 0 0; font-size: 12px; }
-.text-muted { color: #909399; }
-.empty-chart {
-  height: 320px;
+.tint-primary { background: color-mix(in srgb, var(--primary) 14%, transparent); }
+.tint-success { background: color-mix(in srgb, var(--success) 14%, transparent); }
+.tint-info    { background: color-mix(in srgb, var(--info) 14%, transparent); }
+.tint-purple  { background: color-mix(in srgb, var(--purple) 14%, transparent); }
+.tint-orange  { background: color-mix(in srgb, var(--orange) 14%, transparent); }
+
+.kpi-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.kpi-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kpi-foot {
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: #909399;
-  font-size: 14px;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
 }
-.recent-bills { display: flex; flex-direction: column; gap: 10px; }
+.delta {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.delta-up   { background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); }
+.delta-down { background: color-mix(in srgb, var(--danger) 14%, transparent);  color: var(--danger); }
+.delta-flat { background: var(--bg-secondary); color: var(--text-muted); }
+.delta-hint { color: var(--text-muted); }
+
+.kpi-spark {
+  height: 36px;
+  margin: 6px -8px -4px;
+}
+.kpi-spark-placeholder { height: 36px; margin-top: 6px; }
+
+/* ---- 客户洞察行 ---- */
+.full-h-card { height: 100%; }
+.full-h-card :deep(.el-card__body) {
+  height: calc(100% - 57px);
+  display: flex;
+  flex-direction: column;
+}
+
+/* 比例条 */
+.acq-block { display: flex; flex-direction: column; gap: 16px; flex: 1; }
+.ratio-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+.ratio-seg { transition: width 0.4s ease; }
+.ratio-seg.ratio-new    { background: var(--info); }
+.ratio-seg.ratio-return { background: var(--success); }
+.ratio-legend {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.dot-success { background: var(--success); }
+.dot-info    { background: var(--info); }
+
+/* k/v 行 */
+.kv-list {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  justify-content: center;
+}
+.kv-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.kv-row:last-child { border-bottom: none; }
+.kv-key { font-size: 13px; color: var(--text-secondary); }
+.kv-val {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+/* ---- Tabs 头 ---- */
+.insight-tabs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.insight-tabs { flex: 1; }
+.insight-tabs :deep(.el-tabs__header) { margin: 0; }
+.insight-tabs :deep(.el-tabs__nav-wrap::after) { display: none; }
+
+.rank-medal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.rank-medal.top3 {
+  font-size: 18px;
+  color: inherit;
+}
+.top-amount {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.phone-masked {
+  font-family: 'Menlo', 'Monaco', monospace;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ---- 最近订单 ---- */
+.recent-bills { display: flex; flex-direction: column; }
 .bill-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 12px;
-  background: #f6f8fa;
-  border-radius: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
 }
-.bill-left { display: flex; flex-direction: column; gap: 4px; }
-.bill-date { font-size: 12px; color: #909399; }
-.bill-info { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.bill-pet { font-size: 13px; color: #606266; }
-.bill-note { font-size: 12px; color: #909399; }
-.bill-right { text-align: right; }
-.bill-amount { font-size: 16px; font-weight: 700; color: #f56c6c; }
-/* T-009: 本月新客 vs 回头客 */
-.acquisition-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
-.acquisition-cell {
-  padding: 16px 20px;
-  border-radius: 10px;
-  background: #fafafa;
-  text-align: center;
-}
-.acquisition-cell.new { background: rgba(64, 158, 255, 0.08); }
-.acquisition-cell.returning { background: rgba(103, 194, 58, 0.08); }
-.acquisition-cell.total { background: rgba(144, 147, 153, 0.08); }
-.acquisition-label { font-size: 13px; color: #909399; margin-bottom: 8px; }
-.acquisition-value { font-size: 28px; font-weight: 700; color: #303133; }
-.acquisition-pct { font-size: 13px; color: #606266; margin-top: 4px; }
-/* T-010: 久未到店老客预警 */
-.dormant-header {
+.bill-item:first-child { padding-top: 4px; }
+.bill-item:last-child { padding-bottom: 0; border-bottom: none; }
+.bill-left {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+.bill-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bill-pet { font-size: 14px; color: var(--text-primary); font-weight: 500; }
+.bill-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  gap: 4px;
   align-items: center;
 }
-.date-range-bar {
-  margin-bottom: 8px;
+.bill-note {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
 }
-.phone-masked {
-  font-family: 'Menlo', 'Monaco', monospace;
-  font-size: 13px;
+.bill-amount {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
 }
-.top-amount {
-  font-weight: 700;
-  color: var(--el-color-danger, #f56c6c);
+
+/* ---- 空状态：emoji + 标题 + 提示 ---- */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 240px;
+  color: var(--text-muted);
+}
+.empty-emoji {
+  font-size: 56px;
+  line-height: 1;
+  opacity: 0.85;
+  margin-bottom: 4px;
+  filter: saturate(0.95);
+}
+.empty-title {
+  margin: 0;
   font-size: 14px;
+  color: var(--text-secondary);
+  font-weight: 500;
 }
+.empty-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.text-muted { color: var(--text-muted); }
+
+/* ---- T-030: 今日营业固定小卡 ---- */
+.today-card {
+  margin-bottom: 16px;
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--primary) 6%, var(--bg-card, #fff)),
+    var(--bg-card, #fff));
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, transparent);
+}
+.today-card :deep(.el-card__body) { padding: 14px 20px; }
+.today-row {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+.today-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.today-cell.today-meta {
+  margin-left: auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+.today-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.today-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.today-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.today-divider {
+  width: 1px;
+  height: 36px;
+  background: var(--border);
+}
+@media (max-width: 767px) {
+  .today-row { flex-wrap: wrap; gap: 14px; }
+  .today-divider { display: none; }
+  .today-cell.today-meta { width: 100%; margin-left: 0; justify-content: space-between; }
+}
+
 @media (max-width: 1440px) {
-  .stat-card { flex-direction: column; text-align: center; gap: 10px; min-height: 140px; }
+  .header-datepicker { width: 240px; }
+  .paw-watermark { right: 280px; }
+  .kpi-value { font-size: 22px; }
+}
+@media (max-width: 767px) {
+  .page-header { flex-direction: column; align-items: stretch; }
+  .header-datepicker { width: 100%; }
+  .paw-watermark { display: none; }
 }
 </style>

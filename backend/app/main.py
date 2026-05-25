@@ -1,8 +1,9 @@
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from .api.v1 import budgets, categories, costs, customers, pets, search, stats
+from .api.v1 import auth, budgets, categories, costs, customers, pets, search, stats
+from .core.auth import get_current_admin
 from .core.config import settings
 from .core.exceptions import ConflictError
 
@@ -32,5 +33,13 @@ def health_check():
     return {"status": "ok"}
 
 
+# auth 路由不能加守卫，否则连登录都进不去
+app.include_router(auth.router, prefix="/api/v1")
+
+# 其余业务路由统一挂全局 JWT 守卫
 for module in (budgets, categories, costs, customers, pets, search, stats):
-    app.include_router(module.router, prefix="/api/v1")
+    app.include_router(
+        module.router,
+        prefix="/api/v1",
+        dependencies=[Depends(get_current_admin)],
+    )

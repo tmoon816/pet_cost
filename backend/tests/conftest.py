@@ -6,6 +6,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.core.auth import get_current_admin
 from app.core.database import Base, get_db
 from app.main import app
 from app.models import CostCategory
@@ -47,6 +48,8 @@ def db_session():
             session.close()
 
     app.dependency_overrides[get_db] = override_get_db
+    # 业务接口测试默认绕过 JWT 守卫，专用 auth 测试用 client_no_auth_override
+    app.dependency_overrides[get_current_admin] = lambda: "admin"
     yield TestingSessionLocal
     app.dependency_overrides.clear()
     engine.dispose()
@@ -54,4 +57,11 @@ def db_session():
 
 @pytest.fixture
 def client(db_session):
+    return TestClient(app)
+
+
+@pytest.fixture
+def client_no_auth_override(db_session):
+    """专给 auth 路由自身的测试用：不 override get_current_admin。"""
+    app.dependency_overrides.pop(get_current_admin, None)
     return TestClient(app)

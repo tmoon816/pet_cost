@@ -1,0 +1,73 @@
+# 公网部署：Nginx Basic Auth + JWT 双层访问控制参考配置
+#
+# 这一层是「纵深防御」：JWT 守住 API，Basic Auth 把 SPA 静态资源圈起来挡扫描器。
+# 关键设计：
+#   - location /        加 Basic Auth（罩住前端入口）
+#   - location /api/    不加 Basic Auth（避免和 axios 的 Bearer token 冲突）
+#   - 给 /api/v1/auth/login 单独加限流，防暴力破解
+#   - HTTPS 必配：Basic Auth 在 HTTP 下密码明文走线
+#
+# 准备工作：
+#   sudo apt install apache2-utils                      # 提供 htpasswd
+#   sudo htpasswd -B -c /etc/nginx/.htpasswd_pet shopowner   # 生成密码文件，-B 用 bcrypt
+#   sudo chown root:www-data /etc/nginx/.htpasswd_pet
+#   sudo chmod 640 /etc/nginx/.htpasswd_pet
+#
+# HTTPS 证书（推荐 Let's Encrypt）：
+#   sudo apt install certbot python3-certbot-nginx
+#   sudo certbot --nginx -d your-domain.example.com
+
+limit_req_zone $binary_remote_addr zone=login_zone:10m rate=5r/m;
+
+server {
+    listen 80;
+    server_name your-domain.example.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name your-domain.example.com;
+
+    # certbot 会自动注入下面两行
+    ssl_certificate     /etc/letsencrypt/live/your-domain.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/your-domain.example.com/privkey.pem;
+
+    # 安全 header
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # 前端构建产物目录（npm run build 后的 dist/）
+    root /var/www/pet_cost/dist;
+    index index.html;
+
+    # ====== 第二层：Basic Auth 罩住 SPA 入口 ======
+    location / {
+        auth_basic "Pet Cost Admin";
+        auth_basic_user_file /etc/nginx/.htpasswd_pet;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # ====== /api/* 反代到 FastAPI，不加 Basic Auth ======
+    # JWT 守门已经够用，不能套两层 Authorization 头会冲突
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # ====== 登录接口单独限流，防暴力破解 ======
+    location = /api/v1/auth/login {
+        limit_req zone=login_zone burst=5 nodelay;
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
