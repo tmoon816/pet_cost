@@ -1,36 +1,56 @@
 <template>
   <view class="page">
-    <view class="header">
-      <view class="title">今日营收</view>
-      <view class="date">{{ today }}</view>
+    <!-- 渐变 hero 卡 -->
+    <view class="hero">
+      <view class="hero-blob hero-blob-1"></view>
+      <view class="hero-blob hero-blob-2"></view>
+
+      <view class="hero-top">
+        <view class="hero-greet">{{ greet }}</view>
+        <view class="hero-date">{{ today }} · {{ weekday }}</view>
+      </view>
+
+      <view class="hero-amount-label">今日流水</view>
+      <view class="hero-amount">
+        <text class="amt-currency">¥</text>
+        <text class="amt-num">{{ totalAmount }}</text>
+      </view>
+
+      <view class="hero-stats">
+        <view class="hero-stat">
+          <view class="hero-stat-num">{{ recordCount }}</view>
+          <view class="hero-stat-label">今日单数</view>
+        </view>
+        <view class="hero-stat-divider"></view>
+        <view class="hero-stat">
+          <view class="hero-stat-num">¥{{ avgAmount }}</view>
+          <view class="hero-stat-label">客单价</view>
+        </view>
+      </view>
     </view>
 
-    <view class="cards">
-      <view class="card">
-        <view class="card-label">今日单数</view>
-        <view class="card-value">{{ recordCount }}</view>
-      </view>
-      <view class="card primary">
-        <view class="card-label">今日流水</view>
-        <view class="card-value">¥{{ totalAmount }}</view>
-      </view>
-      <view class="card">
-        <view class="card-label">客单价</view>
-        <view class="card-value">¥{{ avgAmount }}</view>
-      </view>
-    </view>
-
+    <!-- 今日订单 -->
     <view class="section">
       <view class="section-head">
-        <text class="section-title">今日订单</text>
-        <text v-if="costs.length" class="section-count">{{ costs.length }} 单</text>
+        <view class="section-title-wrap">
+          <text class="section-title">今日订单</text>
+          <text v-if="costs.length" class="section-badge">{{ costs.length }}</text>
+        </view>
+        <text v-if="costs.length" class="section-action" @click="goBill">+ 开新单</text>
       </view>
 
       <view v-if="loading && !costs.length" class="state">加载中…</view>
-      <view v-else-if="!costs.length" class="state">今天还没有开单</view>
+      <view v-else-if="!costs.length" class="empty">
+        <view class="empty-emoji">🐾</view>
+        <view class="empty-title">今天还没有开单</view>
+        <view class="empty-tip" @click="goBill">点这里去开第一单</view>
+      </view>
 
       <view v-else class="list">
         <view v-for="c in costs" :key="c.id" class="item">
+          <view class="item-icon" :style="{ background: catColor(c.category_code).bg, color: catColor(c.category_code).fg }">
+            {{ catEmoji(c.category_code) }}
+          </view>
           <view class="item-main">
             <view class="item-title">
               <text class="pet">{{ c.pet_name || '—' }}</text>
@@ -57,21 +77,35 @@ const auth = useAuthStore()
 const categoryStore = useCategoryStore()
 
 const today = ref('')
+const weekday = ref('')
 const summary = ref({ total_amount: 0, record_count: 0 })
 const costs = ref([])
 const loading = ref(false)
+
+const greet = computed(() => {
+  const h = new Date().getHours()
+  if (h < 6) return '夜深了'
+  if (h < 11) return '早上好'
+  if (h < 13) return '中午好'
+  if (h < 18) return '下午好'
+  return '晚上好'
+})
 
 const recordCount = computed(() => summary.value.record_count || 0)
 const totalAmount = computed(() => formatAmount(summary.value.total_amount))
 const avgAmount = computed(() => {
   const n = Number(summary.value.record_count || 0)
-  if (!n) return '—'
+  if (!n) return '0.00'
   return formatAmount(Number(summary.value.total_amount || 0) / n)
 })
 
 function todayStr() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function weekdayStr() {
+  return ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][new Date().getDay()]
 }
 
 function formatAmount(v) {
@@ -84,10 +118,32 @@ function categoryLabel(code) {
   return categoryStore.byCode(code)?.label || code
 }
 
+const CAT_THEME = {
+  grooming: { bg: '#EEF0FF', fg: '#5B5BF2', emoji: '✂️' },
+  medical: { bg: '#FEE2E2', fg: '#EF4444', emoji: '🏥' },
+  food: { bg: '#FEF3C7', fg: '#F59E0B', emoji: '🍖' },
+  toy: { bg: '#FFEDD5', fg: '#FB923C', emoji: '🎾' },
+  boarding: { bg: '#E0F2FE', fg: '#0EA5E9', emoji: '🏠' },
+  training: { bg: '#F3E8FF', fg: '#A855F7', emoji: '🐕' },
+  retail: { bg: '#D1FAE5', fg: '#10B981', emoji: '🛍️' },
+  other: { bg: '#F1F5F9', fg: '#64748B', emoji: '📦' },
+}
+function catColor(code) {
+  return CAT_THEME[code] || CAT_THEME.other
+}
+function catEmoji(code) {
+  return catColor(code).emoji
+}
+
+function goBill() {
+  uni.switchTab({ url: '/pages/bill/bill' })
+}
+
 async function loadAll() {
   if (loading.value) return
   loading.value = true
   today.value = todayStr()
+  weekday.value = weekdayStr()
   try {
     const [s, list] = await Promise.all([
       getSummary({ start: today.value, end: today.value }),
@@ -97,7 +153,7 @@ async function loadAll() {
     summary.value = s
     costs.value = list.items || []
   } catch (e) {
-    // request 已弹 toast
+    /* request 已弹 toast */
   } finally {
     loading.value = false
   }
@@ -123,57 +179,113 @@ onPullDownRefresh(async () => {
 
 <style lang="scss">
 .page {
-  padding: 32rpx 24rpx 60rpx;
+  padding: 24rpx 24rpx 60rpx;
 }
-.header {
-  margin-bottom: 28rpx;
+
+/* ===== Hero ===== */
+.hero {
+  position: relative;
+  background: linear-gradient(135deg, #5B5BF2 0%, #8B5CF6 100%);
+  border-radius: 32rpx;
+  padding: 36rpx 36rpx 28rpx;
+  color: #fff;
+  overflow: hidden;
+  box-shadow: 0 14rpx 40rpx rgba(91, 91, 242, 0.3);
 }
-.title {
-  font-size: 40rpx;
-  font-weight: 600;
-  color: #1f2329;
+.hero-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(40rpx);
+  opacity: 0.5;
+  pointer-events: none;
 }
-.date {
-  margin-top: 8rpx;
-  color: #8a8f99;
-  font-size: 26rpx;
+.hero-blob-1 {
+  width: 280rpx;
+  height: 280rpx;
+  background: #C084FC;
+  top: -80rpx;
+  right: -80rpx;
 }
-.cards {
+.hero-blob-2 {
+  width: 220rpx;
+  height: 220rpx;
+  background: #F472B6;
+  bottom: -100rpx;
+  left: -60rpx;
+}
+.hero-top {
+  position: relative;
   display: flex;
-  gap: 16rpx;
+  justify-content: space-between;
+  align-items: center;
 }
-.card {
-  flex: 1;
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 24rpx 16rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
-  &.primary {
-    background: linear-gradient(135deg, #5b7fff 0%, #7c98ff 100%);
-    .card-label {
-      color: rgba(255, 255, 255, 0.85);
-    }
-    .card-value {
-      color: #fff;
-    }
-  }
+.hero-greet {
+  font-size: 30rpx;
+  font-weight: 500;
 }
-.card-label {
+.hero-date {
   font-size: 22rpx;
-  color: #8a8f99;
+  color: rgba(255, 255, 255, 0.78);
 }
-.card-value {
-  margin-top: 14rpx;
+.hero-amount-label {
+  position: relative;
+  margin-top: 36rpx;
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.78);
+  letter-spacing: 1rpx;
+}
+.hero-amount {
+  position: relative;
+  margin-top: 12rpx;
+  display: flex;
+  align-items: baseline;
+}
+.amt-currency {
   font-size: 36rpx;
-  font-weight: 600;
-  color: #1f2329;
+  font-weight: 500;
+  margin-right: 6rpx;
+  color: rgba(255, 255, 255, 0.92);
 }
+.amt-num {
+  font-size: 80rpx;
+  font-weight: 700;
+  letter-spacing: -1rpx;
+  line-height: 1;
+}
+.hero-stats {
+  position: relative;
+  margin-top: 36rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+}
+.hero-stat {
+  flex: 1;
+  text-align: center;
+}
+.hero-stat-divider {
+  width: 1rpx;
+  height: 60rpx;
+  background: rgba(255, 255, 255, 0.18);
+}
+.hero-stat-num {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+.hero-stat-label {
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+/* ===== Section ===== */
 .section {
   margin-top: 32rpx;
   background: #fff;
-  border-radius: 16rpx;
-  padding: 24rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.03);
+  border-radius: 28rpx;
+  padding: 28rpx 28rpx 12rpx;
+  box-shadow: 0 6rpx 20rpx rgba(15, 23, 42, 0.04);
 }
 .section-head {
   display: flex;
@@ -181,32 +293,79 @@ onPullDownRefresh(async () => {
   justify-content: space-between;
   margin-bottom: 12rpx;
 }
+.section-title-wrap {
+  display: flex;
+  align-items: center;
+}
 .section-title {
-  font-size: 30rpx;
+  font-size: 32rpx;
   font-weight: 600;
-  color: #1f2329;
+  color: #0F172A;
 }
-.section-count {
-  font-size: 24rpx;
-  color: #8a8f99;
+.section-badge {
+  margin-left: 16rpx;
+  padding: 2rpx 14rpx;
+  font-size: 22rpx;
+  color: #5B5BF2;
+  background: #EEF0FF;
+  border-radius: 999rpx;
 }
+.section-action {
+  font-size: 26rpx;
+  color: #5B5BF2;
+  padding: 4rpx 8rpx;
+}
+
 .state {
   padding: 60rpx 0;
   text-align: center;
-  color: #b0b4bd;
+  color: #94A3B8;
   font-size: 26rpx;
 }
+.empty {
+  padding: 60rpx 0 80rpx;
+  text-align: center;
+}
+.empty-emoji {
+  font-size: 80rpx;
+}
+.empty-title {
+  margin-top: 20rpx;
+  font-size: 28rpx;
+  color: #475569;
+}
+.empty-tip {
+  margin-top: 16rpx;
+  display: inline-block;
+  font-size: 24rpx;
+  color: #5B5BF2;
+  padding: 12rpx 28rpx;
+  background: #EEF0FF;
+  border-radius: 999rpx;
+}
+
+/* ===== List ===== */
 .list {
-  margin-top: 8rpx;
+  margin: 8rpx -12rpx 0;
 }
 .item {
   display: flex;
   align-items: center;
-  padding: 24rpx 0;
-  border-bottom: 1rpx solid #f0f1f5;
-  &:last-child {
-    border-bottom: none;
+  padding: 20rpx 12rpx;
+  border-radius: 16rpx;
+  &:active {
+    background: #F8F9FC;
   }
+}
+.item-icon {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 18rpx;
+  font-size: 32rpx;
+  text-align: center;
+  line-height: 72rpx;
+  margin-right: 20rpx;
+  flex-shrink: 0;
 }
 .item-main {
   flex: 1;
@@ -216,23 +375,20 @@ onPullDownRefresh(async () => {
   display: flex;
   align-items: center;
   font-size: 28rpx;
-  color: #1f2329;
+  color: #0F172A;
 }
 .pet {
   font-weight: 500;
 }
 .cat {
-  margin-left: 16rpx;
-  font-size: 24rpx;
-  color: #5b7fff;
-  background: #eef2ff;
-  padding: 4rpx 14rpx;
-  border-radius: 8rpx;
+  margin-left: 14rpx;
+  font-size: 22rpx;
+  color: #64748B;
 }
 .item-note {
-  margin-top: 8rpx;
+  margin-top: 6rpx;
   font-size: 22rpx;
-  color: #8a8f99;
+  color: #94A3B8;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -242,6 +398,6 @@ onPullDownRefresh(async () => {
   margin-left: 16rpx;
   font-size: 30rpx;
   font-weight: 600;
-  color: #1f2329;
+  color: #0F172A;
 }
 </style>

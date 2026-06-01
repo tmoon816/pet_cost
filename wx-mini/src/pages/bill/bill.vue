@@ -1,8 +1,32 @@
 <template>
   <view class="page">
+    <!-- 步骤指示 -->
+    <view class="steps">
+      <view class="step" :class="{ active: !!selectedCustomer, done: !!selectedCustomer }">
+        <view class="step-dot">1</view>
+        <view class="step-label">会员</view>
+      </view>
+      <view class="step-line" :class="{ active: !!selectedCustomer }"></view>
+      <view class="step" :class="{ active: !!form.pet_id, done: !!form.pet_id }">
+        <view class="step-dot">2</view>
+        <view class="step-label">宠物</view>
+      </view>
+      <view class="step-line" :class="{ active: !!form.pet_id }"></view>
+      <view class="step" :class="{ active: !!form.category_code }">
+        <view class="step-dot">3</view>
+        <view class="step-label">项目</view>
+      </view>
+      <view class="step-line" :class="{ active: !!form.category_code }"></view>
+      <view class="step" :class="{ active: canSubmit }">
+        <view class="step-dot">4</view>
+        <view class="step-label">金额</view>
+      </view>
+    </view>
+
     <!-- 1. 搜会员 -->
     <view class="section">
       <view class="search-bar">
+        <text class="search-icon">🔍</text>
         <input
           class="search-input"
           v-model="keyword"
@@ -25,8 +49,11 @@
           :class="{ active: selectedCustomer?.id === c.id }"
           @click="selectCustomer(c)"
         >
-          <view class="cust-name">{{ c.name }}</view>
-          <view class="cust-phone">{{ c.phone || '—' }}</view>
+          <view class="cust-avatar">{{ (c.name || '?').slice(0, 1) }}</view>
+          <view class="cust-info">
+            <view class="cust-name">{{ c.name }}</view>
+            <view class="cust-phone">{{ c.phone || '—' }}</view>
+          </view>
         </view>
         <view v-if="!customers.length && !loadingCustomers" class="empty-tip">
           {{ keyword ? '没找到匹配的会员' : '暂无最近会员' }}
@@ -36,16 +63,20 @@
 
     <!-- 2. 选宠物 -->
     <view v-if="selectedCustomer" class="section">
-      <view class="label">选择宠物</view>
+      <view class="section-title">选择宠物</view>
       <view class="chip-grid">
         <view
           v-for="p in pets"
           :key="p.id"
-          class="chip"
+          class="pet-chip"
           :class="{ active: form.pet_id === p.id }"
           @click="form.pet_id = p.id"
         >
-          {{ p.name }}<text v-if="p.species" class="chip-sub"> · {{ p.species }}</text>
+          <text class="pet-emoji">{{ petEmoji(p.species) }}</text>
+          <view class="pet-info">
+            <view class="pet-name">{{ p.name }}</view>
+            <view v-if="p.species" class="pet-sub">{{ p.species }}</view>
+          </view>
         </view>
         <view v-if="!pets.length && !loadingPets" class="empty-tip">
           该会员暂无宠物档案
@@ -55,43 +86,50 @@
 
     <!-- 3. 选项目 -->
     <view v-if="selectedCustomer && pets.length" class="section">
-      <view class="label">选择项目</view>
-      <view class="chip-grid">
+      <view class="section-title">选择项目</view>
+      <view class="cat-grid">
         <view
           v-for="c in categories"
           :key="c.code"
-          class="chip"
+          class="cat-chip"
           :class="{ active: form.category_code === c.code }"
+          :style="form.category_code === c.code ? { background: catTheme(c.code).bg, color: catTheme(c.code).fg, 'border-color': catTheme(c.code).fg } : {}"
           @click="form.category_code = c.code"
         >
-          {{ c.label }}
+          <text class="cat-emoji">{{ catTheme(c.code).emoji }}</text>
+          <text class="cat-label">{{ c.label }}</text>
         </view>
       </view>
     </view>
 
     <!-- 4. 金额/日期/备注 -->
     <view v-if="selectedCustomer && pets.length" class="section">
-      <view class="form-row">
-        <text class="label">金额</text>
-        <input
-          class="form-input amount"
-          v-model="form.amount"
-          type="digit"
-          placeholder="0.00"
-          placeholder-class="ph"
-        />
-        <text class="suffix">元</text>
+      <view class="amount-row">
+        <text class="amount-label">金额</text>
+        <view class="amount-input-wrap">
+          <text class="amount-prefix">¥</text>
+          <input
+            class="amount-input"
+            v-model="form.amount"
+            type="digit"
+            placeholder="0.00"
+            placeholder-class="amount-ph"
+          />
+        </view>
       </view>
 
       <view class="form-row">
-        <text class="label">日期</text>
+        <text class="form-label">日期</text>
         <picker mode="date" :value="form.occurred_on" @change="onDateChange">
-          <view class="form-input picker">{{ form.occurred_on }}</view>
+          <view class="form-input picker">
+            {{ form.occurred_on }}
+            <text class="form-arrow">›</text>
+          </view>
         </picker>
       </view>
 
       <view class="form-row col">
-        <text class="label">备注</text>
+        <text class="form-label">备注</text>
         <textarea
           class="form-textarea"
           v-model="form.note"
@@ -104,7 +142,7 @@
 
     <!-- 5. 提交 -->
     <view v-if="selectedCustomer && pets.length" class="submit-wrap">
-      <button class="btn" :loading="submitting" :disabled="!canSubmit" @click="onSubmit">
+      <button class="btn-primary" :loading="submitting" :disabled="!canSubmit" @click="onSubmit">
         提交开单
       </button>
     </view>
@@ -152,6 +190,31 @@ const canSubmit = computed(() => {
   )
 })
 
+const CAT_THEME = {
+  grooming: { bg: '#EEF0FF', fg: '#5B5BF2', emoji: '✂️' },
+  medical: { bg: '#FEE2E2', fg: '#EF4444', emoji: '🏥' },
+  food: { bg: '#FEF3C7', fg: '#F59E0B', emoji: '🍖' },
+  toy: { bg: '#FFEDD5', fg: '#FB923C', emoji: '🎾' },
+  boarding: { bg: '#E0F2FE', fg: '#0EA5E9', emoji: '🏠' },
+  training: { bg: '#F3E8FF', fg: '#A855F7', emoji: '🐕' },
+  retail: { bg: '#D1FAE5', fg: '#10B981', emoji: '🛍️' },
+  other: { bg: '#F1F5F9', fg: '#64748B', emoji: '📦' },
+}
+function catTheme(code) {
+  return CAT_THEME[code] || CAT_THEME.other
+}
+
+function petEmoji(species) {
+  const s = (species || '').toLowerCase()
+  if (s.includes('猫') || s.includes('cat')) return '🐱'
+  if (s.includes('狗') || s.includes('dog') || s.includes('犬')) return '🐶'
+  if (s.includes('兔')) return '🐰'
+  if (s.includes('鸟') || s.includes('鹦')) return '🦜'
+  if (s.includes('鱼')) return '🐠'
+  if (s.includes('龟')) return '🐢'
+  return '🐾'
+}
+
 function todayStr() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -167,7 +230,6 @@ onMounted(() => {
 })
 
 onShow(() => {
-  // 进入页面时重新拉一次最近会员，避免数据过时
   if (auth.isLogin && !keyword.value) loadRecent()
 })
 
@@ -246,14 +308,13 @@ async function onSubmit() {
     uni.showToast({ title: '开单成功', icon: 'success' })
     resetForm()
   } catch (e) {
-    // request 已弹 toast
+    /* request 已弹 toast */
   } finally {
     submitting.value = false
   }
 }
 
 function resetForm() {
-  // 保留客户和宠物，方便连续给同一只宠物开多单
   form.category_code = ''
   form.amount = ''
   form.note = ''
@@ -263,166 +324,348 @@ function resetForm() {
 
 <style lang="scss">
 .page {
-  padding: 24rpx 24rpx 160rpx;
+  padding: 24rpx 24rpx 200rpx;
 }
-.section {
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 24rpx;
-  margin-bottom: 20rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.03);
-}
-.label {
-  font-size: 26rpx;
-  color: #4a5160;
-  font-weight: 500;
-}
-.search-bar {
-  position: relative;
-  background: #f5f6fa;
-  border-radius: 12rpx;
-  height: 76rpx;
+
+/* ===== 步骤指示 ===== */
+.steps {
   display: flex;
   align-items: center;
+  background: #fff;
+  border-radius: 28rpx;
+  padding: 24rpx 28rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 6rpx 20rpx rgba(15, 23, 42, 0.04);
+}
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+.step-dot {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: #F1F3F9;
+  color: #94A3B8;
+  font-size: 24rpx;
+  font-weight: 600;
+  text-align: center;
+  line-height: 48rpx;
+  transition: all 0.2s;
+}
+.step.active .step-dot,
+.step.done .step-dot {
+  background: linear-gradient(135deg, #5B5BF2 0%, #8B5CF6 100%);
+  color: #fff;
+  box-shadow: 0 4rpx 12rpx rgba(91, 91, 242, 0.4);
+}
+.step-label {
+  margin-top: 10rpx;
+  font-size: 22rpx;
+  color: #94A3B8;
+}
+.step.active .step-label,
+.step.done .step-label {
+  color: #5B5BF2;
+  font-weight: 500;
+}
+.step-line {
+  flex: 1;
+  height: 4rpx;
+  background: #F1F3F9;
+  margin: 0 16rpx;
+  margin-bottom: 32rpx;
+  border-radius: 4rpx;
+}
+.step-line.active {
+  background: linear-gradient(90deg, #5B5BF2 0%, #8B5CF6 100%);
+}
+
+/* ===== Section ===== */
+.section {
+  background: #fff;
+  border-radius: 28rpx;
+  padding: 28rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 6rpx 20rpx rgba(15, 23, 42, 0.04);
+}
+.section-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #0F172A;
+  margin-bottom: 20rpx;
+}
+
+/* ===== 搜索 ===== */
+.search-bar {
+  display: flex;
+  align-items: center;
+  background: #F1F3F9;
+  border-radius: 16rpx;
+  height: 80rpx;
   padding: 0 24rpx;
+}
+.search-icon {
+  font-size: 26rpx;
+  margin-right: 12rpx;
+  opacity: 0.6;
 }
 .search-input {
   flex: 1;
-  height: 76rpx;
+  height: 80rpx;
   font-size: 28rpx;
+  color: #0F172A;
 }
 .search-clear {
   font-size: 36rpx;
-  color: #b0b4bd;
+  color: #94A3B8;
   padding: 0 8rpx;
   line-height: 1;
 }
 .ph {
-  color: #b0b4bd;
+  color: #94A3B8;
 }
 .cust-label {
   margin: 24rpx 0 16rpx;
-  font-size: 24rpx;
-  color: #8a8f99;
+  font-size: 22rpx;
+  color: #94A3B8;
+  letter-spacing: 1rpx;
 }
 .cust-scroll {
   white-space: nowrap;
   display: flex;
 }
 .cust-chip {
-  display: inline-block;
-  min-width: 200rpx;
-  padding: 16rpx 24rpx;
+  display: inline-flex;
+  align-items: center;
+  min-width: 240rpx;
+  padding: 16rpx 20rpx;
   margin-right: 16rpx;
-  background: #f5f6fa;
-  border-radius: 12rpx;
+  background: #F8F9FC;
+  border-radius: 20rpx;
   border: 2rpx solid transparent;
+  transition: all 0.15s;
   &.active {
-    background: #eef2ff;
-    border-color: #5b7fff;
+    background: linear-gradient(135deg, #EEF0FF 0%, #F3E8FF 100%);
+    border-color: #5B5BF2;
+    box-shadow: 0 4rpx 12rpx rgba(91, 91, 242, 0.18);
   }
+}
+.cust-avatar {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: #fff;
+  color: #5B5BF2;
+  font-size: 28rpx;
+  font-weight: 600;
+  text-align: center;
+  line-height: 64rpx;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+.cust-chip.active .cust-avatar {
+  background: linear-gradient(135deg, #5B5BF2 0%, #8B5CF6 100%);
+  color: #fff;
+}
+.cust-info {
+  min-width: 0;
 }
 .cust-name {
   font-size: 28rpx;
   font-weight: 500;
-  color: #1f2329;
+  color: #0F172A;
 }
 .cust-phone {
-  margin-top: 6rpx;
+  margin-top: 4rpx;
   font-size: 22rpx;
-  color: #8a8f99;
-}
-.chip-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16rpx;
-  margin-top: 16rpx;
-}
-.chip {
-  padding: 14rpx 28rpx;
-  background: #f5f6fa;
-  border-radius: 999rpx;
-  font-size: 26rpx;
-  color: #4a5160;
-  border: 2rpx solid transparent;
-  &.active {
-    background: #eef2ff;
-    color: #5b7fff;
-    border-color: #5b7fff;
-  }
-}
-.chip-sub {
-  font-size: 22rpx;
-  color: #8a8f99;
+  color: #94A3B8;
 }
 .empty-tip {
   width: 100%;
   text-align: center;
-  color: #b0b4bd;
+  color: #94A3B8;
   font-size: 24rpx;
-  padding: 24rpx 0;
+  padding: 32rpx 0;
 }
+
+/* ===== 宠物芯片 ===== */
+.chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+.pet-chip {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 24rpx;
+  background: #F8F9FC;
+  border-radius: 18rpx;
+  border: 2rpx solid transparent;
+  transition: all 0.15s;
+  &.active {
+    background: linear-gradient(135deg, #EEF0FF 0%, #F3E8FF 100%);
+    border-color: #5B5BF2;
+  }
+}
+.pet-emoji {
+  font-size: 36rpx;
+  margin-right: 14rpx;
+}
+.pet-info {
+  display: flex;
+  flex-direction: column;
+}
+.pet-name {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #0F172A;
+}
+.pet-sub {
+  margin-top: 2rpx;
+  font-size: 20rpx;
+  color: #94A3B8;
+}
+
+/* ===== 项目网格 ===== */
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16rpx;
+}
+.cat-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24rpx 8rpx;
+  background: #F8F9FC;
+  border-radius: 18rpx;
+  border: 2rpx solid transparent;
+  transition: all 0.15s;
+}
+.cat-emoji {
+  font-size: 40rpx;
+}
+.cat-label {
+  margin-top: 10rpx;
+  font-size: 22rpx;
+  color: #475569;
+}
+.cat-chip.active .cat-label {
+  font-weight: 600;
+}
+
+/* ===== 金额输入 ===== */
+.amount-row {
+  display: flex;
+  flex-direction: column;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #F1F3F9;
+}
+.amount-label {
+  font-size: 24rpx;
+  color: #94A3B8;
+  letter-spacing: 1rpx;
+}
+.amount-input-wrap {
+  display: flex;
+  align-items: baseline;
+  margin-top: 12rpx;
+}
+.amount-prefix {
+  font-size: 36rpx;
+  color: #5B5BF2;
+  font-weight: 500;
+  margin-right: 8rpx;
+}
+.amount-input {
+  flex: 1;
+  font-size: 60rpx;
+  font-weight: 700;
+  color: #0F172A;
+  letter-spacing: -1rpx;
+  height: 80rpx;
+}
+.amount-ph {
+  color: #CBD5E1;
+}
+
+/* ===== 通用表单 ===== */
 .form-row {
   display: flex;
   align-items: center;
-  margin-top: 20rpx;
+  margin-top: 24rpx;
   &.col {
     flex-direction: column;
     align-items: stretch;
   }
-  .label {
-    width: 100rpx;
-    flex-shrink: 0;
-  }
+}
+.form-label {
+  width: 100rpx;
+  flex-shrink: 0;
+  font-size: 26rpx;
+  color: #475569;
 }
 .form-input {
   flex: 1;
-  height: 72rpx;
-  line-height: 72rpx;
-  background: #f5f6fa;
-  border-radius: 10rpx;
-  padding: 0 20rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  background: #F1F3F9;
+  border-radius: 14rpx;
+  padding: 0 24rpx;
   font-size: 28rpx;
+  color: #0F172A;
   &.picker {
-    color: #1f2329;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
 }
-.amount {
+.form-arrow {
+  color: #CBD5E1;
   font-size: 32rpx;
-  font-weight: 500;
-}
-.suffix {
-  margin-left: 12rpx;
-  color: #8a8f99;
 }
 .form-textarea {
-  margin-top: 12rpx;
+  margin-top: 14rpx;
   width: 100%;
-  min-height: 120rpx;
-  background: #f5f6fa;
-  border-radius: 10rpx;
-  padding: 16rpx 20rpx;
+  min-height: 140rpx;
+  background: #F1F3F9;
+  border-radius: 14rpx;
+  padding: 20rpx 24rpx;
   font-size: 26rpx;
   box-sizing: border-box;
 }
+
+/* ===== 提交按钮 ===== */
 .submit-wrap {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom));
-  background: #f5f6fa;
+  background: rgba(246, 247, 251, 0.92);
+  backdrop-filter: blur(20rpx);
 }
-.btn {
-  height: 88rpx;
-  line-height: 88rpx;
-  background: #5b7fff;
+.btn-primary {
+  height: 96rpx;
+  line-height: 96rpx;
+  background: linear-gradient(135deg, #5B5BF2 0%, #8B5CF6 100%);
   color: #fff;
-  border-radius: 12rpx;
+  border-radius: 20rpx;
   font-size: 32rpx;
+  font-weight: 500;
+  letter-spacing: 2rpx;
+  box-shadow: 0 12rpx 28rpx rgba(91, 91, 242, 0.4);
+  border: none;
+  &::after {
+    border: none;
+  }
   &[disabled] {
-    background: #c4cdee;
+    background: #CBD5E1;
     color: #fff;
+    box-shadow: none;
   }
 }
 </style>
