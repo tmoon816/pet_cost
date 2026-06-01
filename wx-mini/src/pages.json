@@ -1,0 +1,75 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "今日营收",
+        "enablePullDownRefresh": true,
+        "backgroundTextStyle": "dark"
+      }
+    },
+    {
+      "path": "pages/bill/bill",
+      "style": {
+        "navigationBarTitleText": "开单"
+      }
+    },
+    {
+      "path": "pages/customer/customer",
+      "style": {
+        "navigationBarTitleText": "会员",
+        "enablePullDownRefresh": true,
+        "backgroundTextStyle": "dark"
+      }
+    },
+    {
+      "path": "pages/customer-detail/customer-detail",
+      "style": {
+        "navigationBarTitleText": "会员详情"
+      }
+    },
+    {
+      "path": "pages/mine/mine",
+      "style": {
+        "navigationBarTitleText": "我的"
+      }
+    },
+    {
+      "path": "pages/login/login",
+      "style": {
+        "navigationBarTitleText": "登录",
+        "navigationStyle": "custom"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "宠物店管理",
+    "navigationBarBackgroundColor": "#ffffff",
+    "backgroundColor": "#f5f6fa"
+  },
+  "tabBar": {
+    "color": "#8a8f99",
+    "selectedColor": "#5B7FFF",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/bill/bill",
+        "text": "开单"
+      },
+      {
+        "pagePath": "pages/customer/customer",
+        "text": "会员"
+      },
+      {
+        "pagePath": "pages/mine/mine",
+        "text": "我的"
+      }
+    ]
+  }
+}

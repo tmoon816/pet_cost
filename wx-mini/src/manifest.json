@@ -1,0 +1,31 @@
+{
+  "name": "宠物店管理",
+  "appid": "",
+  "description": "宠物店管理 - 店员移动端",
+  "versionName": "0.0.1",
+  "versionCode": "1",
+  "transformPx": false,
+  "app-plus": {
+    "usingComponents": true,
+    "nvueStyleCompiler": "uni-app",
+    "compilerVersion": 3
+  },
+  "mp-weixin": {
+    "appid": "touristappid",
+    "setting": {
+      "urlCheck": false,
+      "es6": true,
+      "minified": true,
+      "postcss": true
+    },
+    "usingComponents": true,
+    "lazyCodeLoading": "requiredComponents"
+  },
+  "h5": {
+    "router": {
+      "base": "/"
+    },
+    "title": "宠物店管理"
+  },
+  "vueVersion": "3"
+}
