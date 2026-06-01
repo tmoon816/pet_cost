@@ -11,11 +11,18 @@ engine = create_engine(
     pool_recycle=3600,
 )
 
-# 对SQLite开启外键约束
+# SQLite：开外键 + WAL 模式（支持单写多读，单机部署体验更顺）
 if "sqlite" in SQLALCHEMY_DATABASE_URL:
+    _is_memory = ":memory:" in SQLALCHEMY_DATABASE_URL
+
     @event.listens_for(engine, "connect")
-    def _enable_sqlite_fk(dbapi_conn, _):
-        dbapi_conn.execute("PRAGMA foreign_keys=ON")
+    def _configure_sqlite(dbapi_conn, _):
+        cur = dbapi_conn.cursor()
+        cur.execute("PRAGMA foreign_keys=ON")
+        if not _is_memory:
+            cur.execute("PRAGMA journal_mode=WAL")
+            cur.execute("PRAGMA synchronous=NORMAL")
+        cur.close()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
