@@ -1,6 +1,5 @@
 <template>
   <view class="page">
-    <!-- 顶部搜索 -->
     <view class="top">
       <view class="search-bar">
         <text class="search-icon">🔍</text>
@@ -17,7 +16,6 @@
       </view>
     </view>
 
-    <!-- 概览条 -->
     <view v-if="!keyword && total > 0" class="overview">
       <text class="overview-num">{{ total }}</text>
       <text class="overview-label">位会员 · 按累计消费排序</text>
@@ -37,7 +35,7 @@
         class="card"
         @click="goDetail(c)"
       >
-        <view class="rank" v-if="!keyword && idx < 3" :class="`rank-${idx + 1}`">
+        <view v-if="!keyword && idx < 3" class="rank">
           {{ ['🥇', '🥈', '🥉'][idx] }}
         </view>
 
@@ -91,13 +89,14 @@ let searchTimer = null
 
 const hasMore = computed(() => items.value.length < total.value)
 
+// 6 套头像底色，跟主色调和谐共处但不抢戏
 const AVATAR_BG = [
-  'linear-gradient(135deg, #5B5BF2 0%, #8B5CF6 100%)',
-  'linear-gradient(135deg, #FB923C 0%, #F472B6 100%)',
-  'linear-gradient(135deg, #10B981 0%, #34D399 100%)',
-  'linear-gradient(135deg, #0EA5E9 0%, #38BDF8 100%)',
-  'linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%)',
-  'linear-gradient(135deg, #EC4899 0%, #F472B6 100%)',
+  '#FFA62B', // 主色
+  '#1C7ED6', // 信息蓝
+  '#5DA716', // 成功绿
+  '#7048E8', // 紫
+  '#E03131', // 红
+  '#D9480F', // 深橙
 ]
 function avatarBg(name) {
   if (!name) return AVATAR_BG[0]
@@ -193,51 +192,52 @@ onReachBottom(() => {
   padding: 24rpx 24rpx 60rpx;
 }
 .top {
-  margin-bottom: 16rpx;
+  margin-bottom: 12rpx;
 }
 .search-bar {
   display: flex;
   align-items: center;
-  background: #fff;
-  border-radius: 20rpx;
-  height: 88rpx;
+  background: #FFFFFF;
+  border: 1rpx solid #E9ECEF;
+  border-radius: 16rpx;
+  height: 84rpx;
   padding: 0 28rpx;
-  box-shadow: 0 6rpx 20rpx rgba(15, 23, 42, 0.05);
+  box-shadow: 0 2rpx 6rpx rgba(33, 37, 41, 0.04);
 }
 .search-icon {
   font-size: 28rpx;
   margin-right: 14rpx;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 .search-input {
   flex: 1;
-  height: 88rpx;
+  height: 84rpx;
   font-size: 28rpx;
-  color: #0F172A;
+  color: #212529;
 }
 .search-clear {
   font-size: 36rpx;
-  color: #94A3B8;
+  color: #ADB5BD;
   padding: 0 8rpx;
   line-height: 1;
 }
 .ph {
-  color: #94A3B8;
+  color: #ADB5BD;
 }
 .overview {
-  padding: 20rpx 12rpx 8rpx;
+  padding: 16rpx 12rpx 12rpx;
   display: flex;
   align-items: baseline;
 }
 .overview-num {
-  font-size: 36rpx;
+  font-size: 32rpx;
   font-weight: 700;
-  color: #0F172A;
+  color: #212529;
   margin-right: 12rpx;
 }
 .overview-label {
   font-size: 22rpx;
-  color: #94A3B8;
+  color: #ADB5BD;
 }
 .state,
 .empty {
@@ -245,57 +245,58 @@ onReachBottom(() => {
   text-align: center;
 }
 .state {
-  color: #94A3B8;
+  color: #ADB5BD;
   font-size: 26rpx;
 }
 .empty-emoji {
-  font-size: 96rpx;
+  font-size: 84rpx;
+  opacity: 0.5;
 }
 .empty-title {
   margin-top: 24rpx;
   font-size: 28rpx;
-  color: #475569;
+  color: #6C757D;
 }
 .empty-tip {
-  margin-top: 12rpx;
+  margin-top: 10rpx;
   font-size: 24rpx;
-  color: #94A3B8;
+  color: #ADB5BD;
 }
 .list {
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
+  gap: 12rpx;
 }
 .card {
   position: relative;
   display: flex;
   align-items: center;
-  background: #fff;
-  border-radius: 24rpx;
-  padding: 28rpx 24rpx;
-  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
+  background: #FFFFFF;
+  border: 1rpx solid #E9ECEF;
+  border-radius: 20rpx;
+  padding: 24rpx;
+  box-shadow: 0 2rpx 6rpx rgba(33, 37, 41, 0.04);
   &:active {
-    background: #FAFBFE;
+    background: #F8F9FA;
   }
 }
 .rank {
   position: absolute;
-  top: 16rpx;
-  right: 20rpx;
-  font-size: 28rpx;
+  top: 14rpx;
+  right: 18rpx;
+  font-size: 26rpx;
 }
 .avatar {
-  width: 88rpx;
-  height: 88rpx;
-  border-radius: 24rpx;
-  color: #fff;
-  font-size: 36rpx;
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 20rpx;
+  color: #FFFFFF;
+  font-size: 34rpx;
   font-weight: 600;
   text-align: center;
-  line-height: 88rpx;
-  margin-right: 24rpx;
+  line-height: 84rpx;
+  margin-right: 22rpx;
   flex-shrink: 0;
-  box-shadow: 0 6rpx 16rpx rgba(91, 91, 242, 0.18);
 }
 .main {
   flex: 1;
@@ -308,31 +309,31 @@ onReachBottom(() => {
 .name {
   font-size: 30rpx;
   font-weight: 600;
-  color: #0F172A;
+  color: #212529;
 }
 .tag {
-  margin-left: 12rpx;
-  padding: 2rpx 14rpx;
+  margin-left: 10rpx;
+  padding: 2rpx 12rpx;
   font-size: 20rpx;
   border-radius: 8rpx;
   font-weight: 500;
 }
 .tag-first_visit {
-  color: #5B5BF2;
-  background: #EEF0FF;
+  color: #1C7ED6;
+  background: #E7F3FB;
 }
 .tag-returning {
-  color: #10B981;
-  background: #D1FAE5;
+  color: #5DA716;
+  background: #F4F9E6;
 }
 .tag-vip {
-  color: #B45309;
-  background: #FEF3C7;
+  color: #FFFFFF;
+  background: #FFA62B;
 }
 .sub {
-  margin-top: 10rpx;
-  font-size: 24rpx;
-  color: #94A3B8;
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #ADB5BD;
   display: flex;
   align-items: center;
 }
@@ -345,15 +346,15 @@ onReachBottom(() => {
   margin-left: 16rpx;
 }
 .amt-num {
-  font-size: 30rpx;
+  font-size: 28rpx;
   font-weight: 700;
-  color: #5B5BF2;
+  color: #212529;
 }
 .amt-label {
   display: block;
-  margin-top: 6rpx;
+  margin-top: 4rpx;
   font-size: 20rpx;
-  color: #94A3B8;
+  color: #ADB5BD;
 }
 .load-more,
 .load-end {
@@ -363,9 +364,10 @@ onReachBottom(() => {
   letter-spacing: 2rpx;
 }
 .load-more {
-  color: #5B5BF2;
+  color: #FFA62B;
+  font-weight: 500;
 }
 .load-end {
-  color: #CBD5E1;
+  color: #DEE2E6;
 }
 </style>

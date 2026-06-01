@@ -1,8 +1,7 @@
 <template>
   <view class="page">
-    <!-- 渐变 hero -->
+    <!-- Hero -->
     <view class="hero">
-      <view class="hero-blob"></view>
       <view class="avatar">{{ avatarText }}</view>
       <view class="info">
         <view class="name">{{ auth.username || '未登录' }}</view>
@@ -29,11 +28,11 @@
     </view>
 
     <!-- 退出登录 -->
-    <view class="cell-group danger">
+    <view class="cell-group">
       <view class="cell" @click="onLogout">
         <text class="cell-icon">🚪</text>
         <view class="cell-main">
-          <text class="cell-label danger-label">退出登录</text>
+          <text class="cell-label danger">退出登录</text>
         </view>
         <text class="cell-arrow">›</text>
       </view>
@@ -62,7 +61,7 @@ function onLogout() {
   uni.showModal({
     title: '退出登录',
     content: '确定要退出登录吗？',
-    confirmColor: '#5B5BF2',
+    confirmColor: '#FFA62B',
     success: (res) => {
       if (res.confirm) {
         auth.logout()
@@ -78,78 +77,65 @@ function onLogout() {
   padding: 24rpx 24rpx 60rpx;
 }
 
-/* Hero */
+/* Hero —— 奶油暖白 */
 .hero {
-  position: relative;
   display: flex;
   align-items: center;
-  background: linear-gradient(135deg, #5B5BF2 0%, #8B5CF6 100%);
-  border-radius: 32rpx;
-  padding: 40rpx 32rpx;
-  color: #fff;
-  overflow: hidden;
-  box-shadow: 0 14rpx 40rpx rgba(91, 91, 242, 0.3);
-}
-.hero-blob {
-  position: absolute;
-  width: 280rpx;
-  height: 280rpx;
-  background: #F472B6;
-  border-radius: 50%;
-  filter: blur(50rpx);
-  opacity: 0.45;
-  bottom: -100rpx;
-  right: -80rpx;
-  pointer-events: none;
+  background: #FFFAF2;
+  border: 1rpx solid #FFE4BD;
+  border-radius: 24rpx;
+  padding: 36rpx 32rpx;
+  box-shadow: 0 2rpx 6rpx rgba(33, 37, 41, 0.04);
 }
 .avatar {
-  position: relative;
-  width: 120rpx;
-  height: 120rpx;
-  border-radius: 32rpx;
-  background: rgba(255, 255, 255, 0.22);
-  backdrop-filter: blur(20rpx);
-  font-size: 52rpx;
+  width: 116rpx;
+  height: 116rpx;
+  border-radius: 28rpx;
+  background: #FFA62B;
+  color: #FFFFFF;
+  font-size: 50rpx;
   font-weight: 600;
   text-align: center;
-  line-height: 120rpx;
+  line-height: 116rpx;
   margin-right: 28rpx;
   flex-shrink: 0;
   letter-spacing: 2rpx;
+  box-shadow: 0 6rpx 16rpx rgba(255, 166, 43, 0.22);
 }
 .info {
-  position: relative;
   flex: 1;
 }
 .name {
-  font-size: 38rpx;
+  font-size: 36rpx;
   font-weight: 600;
+  color: #212529;
   letter-spacing: 1rpx;
 }
 .role {
   margin-top: 10rpx;
   font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.78);
+  color: #6C757D;
 }
 
 /* Cell groups */
 .cell-group {
   margin-top: 24rpx;
-  background: #fff;
-  border-radius: 24rpx;
+  background: #FFFFFF;
+  border: 1rpx solid #E9ECEF;
+  border-radius: 20rpx;
   overflow: hidden;
-  box-shadow: 0 6rpx 20rpx rgba(15, 23, 42, 0.04);
+  box-shadow: 0 2rpx 6rpx rgba(33, 37, 41, 0.04), 0 1rpx 2rpx rgba(33, 37, 41, 0.03);
 }
 .cell {
   display: flex;
   align-items: center;
-  padding: 28rpx 28rpx;
-  border-bottom: 1rpx solid #F1F3F9;
+  padding: 26rpx 28rpx;
+  border-bottom: 1rpx solid #F1F3F5;
   &:last-child {
     border-bottom: none;
   }
   &:active {
-    background: #FAFBFE;
+    background: #F8F9FA;
   }
 }
 .cell-icon {
@@ -164,29 +150,29 @@ function onLogout() {
 }
 .cell-label {
   font-size: 28rpx;
-  color: #0F172A;
+  color: #212529;
+  &.danger {
+    color: #E03131;
+  }
 }
 .cell-value {
-  margin-top: 6rpx;
+  margin-top: 4rpx;
   font-size: 22rpx;
-  color: #94A3B8;
+  color: #ADB5BD;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .cell-arrow {
-  color: #CBD5E1;
+  color: #DEE2E6;
   font-size: 32rpx;
-}
-.cell-group.danger .danger-label {
-  color: #EF4444;
 }
 
 .footer {
   margin-top: 60rpx;
   text-align: center;
   font-size: 22rpx;
-  color: #CBD5E1;
+  color: #DEE2E6;
   letter-spacing: 1rpx;
 }
 </style>

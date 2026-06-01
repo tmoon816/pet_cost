@@ -2,24 +2,26 @@
   <view class="page">
     <view v-if="loading && !customer" class="state">加载中…</view>
     <block v-else-if="customer">
-      <!-- 渐变 hero 卡 -->
+      <!-- Hero：奶油暖白 -->
       <view class="hero">
-        <view class="hero-blob"></view>
-
         <view class="hero-top">
-          <view class="hero-avatar">{{ avatarText }}</view>
+          <view class="hero-avatar" :style="{ background: avatarBg(customer.name) }">
+            {{ avatarText }}
+          </view>
           <view class="hero-id">
-            <view class="hero-name">{{ customer.name }}</view>
+            <view class="name-row">
+              <text class="hero-name">{{ customer.name }}</text>
+              <text v-if="summary?.customer_type" class="hero-tag" :class="`tag-${summary.customer_type}`">
+                {{ typeLabel(summary.customer_type) }}
+              </text>
+            </view>
             <view class="hero-phone">{{ customer.phone || '未留手机号' }}</view>
           </view>
-          <text v-if="summary?.customer_type" class="hero-tag" :class="`tag-${summary.customer_type}`">
-            {{ typeLabel(summary.customer_type) }}
-          </text>
         </view>
 
         <view class="hero-stats">
           <view class="hero-stat">
-            <view class="hero-stat-num">¥{{ formatAmount(summary?.total_amount) }}</view>
+            <view class="hero-stat-num primary">¥{{ formatAmount(summary?.total_amount) }}</view>
             <view class="hero-stat-label">累计消费</view>
           </view>
           <view class="hero-stat-divider"></view>
@@ -57,8 +59,6 @@
                 <text v-if="p.species">{{ p.species }}</text>
                 <text v-if="p.breed" class="dot">·</text>
                 <text v-if="p.breed">{{ p.breed }}</text>
-                <text v-if="p.gender" class="dot">·</text>
-                <text v-if="p.gender">{{ p.gender }}</text>
               </view>
             </view>
           </view>
@@ -74,13 +74,16 @@
         <view v-if="!costs.length && !loadingCosts" class="empty">暂无消费记录</view>
         <view v-else class="cost-list">
           <view v-for="c in costs" :key="c.id" class="cost-item">
-            <view class="cost-icon" :style="{ background: catTheme(c.category_code).bg, color: catTheme(c.category_code).fg }">
+            <view
+              class="cost-icon"
+              :style="{ background: catTheme(c.category_code).bg, color: catTheme(c.category_code).fg }"
+            >
               {{ catTheme(c.category_code).emoji }}
             </view>
             <view class="cost-main">
               <view class="cost-title">
                 <text class="cost-pet">{{ c.pet_name || '—' }}</text>
-                <text class="cost-cat">{{ categoryLabel(c.category_code) }}</text>
+                <text class="cost-cat">· {{ categoryLabel(c.category_code) }}</text>
               </view>
               <view class="cost-meta">
                 <text>{{ c.occurred_on }}</text>
@@ -128,15 +131,23 @@ const lastVisitText = computed(() => {
   return String(v).slice(5, 10)
 })
 
+const AVATAR_BG = ['#FFA62B', '#1C7ED6', '#5DA716', '#7048E8', '#E03131', '#D9480F']
+function avatarBg(name) {
+  if (!name) return AVATAR_BG[0]
+  let h = 0
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0
+  return AVATAR_BG[h % AVATAR_BG.length]
+}
+
 const CAT_THEME = {
-  grooming: { bg: '#EEF0FF', fg: '#5B5BF2', emoji: '✂️' },
-  medical: { bg: '#FEE2E2', fg: '#EF4444', emoji: '🏥' },
-  food: { bg: '#FEF3C7', fg: '#F59E0B', emoji: '🍖' },
-  toy: { bg: '#FFEDD5', fg: '#FB923C', emoji: '🎾' },
-  boarding: { bg: '#E0F2FE', fg: '#0EA5E9', emoji: '🏠' },
-  training: { bg: '#F3E8FF', fg: '#A855F7', emoji: '🐕' },
-  retail: { bg: '#D1FAE5', fg: '#10B981', emoji: '🛍️' },
-  other: { bg: '#F1F5F9', fg: '#64748B', emoji: '📦' },
+  grooming: { bg: '#FFF4E5', fg: '#E68A00', emoji: '✂️' },
+  medical: { bg: '#FFEEEE', fg: '#E03131', emoji: '🏥' },
+  food: { bg: '#FFF8E1', fg: '#B8860B', emoji: '🍖' },
+  toy: { bg: '#FFEFE0', fg: '#D9480F', emoji: '🎾' },
+  boarding: { bg: '#E7F3FB', fg: '#1C7ED6', emoji: '🏠' },
+  training: { bg: '#F1ECFF', fg: '#7048E8', emoji: '🐕' },
+  retail: { bg: '#F4F9E6', fg: '#5DA716', emoji: '🛍️' },
+  other: { bg: '#F1F3F5', fg: '#6C757D', emoji: '📦' },
 }
 function catTheme(code) {
   return CAT_THEME[code] || CAT_THEME.other
@@ -238,47 +249,31 @@ onReachBottom(() => {
 .state {
   padding: 120rpx 0;
   text-align: center;
-  color: #94A3B8;
+  color: #ADB5BD;
   font-size: 26rpx;
 }
 
-/* ===== Hero ===== */
+/* ===== Hero —— 奶油暖白 ===== */
 .hero {
-  position: relative;
-  background: linear-gradient(135deg, #5B5BF2 0%, #8B5CF6 100%);
-  border-radius: 32rpx;
-  padding: 36rpx;
-  color: #fff;
-  overflow: hidden;
-  box-shadow: 0 14rpx 40rpx rgba(91, 91, 242, 0.3);
-}
-.hero-blob {
-  position: absolute;
-  width: 320rpx;
-  height: 320rpx;
-  background: #C084FC;
-  border-radius: 50%;
-  filter: blur(40rpx);
-  opacity: 0.45;
-  top: -100rpx;
-  right: -100rpx;
-  pointer-events: none;
+  background: #FFFAF2;
+  border: 1rpx solid #FFE4BD;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  box-shadow: 0 2rpx 6rpx rgba(33, 37, 41, 0.04);
 }
 .hero-top {
-  position: relative;
   display: flex;
   align-items: center;
 }
 .hero-avatar {
-  width: 100rpx;
-  height: 100rpx;
-  border-radius: 28rpx;
-  background: rgba(255, 255, 255, 0.22);
-  backdrop-filter: blur(20rpx);
-  font-size: 44rpx;
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 24rpx;
+  color: #FFFFFF;
+  font-size: 40rpx;
   font-weight: 600;
   text-align: center;
-  line-height: 100rpx;
+  line-height: 96rpx;
   margin-right: 24rpx;
   flex-shrink: 0;
 }
@@ -286,30 +281,44 @@ onReachBottom(() => {
   flex: 1;
   min-width: 0;
 }
+.name-row {
+  display: flex;
+  align-items: center;
+}
 .hero-name {
   font-size: 36rpx;
   font-weight: 600;
+  color: #212529;
   letter-spacing: 1rpx;
+}
+.hero-tag {
+  margin-left: 12rpx;
+  padding: 2rpx 14rpx;
+  font-size: 20rpx;
+  border-radius: 8rpx;
+  font-weight: 500;
+}
+.tag-first_visit {
+  color: #1C7ED6;
+  background: #E7F3FB;
+}
+.tag-returning {
+  color: #5DA716;
+  background: #F4F9E6;
+}
+.tag-vip {
+  color: #FFFFFF;
+  background: #FFA62B;
 }
 .hero-phone {
   margin-top: 8rpx;
   font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.78);
-}
-.hero-tag {
-  flex-shrink: 0;
-  padding: 6rpx 18rpx;
-  font-size: 22rpx;
-  border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.22);
-  color: #fff;
-  font-weight: 500;
+  color: #6C757D;
 }
 .hero-stats {
-  position: relative;
-  margin-top: 36rpx;
+  margin-top: 28rpx;
   padding-top: 24rpx;
-  border-top: 1rpx solid rgba(255, 255, 255, 0.18);
+  border-top: 1rpx solid #FFE4BD;
   display: flex;
   align-items: center;
 }
@@ -319,73 +328,79 @@ onReachBottom(() => {
 }
 .hero-stat-divider {
   width: 1rpx;
-  height: 56rpx;
-  background: rgba(255, 255, 255, 0.18);
+  height: 48rpx;
+  background: #FFE4BD;
 }
 .hero-stat-num {
-  font-size: 30rpx;
+  font-size: 28rpx;
   font-weight: 700;
+  color: #212529;
+  &.primary {
+    color: #FFA62B;
+  }
 }
 .hero-stat-label {
-  margin-top: 8rpx;
+  margin-top: 6rpx;
   font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.78);
+  color: #6C757D;
 }
 
 /* ===== Section ===== */
 .section {
   margin-top: 24rpx;
-  background: #fff;
-  border-radius: 28rpx;
+  background: #FFFFFF;
+  border: 1rpx solid #E9ECEF;
+  border-radius: 24rpx;
   padding: 28rpx;
-  box-shadow: 0 6rpx 20rpx rgba(15, 23, 42, 0.04);
+  box-shadow: 0 2rpx 6rpx rgba(33, 37, 41, 0.04), 0 1rpx 2rpx rgba(33, 37, 41, 0.03);
 }
 .section-title {
-  font-size: 30rpx;
+  font-size: 28rpx;
   font-weight: 600;
-  color: #0F172A;
+  color: #212529;
   margin-bottom: 20rpx;
   display: flex;
   align-items: center;
 }
 .section-count {
-  margin-left: 14rpx;
+  margin-left: 12rpx;
   padding: 2rpx 14rpx;
   font-size: 22rpx;
-  color: #5B5BF2;
-  background: #EEF0FF;
+  color: #FFA62B;
+  background: #FFF4E5;
   border-radius: 999rpx;
   font-weight: 500;
 }
 .note {
   font-size: 26rpx;
-  color: #475569;
+  color: #6C757D;
   line-height: 1.7;
 }
 .empty {
   padding: 40rpx 0;
   text-align: center;
   font-size: 24rpx;
-  color: #94A3B8;
+  color: #ADB5BD;
 }
 
 /* ===== 宠物 ===== */
 .pet-list {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16rpx;
+  gap: 12rpx;
 }
 .pet-card {
   display: flex;
   align-items: center;
-  background: linear-gradient(135deg, #F8F9FC 0%, #EEF0FF 100%);
-  border-radius: 20rpx;
-  padding: 20rpx;
+  background: #F8F9FA;
+  border: 1rpx solid #E9ECEF;
+  border-radius: 16rpx;
+  padding: 18rpx 20rpx;
   min-width: 0;
 }
 .pet-icon {
-  font-size: 40rpx;
-  margin-right: 16rpx;
+  font-size: 36rpx;
+  margin-right: 14rpx;
   flex-shrink: 0;
 }
 .pet-info {
@@ -394,12 +409,12 @@ onReachBottom(() => {
 .pet-name {
   font-size: 26rpx;
   font-weight: 600;
-  color: #0F172A;
+  color: #212529;
 }
 .pet-meta {
-  margin-top: 6rpx;
+  margin-top: 4rpx;
   font-size: 20rpx;
-  color: #94A3B8;
+  color: #ADB5BD;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -410,25 +425,25 @@ onReachBottom(() => {
 
 /* ===== 消费记录 ===== */
 .cost-list {
-  margin: -8rpx -12rpx 0;
+  margin: -8rpx -8rpx 0;
 }
 .cost-item {
   display: flex;
   align-items: center;
-  padding: 20rpx 12rpx;
-  border-radius: 16rpx;
+  padding: 20rpx 8rpx;
+  border-radius: 12rpx;
   &:active {
-    background: #FAFBFE;
+    background: #F8F9FA;
   }
 }
 .cost-icon {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 18rpx;
-  font-size: 32rpx;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 14rpx;
+  font-size: 28rpx;
   text-align: center;
-  line-height: 72rpx;
-  margin-right: 20rpx;
+  line-height: 64rpx;
+  margin-right: 18rpx;
   flex-shrink: 0;
 }
 .cost-main {
@@ -437,22 +452,22 @@ onReachBottom(() => {
 }
 .cost-title {
   display: flex;
-  align-items: center;
+  align-items: baseline;
 }
 .cost-pet {
   font-size: 28rpx;
   font-weight: 500;
-  color: #0F172A;
+  color: #212529;
 }
 .cost-cat {
-  margin-left: 14rpx;
+  margin-left: 8rpx;
   font-size: 22rpx;
-  color: #64748B;
+  color: #6C757D;
 }
 .cost-meta {
-  margin-top: 8rpx;
+  margin-top: 6rpx;
   font-size: 22rpx;
-  color: #94A3B8;
+  color: #ADB5BD;
   display: flex;
   align-items: center;
   overflow: hidden;
@@ -467,9 +482,9 @@ onReachBottom(() => {
 .cost-amount {
   flex-shrink: 0;
   margin-left: 16rpx;
-  font-size: 30rpx;
+  font-size: 28rpx;
   font-weight: 700;
-  color: #5B5BF2;
+  color: #212529;
 }
 .load-more,
 .load-end {
@@ -479,9 +494,10 @@ onReachBottom(() => {
   letter-spacing: 2rpx;
 }
 .load-more {
-  color: #5B5BF2;
+  color: #FFA62B;
+  font-weight: 500;
 }
 .load-end {
-  color: #CBD5E1;
+  color: #DEE2E6;
 }
 </style>

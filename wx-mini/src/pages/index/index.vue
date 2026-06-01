@@ -1,30 +1,29 @@
 <template>
   <view class="page">
-    <!-- 渐变 hero 卡 -->
+    <!-- Hero：奶油暖白卡，不堆渐变 -->
     <view class="hero">
-      <view class="hero-blob hero-blob-1"></view>
-      <view class="hero-blob hero-blob-2"></view>
-
-      <view class="hero-top">
-        <view class="hero-greet">{{ greet }}</view>
-        <view class="hero-date">{{ today }} · {{ weekday }}</view>
+      <view class="hero-greet">
+        <text class="greet">{{ greet }}</text>
+        <text class="date">{{ today }} · {{ weekday }}</text>
       </view>
 
-      <view class="hero-amount-label">今日流水</view>
       <view class="hero-amount">
-        <text class="amt-currency">¥</text>
-        <text class="amt-num">{{ totalAmount }}</text>
+        <text class="amount-label">今日流水</text>
+        <view class="amount-value">
+          <text class="amount-currency">¥</text>
+          <text class="amount-num">{{ totalAmount }}</text>
+        </view>
       </view>
 
       <view class="hero-stats">
         <view class="hero-stat">
-          <view class="hero-stat-num">{{ recordCount }}</view>
-          <view class="hero-stat-label">今日单数</view>
+          <text class="stat-num">{{ recordCount }}</text>
+          <text class="stat-label">今日单数</text>
         </view>
         <view class="hero-stat-divider"></view>
         <view class="hero-stat">
-          <view class="hero-stat-num">¥{{ avgAmount }}</view>
-          <view class="hero-stat-label">客单价</view>
+          <text class="stat-num">¥{{ avgAmount }}</text>
+          <text class="stat-label">客单价</text>
         </view>
       </view>
     </view>
@@ -32,29 +31,33 @@
     <!-- 今日订单 -->
     <view class="section">
       <view class="section-head">
-        <view class="section-title-wrap">
+        <view class="title-wrap">
           <text class="section-title">今日订单</text>
-          <text v-if="costs.length" class="section-badge">{{ costs.length }}</text>
+          <text v-if="costs.length" class="title-badge">{{ costs.length }}</text>
         </view>
         <text v-if="costs.length" class="section-action" @click="goBill">+ 开新单</text>
       </view>
 
       <view v-if="loading && !costs.length" class="state">加载中…</view>
+
       <view v-else-if="!costs.length" class="empty">
-        <view class="empty-emoji">🐾</view>
-        <view class="empty-title">今天还没有开单</view>
-        <view class="empty-tip" @click="goBill">点这里去开第一单</view>
+        <view class="empty-emoji">📋</view>
+        <view class="empty-title">今天还没开单</view>
+        <view class="empty-action" @click="goBill">+ 去开第一单</view>
       </view>
 
       <view v-else class="list">
         <view v-for="c in costs" :key="c.id" class="item">
-          <view class="item-icon" :style="{ background: catColor(c.category_code).bg, color: catColor(c.category_code).fg }">
-            {{ catEmoji(c.category_code) }}
+          <view
+            class="item-icon"
+            :style="{ background: catTheme(c.category_code).bg, color: catTheme(c.category_code).fg }"
+          >
+            {{ catTheme(c.category_code).emoji }}
           </view>
           <view class="item-main">
             <view class="item-title">
               <text class="pet">{{ c.pet_name || '—' }}</text>
-              <text class="cat">{{ categoryLabel(c.category_code) }}</text>
+              <text class="cat">· {{ categoryLabel(c.category_code) }}</text>
             </view>
             <view v-if="c.note" class="item-note">{{ c.note }}</view>
           </view>
@@ -119,20 +122,17 @@ function categoryLabel(code) {
 }
 
 const CAT_THEME = {
-  grooming: { bg: '#EEF0FF', fg: '#5B5BF2', emoji: '✂️' },
-  medical: { bg: '#FEE2E2', fg: '#EF4444', emoji: '🏥' },
-  food: { bg: '#FEF3C7', fg: '#F59E0B', emoji: '🍖' },
-  toy: { bg: '#FFEDD5', fg: '#FB923C', emoji: '🎾' },
-  boarding: { bg: '#E0F2FE', fg: '#0EA5E9', emoji: '🏠' },
-  training: { bg: '#F3E8FF', fg: '#A855F7', emoji: '🐕' },
-  retail: { bg: '#D1FAE5', fg: '#10B981', emoji: '🛍️' },
-  other: { bg: '#F1F5F9', fg: '#64748B', emoji: '📦' },
+  grooming: { bg: '#FFF4E5', fg: '#E68A00', emoji: '✂️' },
+  medical: { bg: '#FFEEEE', fg: '#E03131', emoji: '🏥' },
+  food: { bg: '#FFF8E1', fg: '#B8860B', emoji: '🍖' },
+  toy: { bg: '#FFEFE0', fg: '#D9480F', emoji: '🎾' },
+  boarding: { bg: '#E7F3FB', fg: '#1C7ED6', emoji: '🏠' },
+  training: { bg: '#F1ECFF', fg: '#7048E8', emoji: '🐕' },
+  retail: { bg: '#F4F9E6', fg: '#5DA716', emoji: '🛍️' },
+  other: { bg: '#F1F3F5', fg: '#6C757D', emoji: '📦' },
 }
-function catColor(code) {
+function catTheme(code) {
   return CAT_THEME[code] || CAT_THEME.other
-}
-function catEmoji(code) {
-  return catColor(code).emoji
 }
 
 function goBill() {
@@ -182,81 +182,58 @@ onPullDownRefresh(async () => {
   padding: 24rpx 24rpx 60rpx;
 }
 
-/* ===== Hero ===== */
+/* ===== Hero —— 奶油暖白，主色克制点缀 ===== */
 .hero {
-  position: relative;
-  background: linear-gradient(135deg, #5B5BF2 0%, #8B5CF6 100%);
-  border-radius: 32rpx;
-  padding: 36rpx 36rpx 28rpx;
-  color: #fff;
-  overflow: hidden;
-  box-shadow: 0 14rpx 40rpx rgba(91, 91, 242, 0.3);
+  background: #FFFAF2;
+  border: 1rpx solid #FFE4BD;
+  border-radius: 24rpx;
+  padding: 32rpx 32rpx 28rpx;
+  box-shadow: 0 2rpx 6rpx rgba(33, 37, 41, 0.04);
 }
-.hero-blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(40rpx);
-  opacity: 0.5;
-  pointer-events: none;
-}
-.hero-blob-1 {
-  width: 280rpx;
-  height: 280rpx;
-  background: #C084FC;
-  top: -80rpx;
-  right: -80rpx;
-}
-.hero-blob-2 {
-  width: 220rpx;
-  height: 220rpx;
-  background: #F472B6;
-  bottom: -100rpx;
-  left: -60rpx;
-}
-.hero-top {
-  position: relative;
+.hero-greet {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
-.hero-greet {
-  font-size: 30rpx;
-  font-weight: 500;
+.greet {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #212529;
 }
-.hero-date {
+.date {
   font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.78);
-}
-.hero-amount-label {
-  position: relative;
-  margin-top: 36rpx;
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.78);
-  letter-spacing: 1rpx;
+  color: #ADB5BD;
 }
 .hero-amount {
-  position: relative;
-  margin-top: 12rpx;
+  margin-top: 24rpx;
+}
+.amount-label {
+  font-size: 24rpx;
+  color: #6C757D;
+  letter-spacing: 1rpx;
+}
+.amount-value {
+  margin-top: 10rpx;
   display: flex;
   align-items: baseline;
 }
-.amt-currency {
+.amount-currency {
   font-size: 36rpx;
   font-weight: 500;
+  color: #FFA62B;
   margin-right: 6rpx;
-  color: rgba(255, 255, 255, 0.92);
 }
-.amt-num {
-  font-size: 80rpx;
+.amount-num {
+  font-size: 76rpx;
   font-weight: 700;
+  color: #212529;
   letter-spacing: -1rpx;
   line-height: 1;
 }
 .hero-stats {
-  position: relative;
-  margin-top: 36rpx;
+  margin-top: 28rpx;
   padding-top: 24rpx;
-  border-top: 1rpx solid rgba(255, 255, 255, 0.18);
+  border-top: 1rpx solid #FFE4BD;
   display: flex;
   align-items: center;
 }
@@ -266,60 +243,65 @@ onPullDownRefresh(async () => {
 }
 .hero-stat-divider {
   width: 1rpx;
-  height: 60rpx;
-  background: rgba(255, 255, 255, 0.18);
+  height: 48rpx;
+  background: #FFE4BD;
 }
-.hero-stat-num {
-  font-size: 32rpx;
+.stat-num {
+  font-size: 30rpx;
   font-weight: 600;
+  color: #212529;
 }
-.hero-stat-label {
+.stat-label {
+  display: block;
   margin-top: 6rpx;
   font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.78);
+  color: #6C757D;
 }
 
 /* ===== Section ===== */
 .section {
-  margin-top: 32rpx;
-  background: #fff;
-  border-radius: 28rpx;
-  padding: 28rpx 28rpx 12rpx;
-  box-shadow: 0 6rpx 20rpx rgba(15, 23, 42, 0.04);
+  margin-top: 24rpx;
+  background: #FFFFFF;
+  border: 1rpx solid #E9ECEF;
+  border-radius: 24rpx;
+  padding: 24rpx 24rpx 8rpx;
+  box-shadow: 0 2rpx 6rpx rgba(33, 37, 41, 0.04), 0 1rpx 2rpx rgba(33, 37, 41, 0.03);
 }
 .section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12rpx;
+  padding: 4rpx 0 16rpx;
 }
-.section-title-wrap {
+.title-wrap {
   display: flex;
   align-items: center;
 }
 .section-title {
-  font-size: 32rpx;
+  font-size: 30rpx;
   font-weight: 600;
-  color: #0F172A;
+  color: #212529;
 }
-.section-badge {
-  margin-left: 16rpx;
+.title-badge {
+  margin-left: 12rpx;
   padding: 2rpx 14rpx;
   font-size: 22rpx;
-  color: #5B5BF2;
-  background: #EEF0FF;
+  color: #FFA62B;
+  background: #FFF4E5;
   border-radius: 999rpx;
+  font-weight: 500;
 }
 .section-action {
   font-size: 26rpx;
-  color: #5B5BF2;
+  color: #FFA62B;
+  font-weight: 500;
   padding: 4rpx 8rpx;
 }
 
 .state {
   padding: 60rpx 0;
   text-align: center;
-  color: #94A3B8;
+  color: #ADB5BD;
   font-size: 26rpx;
 }
 .empty {
@@ -327,40 +309,42 @@ onPullDownRefresh(async () => {
   text-align: center;
 }
 .empty-emoji {
-  font-size: 80rpx;
+  font-size: 72rpx;
+  opacity: 0.6;
 }
 .empty-title {
   margin-top: 20rpx;
   font-size: 28rpx;
-  color: #475569;
+  color: #6C757D;
 }
-.empty-tip {
-  margin-top: 16rpx;
+.empty-action {
+  margin-top: 20rpx;
   display: inline-block;
-  font-size: 24rpx;
-  color: #5B5BF2;
-  padding: 12rpx 28rpx;
-  background: #EEF0FF;
+  font-size: 26rpx;
+  color: #FFA62B;
+  padding: 14rpx 32rpx;
+  background: #FFF4E5;
   border-radius: 999rpx;
+  font-weight: 500;
 }
 
-/* ===== List ===== */
+/* ===== 列表 ===== */
 .list {
-  margin: 8rpx -12rpx 0;
+  margin: -4rpx -8rpx 0;
 }
 .item {
   display: flex;
   align-items: center;
-  padding: 20rpx 12rpx;
-  border-radius: 16rpx;
+  padding: 20rpx 8rpx;
+  border-radius: 12rpx;
   &:active {
-    background: #F8F9FC;
+    background: #F8F9FA;
   }
 }
 .item-icon {
   width: 72rpx;
   height: 72rpx;
-  border-radius: 18rpx;
+  border-radius: 16rpx;
   font-size: 32rpx;
   text-align: center;
   line-height: 72rpx;
@@ -373,22 +357,22 @@ onPullDownRefresh(async () => {
 }
 .item-title {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   font-size: 28rpx;
-  color: #0F172A;
+  color: #212529;
 }
 .pet {
   font-weight: 500;
 }
 .cat {
-  margin-left: 14rpx;
-  font-size: 22rpx;
-  color: #64748B;
+  margin-left: 8rpx;
+  font-size: 24rpx;
+  color: #6C757D;
 }
 .item-note {
   margin-top: 6rpx;
   font-size: 22rpx;
-  color: #94A3B8;
+  color: #ADB5BD;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -398,6 +382,6 @@ onPullDownRefresh(async () => {
   margin-left: 16rpx;
   font-size: 30rpx;
   font-weight: 600;
-  color: #0F172A;
+  color: #212529;
 }
 </style>

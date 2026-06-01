@@ -45,12 +45,12 @@
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "宠物店管理",
-    "navigationBarBackgroundColor": "#F6F7FB",
-    "backgroundColor": "#F6F7FB"
+    "navigationBarBackgroundColor": "#F8F9FA",
+    "backgroundColor": "#F8F9FA"
   },
   "tabBar": {
-    "color": "#94A3B8",
-    "selectedColor": "#5B5BF2",
+    "color": "#ADB5BD",
+    "selectedColor": "#FFA62B",
     "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
     "list": [
