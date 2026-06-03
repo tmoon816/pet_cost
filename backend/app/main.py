@@ -7,10 +7,10 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .api.v1 import auth, budgets, categories, costs, customers, pets, search, stats
+from .api.v1 import auth, budgets, categories, costs, customers, pets, search, settings as settings_api, stats
 from .core.auth import get_current_admin
 from .core.config import settings
-from .core.exceptions import ConflictError
+from .core.exceptions import ConflictError, InsufficientBalanceError
 
 app = FastAPI(title="Pet Cost API", version="0.1.0")
 
@@ -28,6 +28,11 @@ async def conflict_handler(request: Request, exc: ConflictError):
     return JSONResponse(status_code=409, content={"detail": exc.detail})
 
 
+@app.exception_handler(InsufficientBalanceError)
+async def insufficient_balance_handler(request: Request, exc: InsufficientBalanceError):
+    return JSONResponse(status_code=400, content={"detail": exc.detail})
+
+
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
@@ -37,7 +42,7 @@ def health_check():
 app.include_router(auth.router, prefix="/api/v1")
 
 # 其余业务路由统一挂全局 JWT 守卫
-for module in (budgets, categories, costs, customers, pets, search, stats):
+for module in (budgets, categories, costs, customers, pets, search, settings_api, stats):
     app.include_router(
         module.router,
         prefix="/api/v1",

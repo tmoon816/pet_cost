@@ -2,22 +2,29 @@ from datetime import datetime
 from decimal import Decimal
 from typing import List, Tuple
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from ..core.config import settings
 from ..core.exceptions import ConflictError
-from ..models import CostRecord, Customer, Pet
+from ..models import BalanceTransaction, CostRecord, Customer, Pet
 from ..schemas.customer import CustomerCreate, CustomerUpdate
+from . import settings as settings_crud
 
 
-def classify_customer(visit_count: int) -> str:
-    """P-006: 0 单=first_visit，1~VIP_THRESHOLD-1=returning，>=VIP_THRESHOLD=vip。"""
-    if visit_count <= 0:
-        return "first_visit"
-    if visit_count >= settings.VIP_THRESHOLD:
-        return "vip"
-    return "returning"
+def classify_customer(contribution: Decimal | float | int, tier: dict | None = None) -> str:
+    """按累计贡献金额分层（充值本金 + 现金消费，不含赠送/储值消费）。
+
+    tier 为 settings_crud.get_tier_config 的结果；省略时回退 config.py 默认阈值
+    （仅用于无 DB 上下文的单元调用）。
+    """
+    if tier is None:
+        tier = {
+            "vip_amount": Decimal(settings.VIP_AMOUNT),
+            "svip_amount": Decimal(settings.SVIP_AMOUNT),
+            "supreme_amount": Decimal(settings.SUPREME_AMOUNT),
+        }
+    return settings_crud.classify(contribution, tier)
 
 
 def _check_phone_conflict(db: Session, phone: str | None, exclude_id: int | None = None) -> None:
@@ -73,7 +80,24 @@ def list_paginated(
         .correlate(Customer)
         .scalar_subquery()
     )
-    # P-006：消费记录数 → 客户分层
+    # 客户分层贡献额 = 充值本金(amount-bonus) + 现金消费额（储值消费不重复计）
+    recharge_principal_subq = (
+        select(func.coalesce(func.sum(BalanceTransaction.amount - BalanceTransaction.bonus_amount), 0))
+        .where(
+            BalanceTransaction.customer_id == Customer.id,
+            BalanceTransaction.type == "recharge",
+        )
+        .correlate(Customer)
+        .scalar_subquery()
+    )
+    cash_consume_subq = (
+        select(func.coalesce(func.sum(CostRecord.amount), 0))
+        .join(Pet, CostRecord.pet_id == Pet.id)
+        .where(Pet.customer_id == Customer.id, CostRecord.pay_method == "cash")
+        .correlate(Customer)
+        .scalar_subquery()
+    )
+    # 消费记录数（仍用于展示 visit_count）
     visit_count_subq = (
         select(func.count(CostRecord.id))
         .join(Pet, CostRecord.pet_id == Pet.id)
@@ -87,6 +111,8 @@ def list_paginated(
         has_cost_subq.label("has_cost"),
         total_amount_subq.label("total_amount"),
         visit_count_subq.label("visit_count"),
+        recharge_principal_subq.label("recharge_principal"),
+        cash_consume_subq.label("cash_consume"),
     )
     count_stmt = select(func.count(Customer.id))
     if q:
@@ -107,22 +133,25 @@ def list_paginated(
     stmt = stmt.offset((page - 1) * page_size).limit(page_size)
 
     rows = db.execute(stmt).all()
+    tier = settings_crud.get_tier_config(db)
     items: List[dict] = []
     for row in rows:
         customer: Customer = row[0]
         visit_count = int(row[3] or 0)
+        contribution = Decimal(row[4] or 0) + Decimal(row[5] or 0)
         items.append(
             {
                 "id": customer.id,
                 "name": customer.name,
                 "phone": customer.phone,
                 "note": customer.note,
+                "balance": Decimal(customer.balance or 0),
                 "created_at": customer.created_at,
                 "updated_at": customer.updated_at,
                 "has_cost": bool(row[1]),
                 "total_amount": Decimal(row[2] or 0),
                 "visit_count": visit_count,
-                "customer_type": classify_customer(visit_count),
+                "customer_type": classify_customer(contribution, tier),
             }
         )
     total = int(db.scalar(count_stmt) or 0)
@@ -176,22 +205,44 @@ def get_summary(db: Session, customer_id: int) -> dict | None:
             func.coalesce(func.sum(CostRecord.amount), 0).label("total_amount"),
             func.max(CostRecord.occurred_on).label("last_visit_date"),
             func.count(CostRecord.id).label("cost_count"),
+            func.coalesce(
+                func.sum(
+                    case((CostRecord.pay_method == "cash", CostRecord.amount), else_=0)
+                ),
+                0,
+            ).label("cash_consume"),
         )
         .join(Pet, CostRecord.pet_id == Pet.id)
         .where(Pet.customer_id == customer_id)
     )
-    total_amount, last_visit_date, cost_count = db.execute(stmt).one()
+    total_amount, last_visit_date, cost_count, cash_consume = db.execute(stmt).one()
+
+    # 充值本金（不含赠送）
+    recharge_principal = db.scalar(
+        select(
+            func.coalesce(
+                func.sum(BalanceTransaction.amount - BalanceTransaction.bonus_amount), 0
+            )
+        ).where(
+            BalanceTransaction.customer_id == customer_id,
+            BalanceTransaction.type == "recharge",
+        )
+    ) or 0
+    contribution = Decimal(recharge_principal) + Decimal(cash_consume or 0)
 
     last_visit_at: datetime | None = None
     if last_visit_date is not None:
         last_visit_at = datetime.combine(last_visit_date, datetime.min.time())
 
+    tier = settings_crud.get_tier_config(db)
+    customer_type = classify_customer(contribution, tier)
     return {
         "customer_id": customer_id,
         "total_amount": Decimal(total_amount or 0),
         "last_visit_at": last_visit_at,
         "cost_count": int(cost_count or 0),
-        "customer_type": classify_customer(int(cost_count or 0)),
+        "customer_type": customer_type,
+        "discount": settings_crud.discount_for_type(customer_type, tier),
     }
 
 

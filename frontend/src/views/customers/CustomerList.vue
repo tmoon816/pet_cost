@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useCustomerStore } from '@/stores/customerStore'
 import * as customersApi from '@/api/customers'
+import * as settingsApi from '@/api/settings'
 import CustomerImportDialog from '@/views/customers/CustomerImportDialog.vue'
 
 const router = useRouter()
@@ -56,7 +57,19 @@ onUnmounted(() => {
 onMounted(async () => {
   searchInput.value = store.q
   await store.fetchList()
+  loadTierConfig()
 })
+
+// 分层阈值（用于「类型」列说明，反映系统设置里管理员配置的实际值）
+const tier = ref(null)
+async function loadTierConfig() {
+  try {
+    tier.value = await settingsApi.getTierConfig()
+  } catch {
+    tier.value = null
+  }
+}
+const fmtMoney = (v) => `¥${Math.round(Number(v) || 0)}`
 
 function onPageChange(p) {
   store.setPage(p)
@@ -179,18 +192,22 @@ function formatAmount(v) {
   return Number.isFinite(n) ? n.toFixed(2) : '0.00'
 }
 
-// P-006: 客户类型徽标。后端给 customer_type，没有就根据 has_cost 兜底为新/老客二分。
+// 客户分层徽标（按贡献金额）：新客/回头客/VIP/SVIP/至尊VIP
 function customerTagLabel(type, hasCost) {
+  if (type === 'supreme') return '至尊VIP'
+  if (type === 'svip') return 'SVIP'
   if (type === 'vip') return 'VIP'
-  if (type === 'returning') return '回头客'
+  if (type === 'regular') return '回头客'
   if (type === 'first_visit') return '新客'
   return hasCost ? '回头客' : '新客'
 }
 function customerTagType(type, hasCost) {
-  if (type === 'vip') return 'warning'
-  if (type === 'returning') return 'success'
+  if (type === 'supreme') return 'danger'
+  if (type === 'svip') return 'warning'
+  if (type === 'vip') return 'success'
+  if (type === 'regular') return 'primary'
   if (type === 'first_visit') return 'info'
-  return hasCost ? 'success' : 'info'
+  return hasCost ? 'primary' : 'info'
 }
 </script>
 
@@ -227,16 +244,19 @@ function customerTagType(type, hasCost) {
     >
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column prop="name" label="姓名" min-width="120" />
-      <el-table-column label="类型" width="110" align="center">
+      <el-table-column label="会员等级" width="110" align="center">
         <template #header>
           <span class="header-with-tip">
-            类型
+            会员等级
             <el-tooltip placement="top">
               <template #content>
-                按消费记录条数划分：<br />
-                · 新客 = 0 条<br />
-                · 回头客 = 1 ~ 4 条<br />
-                · VIP = ≥ 5 条
+                按累计贡献金额划分（充值本金 + 现金消费）：<br />
+                · 新客 = 0<br />
+                · 回头客 = 1 ~ {{ tier ? fmtMoney(tier.vip_amount) : '¥500' }} 以下<br />
+                · VIP = ≥ {{ tier ? fmtMoney(tier.vip_amount) : '¥500' }}（享 {{ tier ? tier.vip_discount : 98 }}% 价）<br />
+                · SVIP = ≥ {{ tier ? fmtMoney(tier.svip_amount) : '¥2000' }}（享 {{ tier ? tier.svip_discount : 95 }}% 价）<br />
+                · 至尊VIP = ≥ {{ tier ? fmtMoney(tier.supreme_amount) : '¥5000' }}（享 {{ tier ? tier.supreme_discount : 90 }}% 价）<br />
+                <span style="opacity:.7">阈值与折扣可在「系统设置」修改</span>
               </template>
               <el-icon class="tip-icon"><InfoFilled /></el-icon>
             </el-tooltip>

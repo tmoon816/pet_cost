@@ -33,7 +33,7 @@ def costs_csv(rows: list[dict]) -> StreamingResponse:
     output = io.StringIO()
     output.write("\ufeff")  # BOM for Excel
     writer = csv.writer(output)
-    writer.writerow(["日期", "宠物名", "客户名", "服务项目", "金额", "备注"])
+    writer.writerow(["日期", "宠物名", "客户名", "服务项目", "金额", "优惠", "支付方式", "备注"])
     for r in rows:
         writer.writerow([
             str(r.get("occurred_on", ""))[:10] if r.get("occurred_on") else "",
@@ -41,6 +41,8 @@ def costs_csv(rows: list[dict]) -> StreamingResponse:
             r.get("customer_name", ""),
             r.get("category_label", ""),
             f'{float(r.get("amount", 0)):.2f}',
+            f'{float(r.get("discount_amount", 0)):.2f}',
+            "储值" if r.get("pay_method") == "balance" else "现金",
             r.get("note", ""),
         ])
     output.seek(0)

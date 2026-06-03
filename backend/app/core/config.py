@@ -8,8 +8,11 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[str] = ["http://127.0.0.1:3000", "http://localhost:3000"]
     DEBUG: bool = False
 
-    # P-006: 客户分层阈值（消费记录数）。0 单=first_visit，1~VIP_THRESHOLD-1=returning，>=VIP_THRESHOLD=vip
-    VIP_THRESHOLD: int = 5
+    # 客户分层阈值（按累计贡献金额：充值本金 + 现金消费，不含赠送、不含储值消费避免重复计）
+    # 0=新客 / (0,VIP)=回头客 / [VIP,SVIP)=VIP / [SVIP,SUPREME)=SVIP / >=SUPREME=至尊VIP
+    VIP_AMOUNT: int = 500
+    SVIP_AMOUNT: int = 2000
+    SUPREME_AMOUNT: int = 5000
 
     # 单管理员鉴权（环境变量驱动，不建 users 表）
     ADMIN_USERNAME: str = "admin"

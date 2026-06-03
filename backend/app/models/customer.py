@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, Column, DateTime, Index, Integer, String, Text, event, func
+from sqlalchemy import BigInteger, Column, DateTime, Index, Integer, Numeric, String, Text, event, func
 from sqlalchemy.orm import relationship
 
 from ..core.database import Base
@@ -21,11 +21,18 @@ class Customer(Base):
     name_initials = Column(String(50), nullable=False, server_default="")
     phone = Column(String(20), nullable=True)
     note = Column(Text, nullable=True)
+    balance = Column(Numeric(10, 2), nullable=False, server_default="0")  # 储值余额（含赠送）
     created_at = Column(DateTime, nullable=False, server_default=func.now())
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
 
     pets = relationship(
         "Pet",
+        back_populates="customer",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    balance_transactions = relationship(
+        "BalanceTransaction",
         back_populates="customer",
         cascade="all, delete-orphan",
         passive_deletes=True,

@@ -14,7 +14,9 @@ class CostBase(BaseModel):
 
 
 class CostCreate(CostBase):
-    pass
+    pay_method: str = Field("cash", pattern="^(balance|cash)$")
+    # 会员折扣省下的金额（仅储值支付时由前端计算传入，记入流水；不入 cost_records）
+    discount_amount: Decimal = Field(Decimal(0), ge=0, max_digits=10, decimal_places=2)
 
 
 class CostUpdate(BaseModel):
@@ -32,6 +34,8 @@ class CostBatchCreate(BaseModel):
     category_code: str = Field(..., max_length=30)
     amount: Decimal = Field(..., max_digits=10, decimal_places=2)
     occurred_on: date
+    pay_method: str = Field("cash", pattern="^(balance|cash)$")
+    discount_amount: Decimal = Field(Decimal(0), ge=0, max_digits=10, decimal_places=2)
     note: Optional[str] = None
 
 
@@ -39,6 +43,10 @@ class CostOut(CostBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    pay_method: str = "cash"
+    discount_amount: Decimal = Decimal(0)
     pet_name: Optional[str] = None
+    customer_id: Optional[int] = None
+    customer_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime

@@ -112,8 +112,10 @@ function formatAmount(v) {
 }
 
 function typeLabel(t) {
+  if (t === 'supreme') return '至尊VIP'
+  if (t === 'svip') return 'SVIP'
   if (t === 'vip') return 'VIP'
-  if (t === 'returning') return '回头客'
+  if (t === 'regular') return '回头客'
   return '新客'
 }
 
@@ -322,13 +324,21 @@ onReachBottom(() => {
   color: #1C7ED6;
   background: #E7F3FB;
 }
-.tag-returning {
+.tag-regular {
   color: #5DA716;
   background: #F4F9E6;
 }
 .tag-vip {
   color: #FFFFFF;
   background: #FFA62B;
+}
+.tag-svip {
+  color: #FFFFFF;
+  background: #FF7043;
+}
+.tag-supreme {
+  color: #FFFFFF;
+  background: #E03131;
 }
 .sub {
   margin-top: 8rpx;

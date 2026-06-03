@@ -8,6 +8,7 @@ import * as petsApi from '@/api/pets'
 import * as customersApi from '@/api/customers'
 import { listCosts } from '@/api/costs'
 import CostFormDialog from '@/views/costs/CostFormDialog.vue'
+import RechargeDialog from '@/views/customers/RechargeDialog.vue'
 import PetForm from '@/components/PetForm.vue'
 
 const props = defineProps({ id: { type: [String, Number], required: true } })
@@ -57,6 +58,15 @@ const petDialog = ref(false)
 const editingPetId = ref(null)
 // P-004: 客户详情页直达新增消费
 const costDialogVisible = ref(false)
+// 储值充值
+const rechargeVisible = ref(false)
+// 储值流水
+const txns = ref([])
+const txnTotal = ref(0)
+const txnPage = ref(1)
+const TXN_PAGE_SIZE = 10
+const txnLoading = ref(false)
+const txnHasMore = computed(() => txns.value.length < txnTotal.value)
 
 const speciesOptions = [
   { value: 'dog', label: '犬' },
@@ -95,9 +105,45 @@ async function load() {
     timelineTotal.value = 0
     timelineLoaded.value = false
     await loadTimeline()
+    // 储值流水第一页
+    txnPage.value = 1
+    await loadTransactions()
   } finally {
     loading.value = false
   }
+}
+
+async function loadTransactions() {
+  if (txnLoading.value) return
+  txnLoading.value = true
+  try {
+    const res = await customersApi.listTransactions(props.id, {
+      page: txnPage.value,
+      page_size: TXN_PAGE_SIZE,
+    })
+    const list = res?.items || []
+    txns.value = txnPage.value === 1 ? list : txns.value.concat(list)
+    txnTotal.value = Number(res?.total || 0)
+  } catch {
+    if (txnPage.value === 1) {
+      txns.value = []
+      txnTotal.value = 0
+    }
+  } finally {
+    txnLoading.value = false
+  }
+}
+
+async function loadMoreTxns() {
+  if (!txnHasMore.value || txnLoading.value) return
+  txnPage.value += 1
+  await loadTransactions()
+}
+
+async function onRecharged() {
+  detail.value = await customerStore.fetchDetail(props.id)
+  txnPage.value = 1
+  await loadTransactions()
 }
 
 async function loadTimeline() {
@@ -230,13 +276,25 @@ const costCountDisplay = computed(() => {
   return String(c)
 })
 
-// P-006: 客户类型徽章
+// 客户分层徽章（按贡献金额）
 const customerTypeBadge = computed(() => {
   const t = summary.value?.customer_type
-  if (t === 'vip') return { label: 'VIP', type: 'warning' }
-  if (t === 'returning') return { label: '回头客', type: 'success' }
+  if (t === 'supreme') return { label: '至尊VIP', type: 'danger' }
+  if (t === 'svip') return { label: 'SVIP', type: 'warning' }
+  if (t === 'vip') return { label: 'VIP', type: 'success' }
+  if (t === 'regular') return { label: '回头客', type: 'primary' }
   if (t === 'first_visit') return { label: '新客', type: 'info' }
   return null
+})
+
+// 会员等级说明：等级名 + 折扣
+const tierName = computed(() => customerTypeBadge.value?.label || '—')
+const tierDiscountText = computed(() => {
+  const d = Number(summary.value?.discount)
+  if (!Number.isFinite(d) || d >= 100) return '暂无折扣'
+  // 98 → 9.8折，90 → 9折
+  const zhe = d % 10 === 0 ? String(d / 10) : (d / 10).toFixed(1)
+  return `储值消费享 ${zhe} 折`
 })
 
 // T-011: 时间线展示助手
@@ -263,6 +321,45 @@ async function onCostSaved() {
   } catch {
     summary.value = null
   }
+  // 储值订单会扣余额，刷新余额和流水
+  try {
+    detail.value = await customerStore.fetchDetail(props.id)
+  } catch {
+    /* ignore */
+  }
+  txnPage.value = 1
+  await loadTransactions()
+}
+
+// 储值展示助手
+const balanceDisplay = computed(() => {
+  const b = detail.value?.balance
+  const n = Number(b)
+  return Number.isFinite(n) ? `¥${n.toFixed(2)}` : '¥0.00'
+})
+
+const TXN_TYPE_LABEL = {
+  recharge: { text: '充值', type: 'success' },
+  consume: { text: '消费', type: 'danger' },
+  refund: { text: '退款', type: 'warning' },
+  adjust: { text: '调整', type: 'info' },
+}
+const CHANNEL_LABEL = { wechat: '微信', alipay: '支付宝', cash: '现金' }
+
+function txnTypeBadge(t) {
+  return TXN_TYPE_LABEL[t] || { text: t, type: 'info' }
+}
+function txnAmountDisplay(v) {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '—'
+  const sign = n > 0 ? '+' : ''
+  return `${sign}${n.toFixed(2)}`
+}
+function channelLabel(row) {
+  if (row.channel) return CHANNEL_LABEL[row.channel] || row.channel
+  // 消费/退款没有充值渠道，资金来源是储值余额
+  if (row.type === 'consume' || row.type === 'refund') return '储值'
+  return '-'
 }
 </script>
 
@@ -275,7 +372,7 @@ async function onCostSaved() {
     <div v-if="detail" class="summary-row">
       <el-card class="summary-card" shadow="never">
         <div class="summary-label">
-          客户类型
+          会员等级
           <el-tag
             v-if="customerTypeBadge"
             :type="customerTypeBadge.type"
@@ -286,7 +383,8 @@ async function onCostSaved() {
             {{ customerTypeBadge.label }}
           </el-tag>
         </div>
-        <div class="summary-value">{{ detail.name }}</div>
+        <div class="summary-value">{{ tierName }}</div>
+        <div class="summary-sub">{{ tierDiscountText }}</div>
       </el-card>
       <el-card class="summary-card" shadow="never">
         <div class="summary-label">累计消费</div>
@@ -299,6 +397,19 @@ async function onCostSaved() {
       <el-card class="summary-card" shadow="never">
         <div class="summary-label">总订单数</div>
         <div class="summary-value">{{ costCountDisplay }}</div>
+      </el-card>
+      <el-card class="summary-card balance-card" shadow="never">
+        <div class="summary-label">
+          储值余额
+          <el-button
+            size="small"
+            class="recharge-btn"
+            :icon="'Wallet'"
+            style="margin-left: 8px;"
+            @click="rechargeVisible = true"
+          >充值</el-button>
+        </div>
+        <div class="summary-value balance-amount">{{ balanceDisplay }}</div>
       </el-card>
     </div>
 
@@ -406,6 +517,61 @@ async function onCostSaved() {
       </div>
     </el-card>
 
+    <el-card v-if="detail" class="card">
+      <template #header>
+        <div class="card-header">
+          <span class="title">储值流水<span class="title-count">（共 {{ txnTotal }} 条）</span></span>
+          <el-button size="small" class="recharge-btn" :icon="'Wallet'" @click="rechargeVisible = true">充值</el-button>
+        </div>
+      </template>
+
+      <div v-if="!txnLoading && txns.length === 0" class="timeline-empty">
+        还没有储值记录，点右上角充值
+      </div>
+
+      <el-table v-else :data="txns" stripe>
+        <el-table-column label="类型" width="90">
+          <template #default="{ row }">
+            <el-tag :type="txnTypeBadge(row.type).type" size="small" effect="plain">
+              {{ txnTypeBadge(row.type).text }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="金额" width="120">
+          <template #default="{ row }">
+            <span :class="Number(row.amount) >= 0 ? 'txn-plus' : 'txn-minus'">
+              {{ txnAmountDisplay(row.amount) }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="赠送" width="90">
+          <template #default="{ row }">
+            {{ Number(row.bonus_amount) > 0 ? `+${Number(row.bonus_amount).toFixed(2)}` : '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="折扣优惠" width="100">
+          <template #default="{ row }">
+            <span :class="{ 'txn-minus': Number(row.discount_amount) > 0 }">
+              {{ Number(row.discount_amount) > 0 ? `省 ${Number(row.discount_amount).toFixed(2)}` : '-' }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="变动后余额" width="120">
+          <template #default="{ row }">¥{{ Number(row.balance_after).toFixed(2) }}</template>
+        </el-table-column>
+        <el-table-column label="渠道" width="90">
+          <template #default="{ row }">{{ channelLabel(row) }}</template>
+        </el-table-column>
+        <el-table-column label="时间" min-width="160">
+          <template #default="{ row }">{{ String(row.created_at).replace('T', ' ').slice(0, 19) }}</template>
+        </el-table-column>
+      </el-table>
+
+      <div v-if="txnHasMore" class="timeline-more">
+        <el-button :loading="txnLoading" @click="loadMoreTxns">加载更多</el-button>
+      </div>
+    </el-card>
+
     <PetForm
       v-model="petDialog"
       :edit-id="editingPetId"
@@ -418,6 +584,14 @@ async function onCostSaved() {
       v-model="costDialogVisible"
       :initial-customer-id="Number(id)"
       @saved="onCostSaved"
+    />
+
+    <!-- 储值充值 -->
+    <RechargeDialog
+      v-model="rechargeVisible"
+      :customer-id="Number(id)"
+      :customer-name="detail?.name || ''"
+      @success="onRecharged"
     />
   </div>
 </template>
@@ -433,11 +607,34 @@ async function onCostSaved() {
 }
 .summary-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 12px;
 }
 .summary-card {
   border-radius: 12px;
+}
+.balance-card .balance-amount {
+  color: var(--el-color-success, #67c23a);
+}
+/* 充值按钮：金色调，呼应「钱」的语义 */
+.recharge-btn {
+  background: linear-gradient(135deg, #f5b939 0%, #f08b32 100%);
+  border: none;
+  color: #fff;
+  font-weight: 600;
+}
+.recharge-btn:hover,
+.recharge-btn:focus {
+  background: linear-gradient(135deg, #f6c356 0%, #f49a4c 100%);
+  color: #fff;
+}
+.txn-plus {
+  color: var(--el-color-success, #67c23a);
+  font-weight: 600;
+}
+.txn-minus {
+  color: var(--el-color-danger, #f56c6c);
+  font-weight: 600;
 }
 .summary-card :deep(.el-card__body) {
   padding: 16px 20px;
@@ -451,6 +648,11 @@ async function onCostSaved() {
   font-size: 22px;
   font-weight: 600;
   color: var(--el-text-color-primary, #303133);
+}
+.summary-sub {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--el-color-warning, #e6a23c);
 }
 .card {
   border-radius: 12px;

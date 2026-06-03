@@ -8,6 +8,11 @@ export const createCustomer = (data) => http.post('/customers', data)
 export const updateCustomer = (id, data) => http.patch(`/customers/${id}`, data)
 export const deleteCustomer = (id) => http.delete(`/customers/${id}`)
 
+// 储值：充值、调整、流水
+export const rechargeCustomer = (id, data) => http.post(`/customers/${id}/recharge`, data)
+export const adjustBalance = (id, data) => http.post(`/customers/${id}/balance/adjust`, data)
+export const listTransactions = (id, params) => http.get(`/customers/${id}/transactions`, { params })
+
 export const exportCustomers = (params) => http.get('/customers/export', {
   params,
   responseType: 'blob',

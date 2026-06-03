@@ -25,6 +25,7 @@ class CustomerOut(CustomerBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    balance: Decimal = Decimal(0)
     created_at: datetime
     updated_at: datetime
 
@@ -57,6 +58,7 @@ class CustomerSummary(BaseModel):
     last_visit_at: Optional[datetime] = None
     cost_count: int
     customer_type: str = "first_visit"
+    discount: int = 100
 
 
 from .pet import PetOut  # noqa: E402  resolve forward ref

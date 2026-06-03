@@ -75,6 +75,8 @@ def export_costs(
             "customer_name": customer_name,
             "category_label": category_label,
             "amount": item.amount,
+            "discount_amount": getattr(item, "discount_amount", 0),
+            "pay_method": item.pay_method,
             "note": item.note,
         })
     return costs_csv(rows)

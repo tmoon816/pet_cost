@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Download } from '@element-plus/icons-vue'
 import { useCategoryStore } from '@/stores/categoryStore'
@@ -8,7 +9,12 @@ import * as customersApi from '@/api/customers'
 import * as petsApi from '@/api/pets'
 import CostFormDialog from '@/views/costs/CostFormDialog.vue'
 
+const router = useRouter()
 const categoryStore = useCategoryStore()
+
+function goCustomer(id) {
+  router.push({ name: 'customer-detail', params: { id } })
+}
 
 const items = ref([])
 const total = ref(0)
@@ -292,9 +298,24 @@ onMounted(async () => {
         <el-table-column label="服务项目" width="150">
           <template #default="{ row }">{{ categoryLabel(row.category_code) }}</template>
         </el-table-column>
+        <el-table-column label="客户" width="120">
+          <template #default="{ row }">
+            <span
+              v-if="row.customer_id"
+              class="customer-link"
+              @click="goCustomer(row.customer_id)"
+            >{{ row.customer_name || `客户 #${row.customer_id}` }}</span>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
         <el-table-column label="所属宠物" width="140">
           <template #default="{ row }">
             {{ row.pet_name || `宠物 #${row.pet_id}` }}
+          </template>
+        </el-table-column>
+        <el-table-column label="订单原价" width="130" align="right">
+          <template #default="{ row }">
+            ¥ {{ (Number(row.amount) + Number(row.discount_amount || 0)).toFixed(2) }}
           </template>
         </el-table-column>
         <el-table-column label="金额" width="140" align="right">
@@ -302,6 +323,25 @@ onMounted(async () => {
             <span class="text-danger" style="font-weight: 600;">
               ¥ {{ Number(row.amount).toFixed(2) }}
             </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="优惠" width="110" align="right">
+          <template #default="{ row }">
+            <span v-if="Number(row.discount_amount) > 0" style="color: #e6a23c; font-weight: 600;">
+              省 ¥ {{ Number(row.discount_amount).toFixed(2) }}
+            </span>
+            <span v-else style="color: #c0c4cc;">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="支付" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag
+              :type="row.pay_method === 'balance' ? 'success' : 'info'"
+              size="small"
+              effect="plain"
+            >
+              {{ row.pay_method === 'balance' ? '储值' : '现金' }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="note" label="备注" show-overflow-tooltip>
@@ -361,6 +401,14 @@ onMounted(async () => {
 }
 .text-danger {
   color: #f56c6c;
+}
+.customer-link {
+  color: var(--text-primary, #303133);
+  cursor: pointer;
+}
+.customer-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 @media (max-width: 768px) {
   .card-header {

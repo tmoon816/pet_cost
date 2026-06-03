@@ -39,6 +39,7 @@ const form = reactive({
   category_code: '',
   amount: '',
   occurred_on: null,
+  pay_method: 'cash',
   note: '',
 })
 
@@ -120,6 +121,61 @@ const displayCustomers = computed(() => {
   return list
 })
 
+// 储值：当前选中客户的余额（用于显示和余额不足提示）
+const selectedCustomer = computed(() =>
+  displayCustomers.value.find((c) => c.id === form.customer_id) || null
+)
+const selectedBalance = computed(() => {
+  const b = selectedCustomer.value?.balance
+  const n = Number(b)
+  return Number.isFinite(n) ? n : null
+})
+
+// 会员折扣：选中客户的折扣率（付款百分比，100=无折扣），从 summary 拉取
+const customerDiscount = ref(100)
+const customerTier = ref('first_visit')
+async function loadCustomerDiscount(cid) {
+  if (!cid) {
+    customerDiscount.value = 100
+    customerTier.value = 'first_visit'
+    return
+  }
+  try {
+    const s = await customersApi.getCustomerSummary(cid)
+    customerDiscount.value = Number(s.discount) || 100
+    customerTier.value = s.customer_type || 'first_visit'
+  } catch {
+    customerDiscount.value = 100
+    customerTier.value = 'first_visit'
+  }
+}
+const hasDiscount = computed(() => customerDiscount.value < 100)
+const TIER_LABEL = { vip: 'VIP', svip: 'SVIP', supreme: '至尊VIP' }
+const tierLabel = computed(() => TIER_LABEL[customerTier.value] || '')
+
+// 单只原价
+const unitOriginal = computed(() => {
+  const n = Number(form.amount)
+  return Number.isFinite(n) ? n : 0
+})
+// 折后单价（折扣仅在储值支付时生效；现金按原价）
+const unitFinal = computed(() => {
+  if (form.pay_method === 'balance' && hasDiscount.value) {
+    return Math.round(unitOriginal.value * customerDiscount.value) / 100
+  }
+  return unitOriginal.value
+})
+// 储值下单时，预估总扣款（多选时按只数 × 折后单价）
+const balanceNeeded = computed(() => {
+  const count = props.editing ? 1 : Math.max(form.pet_ids.length, 1)
+  return Math.round(unitFinal.value * count * 100) / 100
+})
+const balanceInsufficient = computed(() => {
+  if (form.pay_method !== 'balance') return false
+  if (selectedBalance.value == null) return false
+  return selectedBalance.value < balanceNeeded.value
+})
+
 async function loadPets(customerId) {
   if (!customerId) {
     pets.value = []
@@ -137,6 +193,8 @@ watch(
       // 切换客户后，剔除不属于新客户的 pet_id
       const validIds = new Set(pets.value.map((p) => p.id))
       form.pet_ids = form.pet_ids.filter((id) => validIds.has(id))
+      // 拉取该客户的会员折扣
+      await loadCustomerDiscount(newId)
     }
   }
 )
@@ -160,7 +218,7 @@ async function ensureCustomerInList(id) {
   if (customers.value.some((c) => c.id === id)) return
   try {
     const c = await customersApi.getCustomer(id)
-    customers.value = [{ id: c.id, name: c.name, phone: c.phone }, ...customers.value]
+    customers.value = [{ id: c.id, name: c.name, phone: c.phone, balance: c.balance }, ...customers.value]
   } catch {
     /* ignore */
   }
@@ -176,6 +234,7 @@ async function init() {
       category_code: e.category_code,
       amount: String(e.amount),
       occurred_on: e.occurred_on,
+      pay_method: e.pay_method || 'cash',
       note: e.note || '',
     })
     // 反查客户
@@ -213,6 +272,11 @@ async function init() {
   if (!props.editing) {
     form.occurred_on = todayStr()
   }
+
+  // 拉取当前客户折扣（直接设置 customer_id 的分支 watcher 可能不触发）
+  if (form.customer_id) {
+    await loadCustomerDiscount(form.customer_id)
+  }
 }
 
 watch(visible, (v) => {
@@ -226,18 +290,29 @@ function reset() {
     category_code: '',
     amount: '',
     occurred_on: null,
+    pay_method: 'cash',
     note: '',
   })
   customers.value = []
   recentCustomers.value = []
   pets.value = []
+  customerDiscount.value = 100
+  customerTier.value = 'first_visit'
 }
 
 function buildPayloadCommon() {
+  // 储值支付且有会员折扣时，按折后单价入账；现金/无折扣按原价
+  const useDiscount = form.pay_method === 'balance' && hasDiscount.value
+  const amountToCharge = useDiscount ? unitFinal.value.toFixed(2) : String(form.amount)
+  const discountAmount = useDiscount
+    ? (Math.round((unitOriginal.value - unitFinal.value) * 100) / 100).toFixed(2)
+    : '0'
   return {
     category_code: form.category_code,
-    amount: String(form.amount),
+    amount: amountToCharge,
     occurred_on: form.occurred_on,
+    pay_method: form.pay_method,
+    discount_amount: discountAmount,
     note: form.note?.trim() ? form.note : null,
   }
 }
@@ -339,7 +414,7 @@ async function saveAndContinue() {
         </el-select>
       </el-form-item>
 
-      <el-form-item :label="editing ? '宠物' : '宠物（可多选）'" prop="pet_ids">
+      <el-form-item label="宠物" prop="pet_ids">
         <!-- 编辑态：单选，只能改成另一只宠物 -->
         <el-select
           v-if="editing"
@@ -357,7 +432,7 @@ async function saveAndContinue() {
           multiple
           collapse-tags
           collapse-tags-tooltip
-          placeholder="先选客户，可一次勾多只宠物"
+          placeholder="先选客户，可多选一次给多只宠物开单"
           style="width: 100%"
           :disabled="lockPet || !form.customer_id"
         >
@@ -388,6 +463,29 @@ async function saveAndContinue() {
         </el-input>
       </el-form-item>
 
+      <el-form-item label="支付方式" prop="pay_method">
+        <el-radio-group v-model="form.pay_method">
+          <el-radio label="cash">现金 / 线下</el-radio>
+          <el-radio label="balance">储值扣款</el-radio>
+        </el-radio-group>
+      </el-form-item>
+
+      <div v-if="form.pay_method === 'balance' && form.customer_id" class="balance-hint">
+        <span v-if="hasDiscount" class="balance-discount">
+          {{ tierLabel }} 享 {{ customerDiscount }}% 价
+          <template v-if="!editing && form.pet_ids.length > 1">
+            （单只 ¥{{ unitFinal.toFixed(2) }}）
+          </template>
+        </span>
+        <span>当前余额：
+          <b :class="{ 'balance-low': balanceInsufficient }">
+            {{ selectedBalance == null ? '—' : `¥${selectedBalance.toFixed(2)}` }}
+          </b>
+        </span>
+        <span class="balance-need">本次扣款：¥{{ balanceNeeded.toFixed(2) }}</span>
+        <span v-if="balanceInsufficient" class="balance-warn">余额不足，请先充值或改用现金</span>
+      </div>
+
       <el-form-item label="发生日期" prop="occurred_on">
         <el-date-picker
           v-model="form.occurred_on"
@@ -414,11 +512,17 @@ async function saveAndContinue() {
             v-if="!editing"
             type="success"
             :loading="submitting"
+            :disabled="balanceInsufficient"
             @click="saveAndContinue"
           >
             保存并继续
           </el-button>
-          <el-button type="primary" :loading="submitting" @click="submit">
+          <el-button
+            type="primary"
+            :loading="submitting"
+            :disabled="balanceInsufficient"
+            @click="submit"
+          >
             {{ editing ? '保存' : '保存并关闭' }}
           </el-button>
         </div>
@@ -451,5 +555,26 @@ async function saveAndContinue() {
   margin-bottom: 12px;
   font-size: 12px;
   color: var(--el-color-success, #67c23a);
+}
+.balance-hint {
+  margin-left: 80px;
+  margin-top: -8px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--el-text-color-secondary, #909399);
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.balance-hint .balance-low {
+  color: var(--el-color-danger, #f56c6c);
+}
+.balance-hint .balance-warn {
+  color: var(--el-color-danger, #f56c6c);
+  font-weight: 600;
+}
+.balance-hint .balance-discount {
+  color: var(--el-color-warning, #e6a23c);
+  font-weight: 600;
 }
 </style>

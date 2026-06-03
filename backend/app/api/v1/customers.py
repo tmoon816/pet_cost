@@ -4,8 +4,15 @@ from sqlalchemy.orm import Session
 
 from ...core.database import get_db
 from ...crud import customer as crud_customer
+from ...crud import balance as crud_balance
 from ...crud import import_customers as crud_import
 from ...crud.export_csv import customers_csv
+from ...schemas.balance import (
+    BalanceAdjustRequest,
+    BalanceOut,
+    BalanceTransactionOut,
+    RechargeRequest,
+)
 from ...schemas.common import Page
 from ...schemas.customer import CustomerCreate, CustomerListItem, CustomerOut, CustomerSummary, CustomerUpdate, CustomerWithPets
 
@@ -110,6 +117,51 @@ def get_customer_summary(customer_id: int, db: Session = Depends(get_db)):
     if summary is None:
         raise HTTPException(status_code=404, detail="customer_not_found")
     return summary
+
+
+@router.post("/{customer_id}/recharge", response_model=BalanceOut)
+def recharge_customer(customer_id: int, data: RechargeRequest, db: Session = Depends(get_db)):
+    """虚拟充值：余额 += 本金 + 赠送。channel 记线下收款渠道（alipay/wechat/cash）。"""
+    customer = crud_customer.get(db, customer_id)
+    if customer is None:
+        raise HTTPException(status_code=404, detail="customer_not_found")
+    crud_balance.recharge(
+        db,
+        customer,
+        amount=data.amount,
+        bonus_amount=data.bonus_amount,
+        channel=data.channel,
+        note=data.note,
+    )
+    return {"customer_id": customer.id, "balance": customer.balance}
+
+
+@router.post("/{customer_id}/balance/adjust", response_model=BalanceOut)
+def adjust_customer_balance(
+    customer_id: int, data: BalanceAdjustRequest, db: Session = Depends(get_db)
+):
+    """手动调整余额（带符号，正增负减）。不允许调成负数。"""
+    customer = crud_customer.get(db, customer_id)
+    if customer is None:
+        raise HTTPException(status_code=404, detail="customer_not_found")
+    crud_balance.adjust(db, customer, amount=data.amount, note=data.note)
+    return {"customer_id": customer.id, "balance": customer.balance}
+
+
+@router.get("/{customer_id}/transactions", response_model=Page[BalanceTransactionOut])
+def list_customer_transactions(
+    customer_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    """储值流水（充值/消费/退款/调整），倒序。"""
+    if crud_customer.get(db, customer_id) is None:
+        raise HTTPException(status_code=404, detail="customer_not_found")
+    items, total = crud_balance.list_transactions(
+        db, customer_id, page=page, page_size=page_size
+    )
+    return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
 @router.post("", response_model=CustomerOut, status_code=201)

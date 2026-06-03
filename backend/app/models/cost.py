@@ -21,6 +21,10 @@ class CostRecord(Base):
     )
     category_code = Column(String(30), nullable=False)
     amount = Column(Numeric(10, 2), nullable=False)
+    # 会员折扣省下的金额（折后实付记在 amount，这里记优惠额，默认 0）
+    discount_amount = Column(Numeric(10, 2), nullable=False, server_default="0")
+    # 支付方式：balance=扣储值余额 / cash=现金（不动余额）。历史数据默认 cash。
+    pay_method = Column(String(20), nullable=False, server_default="cash")
     occurred_on = Column(Date, nullable=False)
     note = Column(Text, nullable=True)
     created_at = Column(DateTime, nullable=False, server_default=func.now())

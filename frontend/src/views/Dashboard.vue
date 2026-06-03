@@ -100,7 +100,15 @@ const acquisition = ref({ new_customers: 0, returning_customers: 0, total: 0 })
 const dormantList = ref([])
 const dormantDays = ref(90)
 const topCustomers = ref([])
-const customerInsightTab = ref('dormant')
+const customerInsightTab = ref('top')
+
+// 客户名脱敏：保留姓氏首字，其余用 * 替换（如 张伟→张*，王小明→王**）
+function maskName(name) {
+  const chars = [...(name || '')]
+  if (chars.length === 0) return '—'
+  if (chars.length === 1) return chars[0]
+  return chars[0] + '*'.repeat(chars.length - 1)
+}
 
 const loading = ref({
   summary: false,
@@ -640,8 +648,8 @@ const dateShortcuts = [
           <template #header>
             <div class="insight-tabs-header">
               <el-tabs v-model="customerInsightTab" class="insight-tabs">
-                <el-tab-pane label="久未到店预警" name="dormant" />
                 <el-tab-pane label="高价值客户 TOP 10" name="top" />
+                <el-tab-pane label="久未到店预警" name="dormant" />
               </el-tabs>
               <el-select
                 v-if="customerInsightTab === 'dormant'"
@@ -661,7 +669,13 @@ const dateShortcuts = [
           <!-- 久未到店 -->
           <div v-show="customerInsightTab === 'dormant'" v-loading="loading.dormant">
             <el-table v-if="dormantList.length > 0" :data="dormantList" size="small" style="width: 100%;">
-              <el-table-column prop="customer_name" label="客户" min-width="140" />
+              <el-table-column prop="customer_name" label="客户" min-width="140">
+                <template #default="{ row }">
+                  <span class="name-link" @click="goToCustomer(row.customer_id)">
+                    {{ maskName(row.customer_name) }}
+                  </span>
+                </template>
+              </el-table-column>
               <el-table-column prop="last_visit_at" label="最后到店" width="120" />
               <el-table-column label="距今" width="100">
                 <template #default="{ row }">
@@ -700,7 +714,13 @@ const dateShortcuts = [
                   <span class="rank-medal" :class="{ top3: row.rank <= 3 }">{{ rankMedal(row.rank) }}</span>
                 </template>
               </el-table-column>
-              <el-table-column prop="customer_name" label="客户" min-width="140" />
+              <el-table-column prop="customer_name" label="客户" min-width="140">
+                <template #default="{ row }">
+                  <span class="name-link" @click="goToCustomer(row.customer_id)">
+                    {{ maskName(row.customer_name) }}
+                  </span>
+                </template>
+              </el-table-column>
               <el-table-column label="累计消费" width="140">
                 <template #default="{ row }">
                   <span class="top-amount">{{ formatMoney(row.total_amount) }}</span>
@@ -1028,6 +1048,14 @@ const dateShortcuts = [
   font-weight: 600;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
+}
+.name-link {
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.name-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 .phone-masked {
   font-family: 'Menlo', 'Monaco', monospace;
