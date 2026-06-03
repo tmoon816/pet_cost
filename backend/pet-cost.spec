@@ -25,7 +25,8 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=["pytest", "faker", "openpyxl"],
+    # openpyxl 不能排除：客户导入/导出在启动导入链里（customers 路由 → import_customers）
+    excludes=["pytest", "faker"],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
