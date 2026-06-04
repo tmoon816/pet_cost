@@ -69,6 +69,64 @@ def test_by_month(client, fixture_data):
     assert by_month["2026-05"] == Decimal("630.00")
 
 
+def test_cashflow_recharge_principal_plus_cash(client, fixture_data):
+    """实收 = 充值本金(不含赠送) + 现金消费；储值消费不计入实收。"""
+    c1_id = fixture_data["c1"]["id"]
+    # 充 1000 送 200（本金 1000 计入实收，赠送 200 不计）
+    client.post(f"/api/v1/customers/{c1_id}/recharge",
+                json={"amount": "1000.00", "bonus_amount": "200.00", "channel": "cash"})
+
+    cf = client.get("/api/v1/stats/cashflow").json()
+    # fixture 里的订单都是默认 cash 支付，共 1010.50
+    assert Decimal(cf["cash_consume"]) == Decimal("1010.50")
+    assert Decimal(cf["recharge_principal"]) == Decimal("1000.00")
+    assert Decimal(cf["total_cash_in"]) == Decimal("2010.50")
+
+
+def test_cashflow_excludes_balance_consume(client, fixture_data):
+    """储值消费不计入实收（避免和充值重复计）。"""
+    c1_id = fixture_data["c1"]["id"]
+    p1_id = fixture_data["p1"]["id"]
+    client.post(f"/api/v1/customers/{c1_id}/recharge",
+                json={"amount": "500.00", "channel": "cash"})
+    # 用储值开一单 100，不应增加实收
+    client.post("/api/v1/costs", json={
+        "pet_id": p1_id, "category_code": "food", "amount": "100.00",
+        "occurred_on": "2026-05-15", "pay_method": "balance",
+    })
+    cf = client.get("/api/v1/stats/cashflow").json()
+    # 实收 = 现金消费 1010.50 + 充值本金 500（储值那 100 不算）
+    assert Decimal(cf["recharge_principal"]) == Decimal("500.00")
+    assert Decimal(cf["cash_consume"]) == Decimal("1010.50")
+    assert Decimal(cf["total_cash_in"]) == Decimal("1510.50")
+
+
+def test_by_day_full_window(client, fixture_data):
+    rows = client.get("/api/v1/stats/by-day").json()
+    by_day = {row["day"]: row for row in rows}
+    # 每条消费各自单独一天，金额应原样落到对应日期
+    assert Decimal(by_day["2026-03-05"]["total"]) == Decimal("100.00")
+    assert Decimal(by_day["2026-03-20"]["total"]) == Decimal("200.00")
+    assert Decimal(by_day["2026-05-20"]["total"]) == Decimal("400.00")
+    # 只返回有消费的天，不含空白日
+    assert "2026-03-06" not in by_day
+    # 新增维度：订单数 / 去重客户数 / 去重宠物数
+    assert by_day["2026-03-05"]["record_count"] == 1
+    assert by_day["2026-03-05"]["customer_count"] == 1
+    assert by_day["2026-03-05"]["pet_count"] == 1
+
+
+def test_by_day_with_window(client, fixture_data):
+    rows = client.get(
+        "/api/v1/stats/by-day", params={"start": "2026-05-01", "end": "2026-05-31"}
+    ).json()
+    by_day = {row["day"]: row for row in rows}
+    assert set(by_day.keys()) == {"2026-05-01", "2026-05-08", "2026-05-20"}
+    assert Decimal(by_day["2026-05-08"]["total"]) == Decimal("150.00")
+    assert by_day["2026-05-08"]["record_count"] == 1
+    assert by_day["2026-05-08"]["pet_count"] == 1
+
+
 def test_by_pet_top_n(client, fixture_data):
     rows = client.get("/api/v1/stats/by-pet", params={"limit": 2}).json()
     assert len(rows) == 2
@@ -238,6 +296,46 @@ def test_top_customers_ranking(client, db_session):
     assert data[0]["order_count"] == 2
     assert data[1]["rank"] == 2
     assert data[1]["customer_name"] == "高价值B"
+
+
+def test_top_customers_date_range(client, db_session):
+    """传 start/end 时只统计区间内的消费（月榜口径）。"""
+    from datetime import date as dt_date
+    from app.models import Customer, CostRecord, Pet
+
+    db = db_session()
+    try:
+        c1 = Customer(name="月榜A", phone="13911110001")
+        c2 = Customer(name="月榜B", phone="13911110002")
+        db.add_all([c1, c2])
+        db.flush()
+        p1 = Pet(name="p1", species="dog", customer_id=c1.id)
+        p2 = Pet(name="p2", species="cat", customer_id=c2.id)
+        db.add_all([p1, p2])
+        db.flush()
+        db.add_all([
+            # A：4月大额（区间外）+ 6月小额（区间内 100）
+            CostRecord(pet_id=p1.id, category_code="food", amount=900, occurred_on=dt_date(2026, 4, 10)),
+            CostRecord(pet_id=p1.id, category_code="food", amount=100, occurred_on=dt_date(2026, 6, 5)),
+            # B：6月中额（区间内 300）
+            CostRecord(pet_id=p2.id, category_code="food", amount=300, occurred_on=dt_date(2026, 6, 8)),
+        ])
+        db.commit()
+    finally:
+        db.close()
+
+    # 只看 6 月：B(300) 应排在 A(100) 前
+    resp = client.get(
+        "/api/v1/stats/top-customers",
+        params={"limit": 10, "start": "2026-06-01", "end": "2026-06-30"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 2
+    assert data[0]["customer_name"] == "月榜B"
+    assert data[0]["total_amount"] == "300.00"
+    assert data[1]["customer_name"] == "月榜A"
+    assert data[1]["total_amount"] == "100.00"
 
 
 def test_top_customers_limit(client, db_session):

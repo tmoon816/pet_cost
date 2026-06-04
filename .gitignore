@@ -37,6 +37,8 @@ frontend/node_modules
 # 打包产物与本地运行数据（含密码哈希/JWT 密钥，禁止入库）
 backend/build/
 backend/data/
+# 打包发布压缩包（产物，不入库）
+*.zip
 
 # 本地工具/工作目录
 .claude/

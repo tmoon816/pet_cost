@@ -24,6 +24,22 @@ class StatsByMonthItem(BaseModel):
     total: Decimal
 
 
+class StatsCashflow(BaseModel):
+    """实收口径（现金流入）：充值本金 + 现金消费。"""
+
+    recharge_principal: Decimal
+    cash_consume: Decimal
+    total_cash_in: Decimal
+
+
+class StatsByDayItem(BaseModel):
+    day: str
+    total: Decimal
+    record_count: int = 0
+    customer_count: int = 0
+    pet_count: int = 0
+
+
 class StatsByPetItem(BaseModel):
     pet_id: int
     pet_name: str
@@ -32,6 +48,7 @@ class StatsByPetItem(BaseModel):
 
 StatsByCategory = List[StatsByCategoryItem]
 StatsByMonth = List[StatsByMonthItem]
+StatsByDay = List[StatsByDayItem]
 StatsByPet = List[StatsByPetItem]
 
 

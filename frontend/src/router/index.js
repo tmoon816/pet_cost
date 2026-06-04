@@ -38,6 +38,18 @@ const routes = [
     meta: { title: '服务订单' }
   },
   {
+    path: '/recharge',
+    name: 'recharge',
+    component: () => import('@/views/recharge/RechargeCenter.vue'),
+    meta: { title: '套餐充值' }
+  },
+  {
+    path: '/boarding',
+    name: 'boarding',
+    component: () => import('@/views/boarding/BoardingList.vue'),
+    meta: { title: '寄养管理' }
+  },
+  {
     path: '/pets',
     name: 'pets',
     component: () => import('@/views/pets/PetList.vue'),

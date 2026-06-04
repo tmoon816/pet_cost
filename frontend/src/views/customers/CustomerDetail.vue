@@ -7,6 +7,7 @@ import { useCategoryStore } from '@/stores/categoryStore'
 import * as petsApi from '@/api/pets'
 import * as customersApi from '@/api/customers'
 import { listCosts } from '@/api/costs'
+import { listBoarding } from '@/api/boarding'
 import CostFormDialog from '@/views/costs/CostFormDialog.vue'
 import RechargeDialog from '@/views/customers/RechargeDialog.vue'
 import PetForm from '@/components/PetForm.vue'
@@ -60,6 +61,8 @@ const editingPetId = ref(null)
 const costDialogVisible = ref(false)
 // 储值充值
 const rechargeVisible = ref(false)
+// 寄养（在住）
+const activeBoarding = ref([])
 // 储值流水
 const txns = ref([])
 const txnTotal = ref(0)
@@ -67,6 +70,21 @@ const txnPage = ref(1)
 const TXN_PAGE_SIZE = 10
 const txnLoading = ref(false)
 const txnHasMore = computed(() => txns.value.length < txnTotal.value)
+
+// 余额为负 = 欠费
+const isArrears = computed(() => {
+  const b = Number(detail.value?.balance)
+  return Number.isFinite(b) && b < 0
+})
+
+async function loadActiveBoarding() {
+  try {
+    const res = await listBoarding({ status: 'active', customer_id: Number(props.id) })
+    activeBoarding.value = res || []
+  } catch (e) {
+    activeBoarding.value = []
+  }
+}
 
 const speciesOptions = [
   { value: 'dog', label: '犬' },
@@ -108,6 +126,8 @@ async function load() {
     // 储值流水第一页
     txnPage.value = 1
     await loadTransactions()
+    // 在住寄养
+    await loadActiveBoarding()
   } finally {
     loading.value = false
   }
@@ -409,9 +429,35 @@ function channelLabel(row) {
             @click="rechargeVisible = true"
           >充值</el-button>
         </div>
-        <div class="summary-value balance-amount">{{ balanceDisplay }}</div>
+        <div class="summary-value balance-amount" :class="{ 'balance-negative': isArrears }">
+          {{ balanceDisplay }}
+        </div>
+        <div class="summary-sub arrears-hint" v-if="isArrears">⚠️ 已欠费，建议尽快收款</div>
       </el-card>
     </div>
+
+    <!-- 寄养中提示条 -->
+    <el-card
+      v-if="activeBoarding.length > 0"
+      class="boarding-banner"
+      shadow="never"
+    >
+      <div class="bd-banner-head">
+        <span class="bd-banner-title">🛏️ 寄养中（{{ activeBoarding.length }}）</span>
+        <el-button size="small" text type="primary" @click="router.push('/boarding')">前往寄养管理 →</el-button>
+      </div>
+      <div class="bd-banner-list">
+        <div v-for="b in activeBoarding" :key="b.id" class="bd-banner-item" :class="{ overdue: b.is_overdue }">
+          <span class="bd-banner-pet">{{ b.pet_name }}</span>
+          <span class="bd-banner-meta">
+            已住 <strong :class="{ 'text-over': b.is_overdue }">{{ b.days_stayed }}</strong> / {{ b.expected_days }} 天
+            · 每日 ¥{{ Number(b.daily_rate).toFixed(2) }}
+            · 累计已扣 ¥{{ Number(b.total_charged).toFixed(2) }}
+          </span>
+          <el-tag v-if="b.is_overdue" type="danger" size="small" effect="dark">超期 {{ b.overdue_days }} 天</el-tag>
+        </div>
+      </div>
+    </el-card>
 
     <el-card v-if="detail" class="card">
       <template #header>
@@ -615,6 +661,59 @@ function channelLabel(row) {
 }
 .balance-card .balance-amount {
   color: var(--el-color-success, #67c23a);
+}
+.balance-card .balance-amount.balance-negative {
+  color: var(--danger, #FF6B6B);
+}
+.arrears-hint {
+  color: var(--danger, #FF6B6B) !important;
+  font-weight: 600;
+}
+/* 寄养中提示条 */
+.boarding-banner {
+  margin-bottom: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--primary);
+}
+.bd-banner-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.bd-banner-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.bd-banner-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bd-banner-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--bg);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+.bd-banner-item.overdue {
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+.bd-banner-pet {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.bd-banner-meta {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.bd-banner-meta .text-over {
+  color: var(--danger);
 }
 /* 充值按钮：金色调，呼应「钱」的语义 */
 .recharge-btn {

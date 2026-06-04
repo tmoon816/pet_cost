@@ -15,11 +15,15 @@ import {
   Fold,
   Bell,
   SwitchButton,
-  ArrowDown
+  ArrowDown,
+  Wallet,
+  House,
+  QuestionFilled
 } from '@element-plus/icons-vue'
 import { useCategoryStore } from './stores/categoryStore'
 import { useAuthStore } from './stores/authStore'
 import { search as searchApi } from './api/search'
+import { getBoardingAlerts } from './api/boarding'
 
 const router = useRouter()
 const route = useRoute()
@@ -29,6 +33,39 @@ const activeMenu = ref('')
 
 const isPublicRoute = computed(() => !!route.meta.public)
 const userInitial = computed(() => (authStore.username || '?').charAt(0).toUpperCase())
+
+// 使用帮助文档抽屉
+const docVisible = ref(false)
+const activeDocSection = ref('intro')
+const docSections = [
+  { key: 'intro', title: '系统概览', icon: '🏠' },
+  { key: 'customer', title: '会员与宠物', icon: '👤' },
+  { key: 'order', title: '服务订单', icon: '🧾' },
+  { key: 'recharge', title: '套餐充值与储值', icon: '💳' },
+  { key: 'boarding', title: '寄养管理', icon: '🛏️' },
+  { key: 'revenue', title: '营业额口径', icon: '📊' },
+  { key: 'settings', title: '系统设置', icon: '⚙️' },
+  { key: 'faq', title: '常见问题', icon: '❓' },
+]
+function openDocSection(key) {
+  activeDocSection.value = key
+  const el = document.getElementById(`doc-${key}`)
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+// 寄养提醒（顶部铃铛）
+const alerts = ref([])
+async function loadAlerts() {
+  try {
+    const res = await getBoardingAlerts()
+    alerts.value = res || []
+  } catch {
+    alerts.value = []
+  }
+}
+function goAlert(a) {
+  router.push({ name: 'customer-detail', params: { id: a.customer_id } })
+}
 
 // 响应式侧边栏
 const MOBILE_BP = 768
@@ -116,6 +153,8 @@ const menuItems = [
   { path: '/dashboard',  title: '营业概览',     icon: HomeFilled },
   { path: '/customers',  title: '会员/客户档案', icon: UserFilled },
   { path: '/bills',      title: '服务订单',     icon: Money },
+  { path: '/recharge',   title: '套餐充值',     icon: Wallet },
+  { path: '/boarding',   title: '寄养管理',     icon: House },
   { path: '/pets',       title: '宠物档案',     icon: User },
   { path: '/categories', title: '服务项目',     icon: List },
   { path: '/budget',     title: '经营预算',     icon: TrendCharts },
@@ -208,6 +247,8 @@ onMounted(() => {
   categoryStore.fetch?.(true) ?? categoryStore.fetchCategories?.(true)
   // 加载搜索历史
   loadSearchHistory()
+  // 加载寄养提醒（铃铛角标）
+  loadAlerts()
 
   // 监听路由变化更新活跃菜单
   router.afterEach((to) => {
@@ -346,21 +387,44 @@ async function onLogout() {
                 </template>
               </div>
             </div>
+            <button class="icon-btn" aria-label="使用帮助" @click="docVisible = true">
+              <el-icon :size="18"><QuestionFilled /></el-icon>
+            </button>
             <el-popover
               placement="bottom-end"
-              :width="300"
+              :width="320"
               trigger="click"
               popper-class="notify-popover"
+              @show="loadAlerts"
             >
               <template #reference>
                 <button class="icon-btn" aria-label="通知">
                   <el-icon :size="18"><Bell /></el-icon>
+                  <span v-if="alerts.length > 0" class="notify-badge">{{ alerts.length > 99 ? '99+' : alerts.length }}</span>
                 </button>
               </template>
-              <div class="notify-empty">
+              <div v-if="alerts.length === 0" class="notify-empty">
                 <div class="notify-empty-emoji">🔕</div>
                 <p class="notify-empty-title">暂无新通知</p>
                 <p class="notify-empty-hint">店铺有重要事件时会出现在这里</p>
+              </div>
+              <div v-else class="notify-list">
+                <div class="notify-list-header">
+                  <span>寄养提醒</span>
+                  <span class="notify-count">{{ alerts.length }} 条</span>
+                </div>
+                <div
+                  v-for="(a, i) in alerts"
+                  :key="i"
+                  class="notify-item"
+                  @click="goAlert(a)"
+                >
+                  <span class="notify-item-icon">{{ a.type === 'overdue' ? '⏰' : '⚠️' }}</span>
+                  <div class="notify-item-body">
+                    <div class="notify-item-title">{{ a.type === 'overdue' ? '寄养超期' : '余额欠费' }}</div>
+                    <div class="notify-item-text">{{ a.message }}</div>
+                  </div>
+                </div>
               </div>
             </el-popover>
             <el-dropdown trigger="click" @command="(c) => c === 'logout' && onLogout()">
@@ -390,6 +454,122 @@ async function onLogout() {
         </el-main>
       </el-container>
     </el-container>
+
+    <!-- 使用帮助文档抽屉 -->
+    <el-drawer
+      v-model="docVisible"
+      title="使用帮助 · 操作指南"
+      direction="rtl"
+      size="640px"
+      class="doc-drawer"
+    >
+      <div class="doc-layout">
+        <!-- 左侧目录 -->
+        <nav class="doc-nav">
+          <button
+            v-for="s in docSections"
+            :key="s.key"
+            class="doc-nav-item"
+            :class="{ on: activeDocSection === s.key }"
+            @click="openDocSection(s.key)"
+          >
+            <span class="doc-nav-icon">{{ s.icon }}</span>{{ s.title }}
+          </button>
+        </nav>
+
+        <!-- 右侧内容 -->
+        <div class="doc-content">
+          <section id="doc-intro" class="doc-sec">
+            <h3>🏠 系统概览</h3>
+            <p>这是一套面向宠物店的管理系统，核心围绕「会员 → 宠物 → 服务订单 → 储值」展开。左侧菜单是主要功能入口：</p>
+            <ul>
+              <li><b>营业概览</b>：看店铺整体经营数据（营业额、订单、会员趋势）。</li>
+              <li><b>会员/客户档案</b>：管理客户资料、储值余额、消费记录。</li>
+              <li><b>服务订单</b>：日常开单记账（洗护、医疗、寄养等）。</li>
+              <li><b>套餐充值</b>：给会员办理储值卡充值。</li>
+              <li><b>寄养管理</b>：长期寄养按天自动扣费。</li>
+              <li><b>服务项目 / 经营预算 / 系统设置</b>：基础配置与目标管理。</li>
+            </ul>
+          </section>
+
+          <section id="doc-customer" class="doc-sec">
+            <h3>👤 会员与宠物</h3>
+            <p>先建客户，再在客户名下添加宠物。订单和寄养都挂在宠物上，扣费时自动找到所属客户的钱包。</p>
+            <ul>
+              <li>支持按姓名/手机号搜索，也支持批量导入客户。</li>
+              <li>客户详情页能看到：累计消费、储值余额、储值流水、名下宠物。</li>
+              <li>会员分层（VIP/SVIP/至尊）按「贡献金额」自动计算，可在系统设置里调阈值和折扣。</li>
+            </ul>
+          </section>
+
+          <section id="doc-order" class="doc-sec">
+            <h3>🧾 服务订单</h3>
+            <p>每一笔到店服务都记一条订单。开单时选择支付方式：</p>
+            <ul>
+              <li><b>现金</b>：客户当场付钱，不动储值余额。</li>
+              <li><b>储值扣款</b>：从会员卡余额里扣，享会员折扣；余额不足会被拒绝（寄养除外）。</li>
+            </ul>
+            <p class="doc-tip">💡 删除/修改储值订单会自动退回或重扣余额，保证账目一致。</p>
+          </section>
+
+          <section id="doc-recharge" class="doc-sec">
+            <h3>💳 套餐充值与储值</h3>
+            <p>在「套餐充值」页选套餐 + 选会员即可充值，到账 = 实付本金 + 赠送金额，赠品记入流水备注。</p>
+            <ul>
+              <li>套餐内容（价格、赠送、赠品、卖点）都能在<b>系统设置 → 充值套餐配置</b>里自定义。</li>
+              <li>充值后余额立即到账，可在客户详情的储值流水查看。</li>
+              <li>标「推荐」的套餐会在充值页高亮并默认选中。</li>
+            </ul>
+            <p class="doc-tip">⚠️ 充值是「预收款」：钱进了卡里但还没消费。详见下方「营业额口径」。</p>
+          </section>
+
+          <section id="doc-boarding" class="doc-sec">
+            <h3>🛏️ 寄养管理</h3>
+            <p>适合长期寄养/疗养。建单时设入住日、约定天数、每日价，系统<b>每天自动扣一笔寄养费</b>（走储值）。</p>
+            <ul>
+              <li><b>自动补扣</b>：软件每次启动会把没扣的天数一次性补齐，关机几天也不漏。</li>
+              <li><b>超期继续扣</b>：超过约定天数仍未退房，照常按天扣并在铃铛提醒。</li>
+              <li><b>可欠费</b>：余额扣光后继续扣成负数（欠费），铃铛会提醒。</li>
+              <li><b>退房</b>：办理退房时结清到退房前一天，退房当天不计费。</li>
+            </ul>
+            <p class="doc-tip">💡 顶部🔔铃铛会汇总「寄养超期」和「余额欠费」提醒。</p>
+          </section>
+
+          <section id="doc-revenue" class="doc-sec">
+            <h3>📊 营业额口径（重要）</h3>
+            <p>为避免「同一笔钱算两遍」，请理解钱的两个阶段：</p>
+            <ul>
+              <li><b>充值</b>：客户把钱充进卡 —— 这是预收款。</li>
+              <li><b>消费</b>：客户用卡里的钱消费（储值扣款）—— 这才是服务发生。</li>
+            </ul>
+            <p>当前「营业额/今日营业」按<b>服务发生</b>统计：所有消费订单（现金 + 储值）计入营业额，<b>充值本身不计入营业额</b>，否则充值时算一次、消费时再算一次会重复。</p>
+            <p>营业概览顶部同时提供两个数字，对照看更清楚：</p>
+            <ul>
+              <li><b>今日营业额</b>：今天发生的消费（服务）总额。</li>
+              <li><b>今日实收</b>：今天实际进账的现金 = 充值本金（不含赠送）+ 现金消费。反映"今天到底收了多少钱"。</li>
+            </ul>
+            <p class="doc-tip">💡 充值当天进「今日实收」，客户日后用储值消费进「营业额」，两个口径各看各的，互不重复。</p>
+          </section>
+
+          <section id="doc-settings" class="doc-sec">
+            <h3>⚙️ 系统设置</h3>
+            <ul>
+              <li><b>会员分层 & 折扣</b>：设定 VIP/SVIP/至尊的达标金额和折扣率。</li>
+              <li><b>服务项目字典</b>：维护开单时可选的服务分类及默认价。</li>
+              <li><b>充值套餐配置</b>：增删改充值套餐，每个小项（价格/赠送/赠品/卖点/角标/推荐/启用）都可配。</li>
+            </ul>
+          </section>
+
+          <section id="doc-faq" class="doc-sec">
+            <h3>❓ 常见问题</h3>
+            <p><b>Q：充值的钱为什么没进营业额？</b><br/>A：充值是预收款，等客户消费时才计入营业额，避免重复计算。</p>
+            <p><b>Q：寄养扣费在哪看？</b><br/>A：每天的寄养费会作为「寄养」分类的订单出现在服务订单和客户储值流水里。</p>
+            <p><b>Q：余额能为负吗？</b><br/>A：普通开单余额不足会被拒绝；只有寄养允许扣成负数（欠费），并会提醒。</p>
+            <p><b>Q：关机几天寄养费会漏扣吗？</b><br/>A：不会。每次启动会自动补扣欠下的天数，且不会重复扣。</p>
+          </section>
+        </div>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -496,6 +676,134 @@ async function onLogout() {
   border-color: var(--primary);
   color: var(--primary);
   background: color-mix(in srgb, var(--primary) 6%, transparent);
+}
+
+/* 铃铛角标 + 通知列表 */
+.notify-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  box-shadow: 0 0 0 2px var(--card);
+}
+.notify-list { max-height: 360px; overflow-y: auto; }
+.notify-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 6px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+}
+.notify-count { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+.notify-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px 6px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+.notify-item:hover { background: var(--bg); }
+.notify-item-icon { font-size: 18px; flex-shrink: 0; }
+.notify-item-body { overflow: hidden; }
+.notify-item-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.notify-item-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+/* ---- 使用帮助文档抽屉 ---- */
+.doc-layout {
+  display: flex;
+  gap: 16px;
+  height: 100%;
+}
+.doc-nav {
+  flex: 0 0 150px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+}
+.doc-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  padding: 9px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.doc-nav-item:hover { background: var(--bg); color: var(--text-primary); }
+.doc-nav-item.on {
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+  font-weight: 600;
+}
+.doc-nav-icon { font-size: 15px; }
+.doc-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+.doc-sec {
+  padding-bottom: 22px;
+  margin-bottom: 22px;
+  border-bottom: 1px dashed var(--border);
+}
+.doc-sec:last-child { border-bottom: none; }
+.doc-sec h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+.doc-sec p {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  margin-bottom: 8px;
+}
+.doc-sec ul {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+.doc-sec li {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  margin-bottom: 4px;
+}
+.doc-sec b { color: var(--text-primary); }
+.doc-tip {
+  background: var(--bg);
+  border-left: 3px solid var(--primary);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px !important;
+  margin-top: 6px;
 }
 
 /* 用户胶囊 */
