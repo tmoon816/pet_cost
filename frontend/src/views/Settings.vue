@@ -3,6 +3,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useCategoryStore } from '@/stores/categoryStore'
 import * as settingsApi from '@/api/settings'
+import * as packagesApi from '@/api/rechargePackages'
 
 const categoryStore = useCategoryStore()
 
@@ -76,6 +77,7 @@ const rules = {
 onMounted(() => {
   categoryStore.fetch(true)
   loadTierConfig()
+  loadPackages()
 })
 
 function openCreate() {
@@ -163,6 +165,160 @@ function formatDefaultAmount(v) {
   if (v == null || v === '') return '—'
   return `¥ ${Number(v).toFixed(2)}`
 }
+
+// ===== 充值套餐配置 =====
+const pkgList = ref([])
+const pkgLoading = ref(false)
+const pkgDialogVisible = ref(false)
+const pkgEditing = ref(null)
+const pkgSubmitting = ref(false)
+const pkgFormRef = ref(null)
+
+const pkgForm = reactive({
+  name: '',
+  subtitle: '',
+  price: 500,
+  bonus_amount: 0,
+  gifts: [],
+  highlights: [],
+  badge: '',
+  is_recommended: false,
+  is_active: true,
+  sort_order: 0,
+})
+
+// 标签输入临时态
+const giftInput = ref('')
+const highlightInput = ref('')
+
+const pkgRules = {
+  name: [{ required: true, message: '请输入套餐名', trigger: 'blur' }],
+  price: [{ required: true, message: '请输入实付价', trigger: 'blur' }],
+}
+
+async function loadPackages() {
+  pkgLoading.value = true
+  try {
+    const res = await packagesApi.listPackages()
+    pkgList.value = (res || []).map((p) => ({
+      ...p,
+      price: Number(p.price),
+      bonus_amount: Number(p.bonus_amount),
+      gifts: p.gifts || [],
+      highlights: p.highlights || [],
+    }))
+  } catch (e) {
+    pkgList.value = []
+  } finally {
+    pkgLoading.value = false
+  }
+}
+
+function openPkgCreate() {
+  pkgEditing.value = null
+  Object.assign(pkgForm, {
+    name: '', subtitle: '', price: 500, bonus_amount: 0,
+    gifts: [], highlights: [], badge: '', is_recommended: false,
+    is_active: true, sort_order: (pkgList.value.length + 1) * 10,
+  })
+  giftInput.value = ''
+  highlightInput.value = ''
+  pkgDialogVisible.value = true
+}
+
+function openPkgEdit(row) {
+  pkgEditing.value = row
+  Object.assign(pkgForm, {
+    name: row.name,
+    subtitle: row.subtitle || '',
+    price: Number(row.price),
+    bonus_amount: Number(row.bonus_amount),
+    gifts: [...(row.gifts || [])],
+    highlights: [...(row.highlights || [])],
+    badge: row.badge || '',
+    is_recommended: !!row.is_recommended,
+    is_active: !!row.is_active,
+    sort_order: row.sort_order,
+  })
+  giftInput.value = ''
+  highlightInput.value = ''
+  pkgDialogVisible.value = true
+}
+
+function addGift() {
+  const v = giftInput.value.trim()
+  if (v && !pkgForm.gifts.includes(v)) pkgForm.gifts.push(v)
+  giftInput.value = ''
+}
+function removeGift(i) { pkgForm.gifts.splice(i, 1) }
+function addHighlight() {
+  const v = highlightInput.value.trim()
+  if (v && !pkgForm.highlights.includes(v)) pkgForm.highlights.push(v)
+  highlightInput.value = ''
+}
+function removeHighlight(i) { pkgForm.highlights.splice(i, 1) }
+
+async function submitPkg() {
+  if (!pkgFormRef.value) return
+  await pkgFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    // 收尾：把还没回车的输入也并入
+    addGift()
+    addHighlight()
+    pkgSubmitting.value = true
+    const payload = {
+      name: pkgForm.name.trim(),
+      subtitle: pkgForm.subtitle.trim() || null,
+      price: Number(pkgForm.price).toFixed(2),
+      bonus_amount: Number(pkgForm.bonus_amount || 0).toFixed(2),
+      gifts: pkgForm.gifts,
+      highlights: pkgForm.highlights,
+      badge: pkgForm.badge.trim() || null,
+      is_recommended: pkgForm.is_recommended,
+      is_active: pkgForm.is_active,
+      sort_order: Number(pkgForm.sort_order) || 0,
+    }
+    try {
+      if (pkgEditing.value) {
+        await packagesApi.updatePackage(pkgEditing.value.id, payload)
+        ElMessage.success('套餐已更新')
+      } else {
+        await packagesApi.createPackage(payload)
+        ElMessage.success('套餐已新增')
+      }
+      pkgDialogVisible.value = false
+      await loadPackages()
+    } finally {
+      pkgSubmitting.value = false
+    }
+  })
+}
+
+async function onPkgDelete(row) {
+  try {
+    await ElMessageBox.confirm(
+      `确定删除套餐「${row.name}」？删除后该套餐将不再出现在充值页。`,
+      '确认删除',
+      { type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  await packagesApi.deletePackage(row.id)
+  ElMessage.success('已删除')
+  await loadPackages()
+}
+
+async function togglePkgActive(row) {
+  try {
+    await packagesApi.updatePackage(row.id, { is_active: !row.is_active })
+    row.is_active = !row.is_active
+    ElMessage.success(row.is_active ? '已启用' : '已停用')
+  } catch (e) {
+    /* http 拦截器已提示 */
+  }
+}
+
 </script>
 
 <template>
@@ -255,6 +411,70 @@ function formatDefaultAmount(v) {
       </p>
     </el-card>
 
+    <!-- 充值套餐配置 -->
+    <el-card class="card" v-loading="pkgLoading">
+      <template #header>
+        <div class="card-header">
+          <span class="title">充值套餐配置</span>
+          <el-button type="primary" :icon="'Plus'" @click="openPkgCreate">新增套餐</el-button>
+        </div>
+      </template>
+
+      <el-table :data="pkgList" stripe>
+        <el-table-column label="套餐" min-width="160">
+          <template #default="{ row }">
+            <div class="pkg-name-cell">
+              <span class="pkg-name">{{ row.name }}</span>
+              <el-tag v-if="row.badge" size="small" type="warning" effect="plain">{{ row.badge }}</el-tag>
+              <el-tag v-if="row.is_recommended" size="small" type="primary" effect="plain">推荐</el-tag>
+            </div>
+            <div class="pkg-sub" v-if="row.subtitle">{{ row.subtitle }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="实付价" width="110">
+          <template #default="{ row }">¥ {{ Number(row.price).toFixed(2) }}</template>
+        </el-table-column>
+        <el-table-column label="赠送" width="110">
+          <template #default="{ row }">
+            <span :class="{ 'text-muted': !(row.bonus_amount > 0) }">
+              {{ row.bonus_amount > 0 ? `¥ ${Number(row.bonus_amount).toFixed(2)}` : '—' }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="到账" width="110">
+          <template #default="{ row }">
+            <strong>¥ {{ (Number(row.price) + Number(row.bonus_amount)).toFixed(2) }}</strong>
+          </template>
+        </el-table-column>
+        <el-table-column label="赠品 / 卖点" min-width="220">
+          <template #default="{ row }">
+            <div class="pkg-tags">
+              <el-tag v-for="(g, i) in row.gifts" :key="`g${i}`" size="small" type="success" effect="plain">🎁 {{ g }}</el-tag>
+              <el-tag v-for="(h, i) in row.highlights" :key="`h${i}`" size="small" effect="plain">⭐ {{ h }}</el-tag>
+              <span v-if="!row.gifts.length && !row.highlights.length" class="text-muted">—</span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="sort_order" label="排序" width="80" />
+        <el-table-column label="状态" width="100" align="center">
+          <template #default="{ row }">
+            <el-switch :model-value="row.is_active" @change="togglePkgActive(row)" />
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="160" align="center">
+          <template #default="{ row }">
+            <el-button size="small" type="primary" @click="openPkgEdit(row)">编辑</el-button>
+            <el-button size="small" type="danger" @click="onPkgDelete(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <p class="hint">
+        充值页只展示「已启用」的套餐；标记「推荐」的套餐会在充值页高亮并默认选中（建议只标一个）。
+        到账金额 = 实付价 + 赠送金额；赠品、卖点为纯展示文案，赠品会写入充值流水备注。
+      </p>
+    </el-card>
+
     <el-dialog
       v-model="dialogVisible"
       :title="editing ? '编辑分类' : '新增分类'"
@@ -286,6 +506,107 @@ function formatDefaultAmount(v) {
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="submitting" @click="submit">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 套餐 新增/编辑 对话框 -->
+    <el-dialog
+      v-model="pkgDialogVisible"
+      :title="pkgEditing ? '编辑套餐' : '新增套餐'"
+      width="560px"
+      top="6vh"
+    >
+      <el-form ref="pkgFormRef" :model="pkgForm" :rules="pkgRules" label-width="92px">
+        <el-form-item label="套餐名" prop="name">
+          <el-input v-model="pkgForm.name" maxlength="50" placeholder="如：Pro 卡" />
+        </el-form-item>
+        <el-form-item label="副标题">
+          <el-input v-model="pkgForm.subtitle" maxlength="100" placeholder="一句话卖点，如：常来洗护，超值之选" />
+        </el-form-item>
+
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="实付价" prop="price">
+              <el-input-number
+                v-model="pkgForm.price" :min="1" :max="9999999" :precision="2" :step="100"
+                controls-position="right" style="width: 100%;"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="赠送金额">
+              <el-input-number
+                v-model="pkgForm.bonus_amount" :min="0" :max="9999999" :precision="2" :step="50"
+                controls-position="right" style="width: 100%;"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <div class="pkg-credit-preview">
+          实际到账 <strong>¥ {{ (Number(pkgForm.price || 0) + Number(pkgForm.bonus_amount || 0)).toFixed(2) }}</strong>
+        </div>
+
+        <el-form-item label="赠品清单">
+          <div class="tag-editor">
+            <div class="tag-list" v-if="pkgForm.gifts.length">
+              <el-tag
+                v-for="(g, i) in pkgForm.gifts" :key="i"
+                type="success" effect="plain" closable @close="removeGift(i)"
+              >🎁 {{ g }}</el-tag>
+            </div>
+            <el-input
+              v-model="giftInput"
+              placeholder="输入赠品后回车添加，如：进口猫砂 1 袋"
+              @keyup.enter="addGift"
+            >
+              <template #append>
+                <el-button @click="addGift">添加</el-button>
+              </template>
+            </el-input>
+          </div>
+        </el-form-item>
+
+        <el-form-item label="卖点清单">
+          <div class="tag-editor">
+            <div class="tag-list" v-if="pkgForm.highlights.length">
+              <el-tag
+                v-for="(h, i) in pkgForm.highlights" :key="i"
+                effect="plain" closable @close="removeHighlight(i)"
+              >⭐ {{ h }}</el-tag>
+            </div>
+            <el-input
+              v-model="highlightInput"
+              placeholder="输入卖点后回车添加，如：洗护 9 折"
+              @keyup.enter="addHighlight"
+            >
+              <template #append>
+                <el-button @click="addHighlight">添加</el-button>
+              </template>
+            </el-input>
+          </div>
+        </el-form-item>
+
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="角标">
+              <el-input v-model="pkgForm.badge" maxlength="20" placeholder="如：最受欢迎（可空）" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="排序">
+              <el-input-number v-model="pkgForm.sort_order" :min="0" :max="9999" style="width: 100%;" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-form-item label="设置">
+          <el-checkbox v-model="pkgForm.is_recommended">推荐档（充值页高亮 + 默认选中）</el-checkbox>
+          <el-checkbox v-model="pkgForm.is_active">启用（在充值页展示）</el-checkbox>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="pkgDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="pkgSubmitting" @click="submitPkg">保存</el-button>
       </template>
     </el-dialog>
   </div>
@@ -323,4 +644,46 @@ function formatDefaultAmount(v) {
   color: #909399;
   font-size: 13px;
 }
+
+/* 套餐配置 */
+.pkg-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.pkg-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.pkg-sub {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.pkg-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.tag-editor {
+  width: 100%;
+}
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.pkg-credit-preview {
+  margin: -6px 0 16px 92px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.pkg-credit-preview strong {
+  color: var(--primary);
+  font-size: 15px;
+}
+
+
 </style>

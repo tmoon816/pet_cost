@@ -7,8 +7,10 @@ from ...core.database import get_db
 from ...crud import stats as crud_stats
 from ...schemas.stats import (
     StatsByCategory,
+    StatsByDay,
     StatsByMonth,
     StatsByPet,
+    StatsCashflow,
     StatsCustomerAcquisition,
     StatsDormantCustomers,
     StatsSummary,
@@ -28,6 +30,16 @@ def stats_summary(
     return crud_stats.summary(db, start, end)
 
 
+@router.get("/cashflow", response_model=StatsCashflow)
+def stats_cashflow(
+    start: date | None = None,
+    end: date | None = None,
+    db: Session = Depends(get_db),
+):
+    """实收口径（现金流入）：充值本金 + 现金消费。与营业额（服务发生）互补。"""
+    return crud_stats.cashflow(db, start, end)
+
+
 @router.get("/by-category", response_model=StatsByCategory)
 def stats_by_category(
     start: date | None = None,
@@ -44,6 +56,16 @@ def stats_by_month(
     db: Session = Depends(get_db),
 ):
     return crud_stats.by_month(db, start, end)
+
+
+@router.get("/by-day", response_model=StatsByDay)
+def stats_by_day(
+    start: date | None = None,
+    end: date | None = None,
+    db: Session = Depends(get_db),
+):
+    """按天聚合营业额。Dashboard 营业额卡片下方迷你趋势用，跟随日期区间。"""
+    return crud_stats.by_day(db, start, end)
 
 
 @router.get("/by-pet", response_model=StatsByPet)
@@ -80,7 +102,9 @@ def stats_dormant_customers(
 @router.get("/top-customers", response_model=StatsTopCustomers)
 def stats_top_customers(
     limit: int = Query(10, ge=1, le=50),
+    start: date | None = None,
+    end: date | None = None,
     db: Session = Depends(get_db),
 ):
-    """T-026: 按累计消费金额返回 Top N 高价值客户。"""
-    return crud_stats.top_customers(db, limit)
+    """T-026: 按消费金额返回 Top N 高价值客户。传 start/end 则按区间（如本月）统计。"""
+    return crud_stats.top_customers(db, limit, start, end)

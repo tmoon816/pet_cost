@@ -111,6 +111,34 @@ def deduct_for_cost(
     )
 
 
+def deduct_for_boarding(
+    db: Session,
+    customer: Customer,
+    *,
+    amount: Decimal,
+    cost_id: int,
+    note: str,
+) -> BalanceTransaction:
+    """寄养按天扣费：强制扣减，**允许余额变负**（欠费）。**不 commit**。
+
+    与 deduct_for_cost 的区别：不做余额充足校验，余额可为负。
+    由结算流程在单张寄养单的事务内调用，与建单、推进游标同提交。
+    """
+    need = _q(amount)
+    customer.balance = _q(customer.balance) - need
+    txn = BalanceTransaction(
+        customer_id=customer.id,
+        type="consume",
+        amount=-need,
+        bonus_amount=Decimal("0.00"),
+        balance_after=customer.balance,
+        cost_id=cost_id,
+        note=note,
+    )
+    db.add(txn)
+    return txn
+
+
 def refund_for_cost(db: Session, customer: Customer, *, amount: Decimal, cost_id: int) -> None:
     """订单（曾扣储值）被删/改时退回余额，记 refund 流水。**不 commit**。"""
     back = _q(amount)

@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .api.v1 import auth, budgets, categories, costs, customers, pets, search, settings as settings_api, stats
+from .api.v1 import auth, boarding, budgets, categories, costs, customers, pets, recharge_packages, search, settings as settings_api, stats
 from .core.auth import get_current_admin
 from .core.config import settings
 from .core.exceptions import ConflictError, InsufficientBalanceError
@@ -38,11 +38,31 @@ def health_check():
     return {"status": "ok"}
 
 
+@app.on_event("startup")
+def _start_boarding_scheduler() -> None:
+    """启动时结算寄养欠费 + 起每日定时。失败不阻断应用启动。"""
+    try:
+        from .core import boarding_scheduler
+        boarding_scheduler.start()
+    except Exception:  # noqa: BLE001
+        import logging
+        logging.getLogger("boarding").exception("failed to start boarding scheduler")
+
+
+@app.on_event("shutdown")
+def _stop_boarding_scheduler() -> None:
+    try:
+        from .core import boarding_scheduler
+        boarding_scheduler.stop()
+    except Exception:  # noqa: BLE001
+        pass
+
+
 # auth 路由不能加守卫，否则连登录都进不去
 app.include_router(auth.router, prefix="/api/v1")
 
 # 其余业务路由统一挂全局 JWT 守卫
-for module in (budgets, categories, costs, customers, pets, search, settings_api, stats):
+for module in (budgets, categories, costs, customers, pets, recharge_packages, search, settings_api, stats, boarding):
     app.include_router(
         module.router,
         prefix="/api/v1",

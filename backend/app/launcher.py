@@ -108,6 +108,11 @@ def main() -> None:
     env_path = _ensure_env_file(data_dir)
     _load_env(env_path)
 
+    # 数据库路径始终按运行目录重新计算（绝对路径），不信任 app.env 里存的路径。
+    # 这样无论用户把整个文件夹解压/移动到哪里，都能正确找到旁边的 data/pet-cost.db，
+    # 也让随包预置的演示数据库可移植。
+    os.environ["DATABASE_URL"] = f"sqlite:///{(data_dir / 'pet-cost.db').as_posix()}"
+
     print(f"数据目录: {data_dir}")
     _run_migrations()
 

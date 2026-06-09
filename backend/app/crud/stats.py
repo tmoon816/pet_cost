@@ -2,10 +2,10 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import List
 
-from sqlalchemy import distinct, func, select
+from sqlalchemy import case, distinct, func, select
 from sqlalchemy.orm import Session
 
-from ..models import CostCategory, CostRecord, Customer, Pet
+from ..models import BalanceTransaction, CostCategory, CostRecord, Customer, Pet
 
 
 def _apply_window(stmt, start: date | None, end: date | None):
@@ -14,6 +14,40 @@ def _apply_window(stmt, start: date | None, end: date | None):
     if end is not None:
         stmt = stmt.where(CostRecord.occurred_on <= end)
     return stmt
+
+
+def cashflow(db: Session, start: date | None, end: date | None) -> dict:
+    """实收口径（现金流入）：充值本金 + 现金消费。区别于营业额（按服务发生）。
+
+    - 充值本金 = recharge 流水的 (amount - bonus_amount)，赠送不是真实收款。
+    - 现金消费 = pay_method=cash 的订单金额（储值消费不算，因为充值时已计入实收）。
+    口径互不重复：储值充值时记一次实收，之后储值消费不再计实收。
+    用 created_at 落在 [start, end] 判定充值发生日（充值无 occurred_on）。
+    """
+    # 充值本金（按充值发生当天 created_at）
+    recharge_stmt = select(
+        func.coalesce(func.sum(BalanceTransaction.amount - BalanceTransaction.bonus_amount), 0)
+    ).where(BalanceTransaction.type == "recharge")
+    if start is not None:
+        recharge_stmt = recharge_stmt.where(func.date(BalanceTransaction.created_at) >= start)
+    if end is not None:
+        recharge_stmt = recharge_stmt.where(func.date(BalanceTransaction.created_at) <= end)
+    recharge_principal = Decimal(db.scalar(recharge_stmt) or 0)
+
+    # 现金消费（pay_method=cash）
+    cash_stmt = select(
+        func.coalesce(
+            func.sum(case((CostRecord.pay_method == "cash", CostRecord.amount), else_=0)), 0
+        )
+    )
+    cash_stmt = _apply_window(cash_stmt, start, end)
+    cash_consume = Decimal(db.scalar(cash_stmt) or 0)
+
+    return {
+        "recharge_principal": recharge_principal,
+        "cash_consume": cash_consume,
+        "total_cash_in": recharge_principal + cash_consume,
+    }
 
 
 def summary(db: Session, start: date | None, end: date | None) -> dict:
@@ -80,6 +114,48 @@ def by_month(db: Session, start: date | None, end: date | None) -> List[dict]:
     stmt = _apply_window(stmt, start, end)
     rows = db.execute(stmt).all()
     return [{"month": row.month, "total": Decimal(row.total or 0)} for row in rows]
+
+
+def by_day(db: Session, start: date | None, end: date | None) -> List[dict]:
+    """按天聚合店铺核心指标。用于 Dashboard 各 KPI 卡片下方跟随日期区间的迷你趋势线。
+
+    单月/短区间用月聚合只有 1 个点画不出趋势，按天能展示区间内每天的走势。
+    一次性返回四个维度，前端各 KPI 卡片复用同一份数据：
+      - total          当天营业额
+      - record_count   当天订单数
+      - customer_count 当天去重客户数（按宠物归属的客户去重）
+      - pet_count      当天去重宠物数
+    """
+    dialect = db.bind.dialect.name if db.bind is not None else ""
+    if dialect == "mysql":
+        day_expr = func.date_format(CostRecord.occurred_on, "%Y-%m-%d")
+    else:
+        day_expr = func.strftime("%Y-%m-%d", CostRecord.occurred_on)
+    day_label = day_expr.label("day")
+    stmt = (
+        select(
+            day_label,
+            func.coalesce(func.sum(CostRecord.amount), 0).label("total"),
+            func.count(CostRecord.id).label("record_count"),
+            func.count(distinct(Pet.customer_id)).label("customer_count"),
+            func.count(distinct(CostRecord.pet_id)).label("pet_count"),
+        )
+        .join(Pet, Pet.id == CostRecord.pet_id)
+        .group_by(day_label)
+        .order_by(day_label)
+    )
+    stmt = _apply_window(stmt, start, end)
+    rows = db.execute(stmt).all()
+    return [
+        {
+            "day": row.day,
+            "total": Decimal(row.total or 0),
+            "record_count": int(row.record_count or 0),
+            "customer_count": int(row.customer_count or 0),
+            "pet_count": int(row.pet_count or 0),
+        }
+        for row in rows
+    ]
 
 
 def by_pet(
@@ -219,9 +295,17 @@ def dormant_customers(db: Session, days: int, limit: int, today: date | None = N
     ]
 
 
-def top_customers(db: Session, limit: int = 10) -> List[dict]:
-    """T-026: 按累计消费金额返回 Top N 高价值客户。"""
-    total_per_customer = (
+def top_customers(
+    db: Session,
+    limit: int = 10,
+    start: date | None = None,
+    end: date | None = None,
+) -> List[dict]:
+    """T-026: 按消费金额返回 Top N 高价值客户。
+
+    传入 start/end 时按时间区间统计（如本月消费榜）；不传则按全量累计。
+    """
+    inner = (
         select(
             Pet.customer_id.label("customer_id"),
             func.coalesce(func.sum(CostRecord.amount), 0).label("total_amount"),
@@ -229,8 +313,9 @@ def top_customers(db: Session, limit: int = 10) -> List[dict]:
         )
         .join(CostRecord, CostRecord.pet_id == Pet.id)
         .group_by(Pet.customer_id)
-        .subquery()
     )
+    inner = _apply_window(inner, start, end)
+    total_per_customer = inner.subquery()
 
     stmt = (
         select(
@@ -243,6 +328,7 @@ def top_customers(db: Session, limit: int = 10) -> List[dict]:
             total_per_customer,
             total_per_customer.c.customer_id == Customer.id,
         )
+        .where(total_per_customer.c.total_amount > 0)
         .order_by(total_per_customer.c.total_amount.desc())
         .limit(limit)
     )

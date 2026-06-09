@@ -5,8 +5,10 @@ import { useRouter } from 'vue-router'
 import EChart from '@/components/EChart.vue'
 import {
   getSummary,
+  getCashflow,
   getByCategory,
   getByMonth,
+  getByDay,
   getByPet,
   getCustomerAcquisition,
   getDormantCustomers,
@@ -46,6 +48,24 @@ function formatDate(d) {
 function getRange() {
   const [start, end] = dateRange.value || []
   return { start: formatDate(start), end: formatDate(end) }
+}
+
+// 枚举 [startStr, endStr] 之间的每一天（含端点），返回 'YYYY-MM-DD' 数组
+function enumerateDays(startStr, endStr) {
+  if (!startStr || !endStr) return []
+  const out = []
+  const cur = new Date(`${startStr}T00:00:00`)
+  const last = new Date(`${endStr}T00:00:00`)
+  // 防御：区间反了或日期非法时返回空，避免死循环
+  if (Number.isNaN(cur.getTime()) || Number.isNaN(last.getTime()) || cur > last) return []
+  // 上限保护：最多枚举约 2 年，避免极端区间生成过多点
+  let guard = 0
+  while (cur <= last && guard < 800) {
+    out.push(formatDate(cur))
+    cur.setDate(cur.getDate() + 1)
+    guard++
+  }
+  return out
 }
 
 const monthStart = computed(() => getRange().start)
@@ -90,10 +110,11 @@ const todayLabel = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2
 const summary = ref({ total_amount: 0, record_count: 0, customer_count: 0, pet_count: 0 })
 const prevSummary = ref({ total_amount: 0, record_count: 0, customer_count: 0, pet_count: 0 })
 // T-030: 今日营业固定卡片，与日期选择器解耦
-const todayStats = ref({ total_amount: 0, record_count: 0 })
+const todayStats = ref({ total_amount: 0, record_count: 0, cash_in: 0 })
 const todayDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 const categoryStats = ref([])
 const monthStats = ref([])
+const revenueTrend = ref([])
 const petStats = ref([])
 const recentBills = ref([])
 const acquisition = ref({ new_customers: 0, returning_customers: 0, total: 0 })
@@ -114,6 +135,7 @@ const loading = ref({
   summary: false,
   category: false,
   month: false,
+  revenueTrend: false,
   pet: false,
   bills: false,
   acquisition: false,
@@ -211,6 +233,30 @@ const fetchMonthStats = async () => {
   }
 }
 
+// 各 KPI 卡片下方的迷你趋势：按天聚合，跟随顶部日期区间动态变化
+// 区间内每一天都补齐（无消费补 0），保证任意区间都是一条连续曲线
+const fetchRevenueTrend = async () => {
+  loading.value.revenueTrend = true
+  try {
+    const res = await getByDay({ start: monthStart.value, end: monthEnd.value })
+    const byDay = new Map((res || []).map((item) => [item.day, item]))
+    revenueTrend.value = enumerateDays(monthStart.value, monthEnd.value).map((day) => {
+      const item = byDay.get(day) || {}
+      return {
+        day,
+        营业额: Number(item.total || 0),
+        订单数: Number(item.record_count || 0),
+        活跃会员: Number(item.customer_count || 0),
+        服务宠物: Number(item.pet_count || 0),
+      }
+    })
+  } catch (e) {
+    revenueTrend.value = []
+  } finally {
+    loading.value.revenueTrend = false
+  }
+}
+
 const fetchPetStats = async () => {
   loading.value.pet = true
   try {
@@ -281,7 +327,7 @@ const fetchDormantCustomers = async () => {
 const fetchTopCustomers = async () => {
   loading.value.topCustomers = true
   try {
-    const res = await getTopCustomers({ limit: 10 })
+    const res = await getTopCustomers({ limit: 10, start: monthStart.value, end: monthEnd.value })
     topCustomers.value = (res || []).map((item) => ({
       rank: item.rank,
       customer_id: item.customer_id,
@@ -300,13 +346,17 @@ const fetchTopCustomers = async () => {
 const fetchToday = async () => {
   loading.value.today = true
   try {
-    const res = await getSummary({ start: todayDate, end: todayDate })
+    const [res, cf] = await Promise.all([
+      getSummary({ start: todayDate, end: todayDate }),
+      getCashflow({ start: todayDate, end: todayDate }),
+    ])
     todayStats.value = {
       total_amount: Number(res.total_amount || 0),
       record_count: Number(res.record_count || 0),
+      cash_in: Number(cf.total_cash_in || 0),
     }
   } catch (e) {
-    todayStats.value = { total_amount: 0, record_count: 0 }
+    todayStats.value = { total_amount: 0, record_count: 0, cash_in: 0 }
   } finally {
     loading.value.today = false
   }
@@ -320,6 +370,7 @@ const fetchAllData = () => {
   fetchSummary()
   fetchCategoryStats()
   fetchMonthStats()
+  fetchRevenueTrend()
   fetchPetStats()
   fetchRecentBills()
   fetchAcquisition()
@@ -340,8 +391,10 @@ function onDateChange(val) {
   dateRangeKey.value++
   fetchSummary()
   fetchCategoryStats()
+  fetchRevenueTrend()
   fetchPetStats()
   fetchRecentBills()
+  fetchTopCustomers()
 }
 
 const goToCustomer = (id) => {
@@ -368,33 +421,60 @@ const acquisitionDisplay = computed(() => {
   }
 })
 
-// 营业额迷你 sparkline（只此一处用到了月度趋势）
-const revenueSparkConfig = computed(() => {
-  const data = monthStats.value.slice(-8).map((d) => d['营业额'])
+// 迷你 sparkline 工厂：四个 KPI 卡片共用，差异仅在指标字段、主色、tooltip 文案/格式
+// 数据源跟随顶部日期区间（revenueTrend），与底部「全量历史」趋势图解耦
+function makeSparkConfig({ field, color, label, fmt }) {
+  const days = revenueTrend.value.map((d) => d.day)
+  const data = revenueTrend.value.map((d) => d[field])
+  const rgba = (a) => {
+    const c = color.replace('#', '')
+    const r = parseInt(c.slice(0, 2), 16)
+    const g = parseInt(c.slice(2, 4), 16)
+    const b = parseInt(c.slice(4, 6), 16)
+    return `rgba(${r}, ${g}, ${b}, ${a})`
+  }
   return {
     grid: { left: 0, right: 0, top: 4, bottom: 0 },
-    xAxis: { type: 'category', show: false, boundaryGap: false, data: data.map((_, i) => i) },
+    xAxis: { type: 'category', show: false, boundaryGap: false, data: days },
     yAxis: { type: 'value', show: false, scale: true },
-    tooltip: { show: false },
+    tooltip: {
+      trigger: 'axis',
+      confine: true,
+      appendToBody: true,
+      axisPointer: { type: 'line', lineStyle: { color, width: 1, type: 'dashed' } },
+      formatter: (params) => `${params[0].name}<br/>${label}: ${fmt(params[0].value)}`,
+    },
     series: [{
       type: 'line',
       smooth: true,
       showSymbol: false,
-      lineStyle: { color: chartPalette[0], width: 2 },
+      symbol: 'circle',
+      symbolSize: 6,
+      emphasis: { focus: 'series', itemStyle: { color, borderColor: '#fff', borderWidth: 2 } },
+      lineStyle: { color, width: 2 },
       areaStyle: {
         color: {
           type: 'linear',
           x: 0, y: 0, x2: 0, y2: 1,
           colorStops: [
-            { offset: 0, color: 'rgba(255, 166, 43, 0.32)' },
-            { offset: 1, color: 'rgba(255, 166, 43, 0)' },
+            { offset: 0, color: rgba(0.32) },
+            { offset: 1, color: rgba(0) },
           ],
         },
       },
       data,
     }],
   }
-})
+}
+
+const revenueSparkConfig = computed(() =>
+  makeSparkConfig({ field: '营业额', color: chartPalette[0], label: '营业额', fmt: formatMoney }))
+const recordSparkConfig = computed(() =>
+  makeSparkConfig({ field: '订单数', color: chartPalette[4], label: '订单数', fmt: formatInt }))
+const customerSparkConfig = computed(() =>
+  makeSparkConfig({ field: '活跃会员', color: chartPalette[2], label: '活跃会员', fmt: formatInt }))
+const petSparkConfig = computed(() =>
+  makeSparkConfig({ field: '服务宠物', color: chartPalette[3], label: '服务宠物', fmt: formatInt }))
 
 const pieConfig = computed(() => ({
   color: chartPalette,
@@ -526,8 +606,31 @@ const dateShortcuts = [
     <el-card shadow="hover" class="today-card" v-loading="loading.today">
       <div class="today-row">
         <div class="today-cell">
-          <div class="today-label">今日营业额</div>
+          <div class="today-label">
+            今日营业额
+            <el-tooltip placement="top" effect="dark">
+              <template #content>
+                按「服务发生」统计：当天所有消费订单（现金 + 储值），<br/>
+                不含充值（充值是预收款，等消费时才计营业额，避免重复计）。
+              </template>
+              <span class="today-info">?</span>
+            </el-tooltip>
+          </div>
           <div class="today-value">{{ formatMoney(todayStats.total_amount) }}</div>
+        </div>
+        <div class="today-divider"></div>
+        <div class="today-cell">
+          <div class="today-label">
+            今日实收
+            <el-tooltip placement="top" effect="dark">
+              <template #content>
+                按「现金流入」统计：当天充值本金（不含赠送）+ 现金消费，<br/>
+                反映今天实际进账多少钱。储值消费不计（充值时已计）。
+              </template>
+              <span class="today-info">?</span>
+            </el-tooltip>
+          </div>
+          <div class="today-value today-cash">{{ formatMoney(todayStats.cash_in) }}</div>
         </div>
         <div class="today-divider"></div>
         <div class="today-cell">
@@ -554,7 +657,7 @@ const dateShortcuts = [
             <span class="delta" :class="`delta-${deltaTotal.sign}`">{{ deltaTotal.text }}</span>
             <span class="delta-hint">vs 上一周期</span>
           </div>
-          <div class="kpi-spark" v-if="monthStats.length > 1">
+          <div class="kpi-spark" v-if="revenueTrend.length > 1">
             <EChart :option="revenueSparkConfig" />
           </div>
           <div class="kpi-spark-placeholder" v-else></div>
@@ -571,7 +674,10 @@ const dateShortcuts = [
             <span class="delta" :class="`delta-${deltaRecord.sign}`">{{ deltaRecord.text }}</span>
             <span class="delta-hint">vs 上一周期</span>
           </div>
-          <div class="kpi-spark-placeholder"></div>
+          <div class="kpi-spark" v-if="revenueTrend.length > 1">
+            <EChart :option="recordSparkConfig" />
+          </div>
+          <div class="kpi-spark-placeholder" v-else></div>
         </el-card>
       </el-col>
       <el-col :xs="12" :sm="12" :md="6">
@@ -585,7 +691,10 @@ const dateShortcuts = [
             <span class="delta" :class="`delta-${deltaCustomer.sign}`">{{ deltaCustomer.text }}</span>
             <span class="delta-hint">vs 上一周期</span>
           </div>
-          <div class="kpi-spark-placeholder"></div>
+          <div class="kpi-spark" v-if="revenueTrend.length > 1">
+            <EChart :option="customerSparkConfig" />
+          </div>
+          <div class="kpi-spark-placeholder" v-else></div>
         </el-card>
       </el-col>
       <el-col :xs="12" :sm="12" :md="6">
@@ -599,7 +708,10 @@ const dateShortcuts = [
             <span class="delta" :class="`delta-${deltaPet.sign}`">{{ deltaPet.text }}</span>
             <span class="delta-hint">vs 上一周期</span>
           </div>
-          <div class="kpi-spark-placeholder"></div>
+          <div class="kpi-spark" v-if="revenueTrend.length > 1">
+            <EChart :option="petSparkConfig" />
+          </div>
+          <div class="kpi-spark-placeholder" v-else></div>
         </el-card>
       </el-col>
     </el-row>
@@ -721,7 +833,7 @@ const dateShortcuts = [
                   </span>
                 </template>
               </el-table-column>
-              <el-table-column label="累计消费" width="140">
+              <el-table-column :label="`消费（${rangeLabel}）`" width="160">
                 <template #default="{ row }">
                   <span class="top-amount">{{ formatMoney(row.total_amount) }}</span>
                 </template>
@@ -1168,12 +1280,30 @@ const dateShortcuts = [
   font-size: 12px;
   color: var(--text-muted);
 }
+.today-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-left: 4px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: help;
+  vertical-align: middle;
+}
 .today-value {
   font-size: 22px;
   font-weight: 700;
   color: var(--primary);
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
+}
+.today-value.today-cash {
+  color: var(--success);
 }
 .today-tag {
   display: inline-flex;
